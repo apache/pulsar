@@ -27,6 +27,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
@@ -60,6 +61,7 @@ public class SubscriptionCursorInternalStatsTest extends SharedPulsarBaseTest {
         try (Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionName(subscription)
+                .subscriptionProperties(Map.of("name", subscription))
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .subscribe();
@@ -89,11 +91,13 @@ public class SubscriptionCursorInternalStatsTest extends SharedPulsarBaseTest {
                 .isInstanceOf(PulsarAdminException.NotFoundException.class);
 
         try (HttpClient client = HttpClient.newHttpClient()) {
-            JsonNode withRanges = getCursorStatsJson(client, topic, subscription,
+            assertThat(getSubscriptionJson(client, topic, subscription, "properties").path("name").asText())
+                    .isEqualTo(subscription);
+            JsonNode withRanges = getSubscriptionJson(client, topic, subscription,
                     "internalStats?includeIndividualDeletedMessages=true");
             assertThat(withRanges.path(DELETED_RANGES).asText()).isEqualTo(topicCursor.individuallyDeletedMessages);
-            JsonNode defaultJson = getCursorStatsJson(client, topic, subscription, "internalStats");
-            JsonNode withoutRanges = getCursorStatsJson(client, topic, subscription,
+            JsonNode defaultJson = getSubscriptionJson(client, topic, subscription, "internalStats");
+            JsonNode withoutRanges = getSubscriptionJson(client, topic, subscription,
                     "internalStats?includeIndividualDeletedMessages=false");
             assertThat(defaultJson).isEqualTo(withoutRanges);
             assertThat(withoutRanges.has(DELETED_RANGES)).isFalse();
@@ -101,7 +105,7 @@ public class SubscriptionCursorInternalStatsTest extends SharedPulsarBaseTest {
 
             TopicName name = TopicName.get(topic);
             URI matrixUri = URI.create(getWebServiceUrl() + "/admin/v2/persistent;v=1/" + name.getNamespace()
-                    + "/" + name.getEncodedLocalName() + "/subscription/" + cursorName.replace("+", "%20")
+                    + "/" + name.getEncodedLocalName() + "/subscription/" + Codec.encode(cursorName)
                     + "/internalStats");
             var request = HttpRequest.newBuilder(matrixUri).timeout(Duration.ofSeconds(10)).GET().build();
             var response = client.send(request, HttpResponse.BodyHandlers.ofString());
@@ -154,7 +158,7 @@ public class SubscriptionCursorInternalStatsTest extends SharedPulsarBaseTest {
         String topic = "non-persistent://" + getNamespace() + "/topic";
         try (HttpClient client = HttpClient.newHttpClient()) {
             for (String resource : Set.of("internalStats", "partitioned-internalStats")) {
-                assertThat(getCursorStatsResponse(client, topic, SUBSCRIPTION, resource).statusCode()).isEqualTo(404);
+                assertThat(getSubscriptionResponse(client, topic, SUBSCRIPTION, resource).statusCode()).isEqualTo(404);
             }
         }
     }
@@ -207,26 +211,29 @@ public class SubscriptionCursorInternalStatsTest extends SharedPulsarBaseTest {
     @Test
     public void testPartitionedResults() throws Exception {
         String topic = newTopicName();
+        String subscription = "cursor stats+/literal%2F";
         String firstPartition = TopicName.get(topic).getPartition(0).toString();
         String secondPartition = TopicName.get(topic).getPartition(1).toString();
         admin.topics().createPartitionedTopic(topic, 2);
         try (HttpClient client = HttpClient.newHttpClient()) {
-            HttpResponse<String> response = getCursorStatsResponse(
-                    client, topic, SUBSCRIPTION, "partitioned-internalStats");
+            HttpResponse<String> response = getSubscriptionResponse(
+                    client, topic, subscription, "partitioned-internalStats");
             assertThat(response.statusCode()).isEqualTo(404);
             JsonNode error = ObjectMapperFactory.getMapper().reader().readTree(response.body());
             assertThat(error.path("reason").asText()).isNotBlank();
             assertThat(error.has("partitions")).isFalse();
             assertThat(error.has("errors")).isFalse();
-        }
-        assertThatThrownBy(() -> admin.topics().getPartitionedSubscriptionCursorInternalStats(topic, SUBSCRIPTION))
-                .isInstanceOf(PulsarAdminException.NotFoundException.class);
+            assertThatThrownBy(() -> admin.topics().getPartitionedSubscriptionCursorInternalStats(topic, subscription))
+                    .isInstanceOf(PulsarAdminException.NotFoundException.class);
 
-        admin.topics().createSubscription(firstPartition, SUBSCRIPTION, MessageId.earliest);
-        assertThat(admin.topics().getSubscriptionCursorInternalStats(firstPartition, SUBSCRIPTION)
+            admin.topics().createSubscription(firstPartition, subscription, MessageId.earliest);
+            JsonNode partial = getSubscriptionJson(client, topic, subscription, "partitioned-internalStats");
+            assertThat(partial.path("partitions").has(firstPartition)).isTrue();
+        }
+        assertThat(admin.topics().getSubscriptionCursorInternalStats(firstPartition, subscription)
                 .markDeletePosition).isNotNull();
         PartitionedSubscriptionCursorInternalStats partial =
-                admin.topics().getPartitionedSubscriptionCursorInternalStatsAsync(topic, SUBSCRIPTION)
+                admin.topics().getPartitionedSubscriptionCursorInternalStatsAsync(topic, subscription)
                         .get(10, TimeUnit.SECONDS);
         assertThat(partial.metadata.partitions).isEqualTo(2);
         assertThat(partial.complete).isFalse();
@@ -237,16 +244,16 @@ public class SubscriptionCursorInternalStatsTest extends SharedPulsarBaseTest {
         assertThat(partial.errors.get(secondPartition).errorCode).isEqualTo("NOT_FOUND");
         assertThat(partial.errors.get(secondPartition).reason).isNotBlank();
 
-        admin.topics().createSubscription(secondPartition, SUBSCRIPTION, MessageId.earliest);
+        admin.topics().createSubscription(secondPartition, subscription, MessageId.earliest);
         PartitionedSubscriptionCursorInternalStats full =
-                admin.topics().getPartitionedSubscriptionCursorInternalStats(topic, SUBSCRIPTION, true);
+                admin.topics().getPartitionedSubscriptionCursorInternalStats(topic, subscription, true);
         assertThat(full.metadata.partitions).isEqualTo(2);
         assertThat(full.complete).isTrue();
         assertThat(full.partitions).containsOnlyKeys(firstPartition, secondPartition);
         assertThat(full.errors).isEmpty();
         for (var partition : full.partitions.entrySet()) {
             CursorStats physical = admin.topics().getSubscriptionCursorInternalStats(
-                    partition.getKey(), SUBSCRIPTION, true);
+                    partition.getKey(), subscription, true);
             assertThat(partition.getValue().individuallyDeletedMessages).isNotNull()
                     .isEqualTo(physical.individuallyDeletedMessages);
         }
@@ -303,16 +310,17 @@ public class SubscriptionCursorInternalStatsTest extends SharedPulsarBaseTest {
         }
     }
 
-    private JsonNode getCursorStatsJson(HttpClient client, String topic, String subscription, String resource)
+    private JsonNode getSubscriptionJson(HttpClient client, String topic, String subscription, String resource)
             throws Exception {
-        HttpResponse<String> response = getCursorStatsResponse(client, topic, subscription, resource);
+        HttpResponse<String> response = getSubscriptionResponse(client, topic, subscription, resource);
         assertThat(response.statusCode()).as("response body: %s", response.body()).isEqualTo(200);
         return ObjectMapperFactory.getMapper().reader().readTree(response.body());
     }
 
-    private HttpResponse<String> getCursorStatsResponse(HttpClient client, String topic, String subscription,
-                                                         String resource) throws Exception {
-        String encodedSubscription = Codec.encode(subscription).replace("+", "%20");
+    private HttpResponse<String> getSubscriptionResponse(HttpClient client, String topic, String subscription,
+                                                          String resource) throws Exception {
+        // Subscription resources accept a form-encoded name inside one URI path segment.
+        String encodedSubscription = Codec.encode(Codec.encode(subscription));
         URI uri = URI.create(getWebServiceUrl() + "/admin/v2/" + TopicName.get(topic).getRestPath()
                 + "/subscription/" + encodedSubscription + "/" + resource);
         HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(10)).GET().build();

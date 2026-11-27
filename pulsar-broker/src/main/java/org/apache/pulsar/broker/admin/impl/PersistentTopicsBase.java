@@ -64,6 +64,7 @@ import java.util.stream.IntStream;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor.CursorStatsSummaryUnsupportedException;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
@@ -135,7 +136,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
-import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats;
@@ -175,6 +176,8 @@ public class PersistentTopicsBase extends AdminResource {
             io.github.merlimat.slog.Logger.get(PersistentTopicsBase.class);
 
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
+    static final String INCLUDE_RANGES_OPTION =
+            "includeIndividualDeletedMessages=true (--include-individual-deleted-messages in the CLI).";
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.of(1, 21);
 
@@ -1581,7 +1584,7 @@ public class PersistentTopicsBase extends AdminResource {
         .thenCompose(topic -> topic.getInternalStats(metadata));
     }
 
-    protected CompletableFuture<ManagedLedgerInternalStats.CursorStats> internalGetSubscriptionCursorInternalStats(
+    protected CompletableFuture<CursorStats> internalGetSubscriptionCursorInternalStats(
             boolean authoritative, String subName, boolean includeIndividualDeletedMessages, boolean localOnly) {
         var topicLookup = validateSubscriptionCursorStatsRequest(subName, localOnly)
                 .thenCompose(__ -> {
@@ -1603,8 +1606,15 @@ public class PersistentTopicsBase extends AdminResource {
             if (topic.isEmpty()) {
                 throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
             }
-            var stats = ((PersistentTopic) topic.get())
-                    .getSubscriptionCursorInternalStats(subName, includeIndividualDeletedMessages);
+            CursorStats stats;
+            try {
+                stats = ((PersistentTopic) topic.get()).getSubscriptionCursorInternalStats(
+                        subName, includeIndividualDeletedMessages);
+            } catch (CursorStatsSummaryUnsupportedException e) {
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "The storage cursor cannot omit individually deleted message ranges. Retry with "
+                                + INCLUDE_RANGES_OPTION);
+            }
             if (stats == null) {
                 throw new RestException(Status.NOT_FOUND, "Subscription not found");
             }
@@ -1653,9 +1663,11 @@ public class PersistentTopicsBase extends AdminResource {
             }
             var snapshot = new PartitionedTopicMetadata(metadata.partitions,
                     metadata.properties == null ? null : new HashMap<>(metadata.properties));
+            // Bound the diagnostic by one metadata operation's timeout. A cold partition can finish loading
+            // after the response and be available on the next request.
             Duration timeout = Duration.ofSeconds(
                     Math.max(1, config().getMetadataStoreOperationTimeoutSeconds()));
-            return PartitionedSubscriptionCursorStats.collect(topicName, snapshot,
+            return PartitionedSubscriptionCursorStats.collect(topicName, snapshot, includeIndividualDeletedMessages,
                     deadline -> pulsar().getAdminClientAsync(deadline).exceptionally(error -> {
                         throw new RestException(Status.SERVICE_UNAVAILABLE, "Broker admin client unavailable");
                     }).thenApply(admin -> {

@@ -116,6 +116,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedCursor.CursorStatsSummaryUnsupportedException;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -509,7 +510,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         };
         try {
             assertEquals(legacy.getCursorStats().state, "custom");
-            Assert.expectThrows(UnsupportedOperationException.class,
+            Assert.expectThrows(CursorStatsSummaryUnsupportedException.class,
                     legacy::getCursorStatsWithoutIndividuallyDeletedMessages);
             var summary = updated.getCursorStatsWithoutIndividuallyDeletedMessages();
             assertNull(summary.individuallyDeletedMessages);

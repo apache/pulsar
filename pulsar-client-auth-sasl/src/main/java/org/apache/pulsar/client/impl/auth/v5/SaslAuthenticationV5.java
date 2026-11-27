@@ -208,7 +208,6 @@ public class SaslAuthenticationV5 implements Authentication, BinaryAuthDataProvi
                 }
 
                 // Role token in hand: replay it, asking the server to check / negotiate / complete.
-                V5AuthContexts.setSaslTokenSent(ctx, conv.roleToken == null);
                 if (conv.roleToken != null) {
                     headers.put(SASL_AUTH_ROLE_TOKEN, conv.roleToken);
                     if (!hasPrevious) {

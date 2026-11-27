@@ -988,10 +988,19 @@ public interface ManagedCursor {
     /**
      * Snapshot the same fields as {@link #getCursorStats()} without constructing the individually deleted range string.
      *
-     * @throws UnsupportedOperationException if this cursor does not support omitting the ranges
+     * @throws CursorStatsSummaryUnsupportedException if this cursor does not support omitting the ranges
      */
     default ManagedLedgerInternalStats.CursorStats getCursorStatsWithoutIndividuallyDeletedMessages() {
-        throw new UnsupportedOperationException("This cursor cannot omit individually deleted messages from stats");
+        throw new CursorStatsSummaryUnsupportedException();
+    }
+
+    /** The cursor only supports the complete snapshot returned by {@link ManagedCursor#getCursorStats()}. */
+    final class CursorStatsSummaryUnsupportedException extends UnsupportedOperationException {
+        private static final long serialVersionUID = 1L;
+
+        public CursorStatsSummaryUnsupportedException() {
+            super("This cursor cannot omit individually deleted messages from stats");
+        }
     }
 
     boolean isMessageDeleted(Position position);

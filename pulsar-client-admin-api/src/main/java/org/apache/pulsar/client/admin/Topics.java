@@ -1263,7 +1263,8 @@ public interface Topics {
 
     /**
      * Get the cursor statistics for an existing subscription on a persistent non-partitioned topic
-     * or a physical partition.
+     * or a physical partition. If the storage cursor only supports complete snapshots, pass
+     * {@code true} for {@code includeIndividualDeletedMessages}.
      *
      * @param topic the persistent topic or physical partition name
      * @param subName the subscription name
@@ -1314,6 +1315,8 @@ public interface Topics {
 
     /**
      * Get per-partition cursor statistics for a subscription on a persistent partitioned topic.
+     * Partitions whose storage cursors only support complete snapshots require
+     * {@code includeIndividualDeletedMessages} to be {@code true}.
      *
      * @param topic the persistent partitioned base topic name
      * @param subName the subscription name

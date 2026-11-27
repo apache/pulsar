@@ -60,9 +60,9 @@ final class HttpAuthCallContextImpl implements HttpAuthCallContext {
         return requestLifetime != null && requestLifetime.isDone();
     }
 
-    void setSaslTokenSent(boolean sent) {
+    void recordChallengeRequest(HttpAuthHeaders headers) {
         if (requestLifetime != null) {
-            saslTokenSent = sent;
+            saslTokenSent = headers.get(SASL_AUTH_TOKEN).isPresent() && headers.get(SASL_AUTH_ROLE_TOKEN).isEmpty();
         }
     }
 

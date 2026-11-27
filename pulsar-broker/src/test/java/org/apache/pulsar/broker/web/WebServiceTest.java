@@ -368,6 +368,9 @@ public class WebServiceTest {
             Response legacy = client.prepareGet(topic + "/internalStats").execute().get();
             assertEquals(legacy.getStatusCode(), 401);
             assertEquals(legacy.getResponseBody(), "Provider detail");
+            Response otherMethod = client.preparePost(cursorStats).execute().get();
+            assertEquals(otherMethod.getStatusCode(), 401);
+            assertEquals(otherMethod.getResponseBody(), "Provider detail");
             Response challenge = client.prepareGet(cursorStats)
                     .setHeader(SaslConstants.SASL_HEADER_STATE, SaslConstants.SASL_STATE_NEGOTIATE).execute().get();
             assertEquals(challenge.getStatusCode(), 401);

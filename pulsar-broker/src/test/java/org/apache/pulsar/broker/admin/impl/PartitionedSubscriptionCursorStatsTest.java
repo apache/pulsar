@@ -54,6 +54,8 @@ import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector.RetryExce
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.v5.PulsarClientException.AuthenticationException;
 import org.apache.pulsar.client.api.v5.PulsarClientException.InvalidConfigurationException;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenError;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
 import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver.ChallengeResponseException;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -88,7 +90,7 @@ public class PartitionedSubscriptionCursorStatsTest {
                     return false;
                 }
             };
-            var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(32),
+            var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(32), false,
                     ignored -> CompletableFuture.completedFuture(name -> {
                         var request = requests.size() == 1 ? uncancellable : new CompletableFuture<CursorStats>();
                         partitions.add(name);
@@ -128,7 +130,7 @@ public class PartitionedSubscriptionCursorStatsTest {
         var requestCompletion = new AtomicReference<CompletableFuture<Void>>();
         var initialization = new CompletableFuture<Function<String, CompletableFuture<CursorStats>>>();
         try (var executor = Executors.newSingleThreadScheduledExecutor()) {
-            var response = PartitionedSubscriptionCursorStats.collect(topic, new PartitionedTopicMetadata(2),
+            var response = PartitionedSubscriptionCursorStats.collect(topic, new PartitionedTopicMetadata(2), false,
                     deadline -> {
                         requestCompletion.set(deadline);
                         return initialization;
@@ -146,9 +148,19 @@ public class PartitionedSubscriptionCursorStatsTest {
     public void testPreparationFailurePreservesStatus() {
         try (var executor = Executors.newSingleThreadScheduledExecutor()) {
             var unavailable = new RestException(Status.SERVICE_UNAVAILABLE, "Broker admin client unavailable");
-            var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(2),
+            var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(2), false,
                     ignored -> CompletableFuture.failedFuture(unavailable), executor, TIMEOUT);
             assertThatThrownBy(response::join).hasCause(unavailable);
+        }
+    }
+
+    @Test
+    public void testUnexpectedCoordinatorFailurePreservesCause() {
+        try (var executor = Executors.newSingleThreadScheduledExecutor()) {
+            var failure = new IllegalStateException("coordinator failure");
+            var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(2), false,
+                    ignored -> CompletableFuture.failedFuture(failure), executor, TIMEOUT);
+            assertThatThrownBy(response::join).hasCause(failure);
         }
     }
 
@@ -163,7 +175,17 @@ public class PartitionedSubscriptionCursorStatsTest {
         List<Failure> failures = new ArrayList<>();
         statuses.forEach((status, code) -> failures.add(
                 new Failure(status, code, new PulsarAdminException(null, "private upstream response", status))));
+        var tokenError = new TokenError();
+        tokenError.setError("invalid_client");
+        tokenError.setErrorDescription("private credential rejection");
+        var tokenRejection = new PulsarClientException.AuthenticationException("private token failure")
+                .initCause(new TokenExchangeException(tokenError));
         failures.addAll(List.of(
+                new Failure(500, "INTERNAL_ERROR", credentialFailure(tokenRejection)),
+                new Failure(503, "UNAVAILABLE", credentialFailure(new PulsarClientException.AuthenticationException(
+                        "private token failure").initCause(new IOException("private connection failure")))),
+                new Failure(401, "AUTHORIZATION_FAILED", credentialFailure(
+                        new AuthenticationException(new ChallengeResponseException(401)))),
                 new Failure(503, "TIMEOUT", new PulsarAdminException(new TimeoutException("private upstream timeout"))),
                 new Failure(503, "TIMEOUT", new PulsarAdminException(new RetryException("private retry",
                         new ConnectTimeoutException("private connection timeout")))),
@@ -190,7 +212,7 @@ public class PartitionedSubscriptionCursorStatsTest {
         int count = failures.size() + 1;
         try (var executor = Executors.newScheduledThreadPool(2)) {
             var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(count),
-                    ignored -> CompletableFuture.completedFuture(name -> {
+                    false, ignored -> CompletableFuture.completedFuture(name -> {
                         int partition = TopicName.getPartitionIndex(name);
                         if (partition == 0) {
                             return CompletableFuture.completedFuture(new CursorStats());
@@ -217,20 +239,57 @@ public class PartitionedSubscriptionCursorStatsTest {
         try (var executor = Executors.newSingleThreadScheduledExecutor()) {
             var notFound = new PulsarAdminException(null, "private upstream response", 404);
             var metadata = new PartitionedTopicMetadata(2);
-            var allMissing = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata,
+            var allMissing = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata, false,
                     ignored -> CompletableFuture.completedFuture(name -> CompletableFuture.failedFuture(notFound)),
                     executor, TIMEOUT);
             assertThatThrownBy(allMissing::join).hasCauseInstanceOf(RestException.class)
                     .cause().isInstanceOfSatisfying(RestException.class,
                             error -> assertThat(error.getResponse().getStatus()).isEqualTo(404));
 
-            var mixed = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata,
+            var mixed = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata, false,
                     ignored -> CompletableFuture.completedFuture(name -> CompletableFuture.failedFuture(
                             TopicName.getPartitionIndex(name) == 0 ? notFound : new TimeoutException())),
                     executor, TIMEOUT);
             assertThatThrownBy(mixed::join).hasCauseInstanceOf(RestException.class)
                     .cause().isInstanceOfSatisfying(RestException.class,
                             error -> assertThat(error.getResponse().getStatus()).isEqualTo(503));
+        }
+    }
+
+    @Test
+    public void testPreconditionFailureSuggestsRangesOnlyWhenOmitted() throws Exception {
+        var failure = new PulsarAdminException(null, "private owner precondition", 412);
+        try (var executor = Executors.newSingleThreadScheduledExecutor()) {
+            for (boolean includeRanges : List.of(false, true)) {
+                var metadata = new PartitionedTopicMetadata(2);
+                var partial = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata, includeRanges,
+                        ignored -> CompletableFuture.completedFuture(name -> TopicName.getPartitionIndex(name) == 0
+                                ? CompletableFuture.completedFuture(new CursorStats())
+                                : CompletableFuture.failedFuture(failure)), executor, TIMEOUT)
+                        .get(10, TimeUnit.SECONDS);
+                var error = partial.errors.get(TOPIC.getPartition(1).toString());
+                assertThat(error.statusCode).isEqualTo(412);
+                assertThat(error.errorCode).isEqualTo("PRECONDITION_FAILED");
+                assertRangeHint(error.reason, includeRanges);
+
+                var unavailable = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata, includeRanges,
+                        ignored -> CompletableFuture.completedFuture(name -> CompletableFuture.failedFuture(failure)),
+                        executor, TIMEOUT);
+                assertThatThrownBy(unavailable::join).cause().isInstanceOfSatisfying(RestException.class, ex -> {
+                    assertThat(ex.getResponse().getStatus()).isEqualTo(503);
+                    assertRangeHint(ex.getMessage(), includeRanges);
+                });
+            }
+        }
+    }
+
+    private static void assertRangeHint(String reason, boolean includeRanges) {
+        assertThat(reason).doesNotContain("private");
+        if (includeRanges) {
+            assertThat(reason).doesNotContain("includeIndividualDeletedMessages");
+        } else {
+            assertThat(reason).contains("If the storage cursor only supports complete snapshots, retry with "
+                    + "includeIndividualDeletedMessages=true");
         }
     }
 

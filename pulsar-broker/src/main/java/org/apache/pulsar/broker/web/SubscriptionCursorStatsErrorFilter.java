@@ -42,12 +42,7 @@ final class SubscriptionCursorStatsErrorFilter extends HttpFilter {
     @Override
     protected void doFilter(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        // Jersey ignores matrix parameters when matching routes. Keep encoded semicolons and slashes in names.
-        String path = request.getRequestURI();
-        if (path.indexOf(';') >= 0) {
-            path = MATRIX_PARAMS.matcher(path).replaceAll("");
-        }
-        if (!"GET".equals(request.getMethod()) || !PATH.matcher(path).matches()) {
+        if (!"GET".equals(request.getMethod()) || !isCursorStatsPath(request.getRequestURI())) {
             chain.doFilter(request, response);
             return;
         }
@@ -61,6 +56,17 @@ final class SubscriptionCursorStatsErrorFilter extends HttpFilter {
                 && !wrapped.isSaslHandshake()) {
             wrapped.sendError(wrapped.getStatus());
         }
+    }
+
+    private static boolean isCursorStatsPath(String path) {
+        if (!path.contains("/subscription") || !path.contains("internalStats")) {
+            return false;
+        }
+        // Jersey ignores matrix parameters when matching routes. Keep encoded semicolons and slashes in names.
+        if (path.indexOf(';') >= 0) {
+            path = MATRIX_PARAMS.matcher(path).replaceAll("");
+        }
+        return PATH.matcher(path).matches();
     }
 
     private static final class JsonErrorResponse extends HttpServletResponseWrapper {
@@ -83,7 +89,8 @@ final class SubscriptionCursorStatsErrorFilter extends HttpFilter {
                 return;
             }
             String reason = status == SC_UNAUTHORIZED ? "Authentication required" : HttpStatus.getMessage(status);
-            // Release any writer selected by the provider while preserving authentication headers.
+            // Servlet resetBuffer() retains the provider's writer and entity headers. A full reset() also
+            // drops authentication headers and cookies. Jetty can reset the entity while retaining those headers.
             ServletContextResponse.getServletContextResponse(this).resetContent();
             setStatus(status);
             setContentType(MediaType.APPLICATION_JSON);

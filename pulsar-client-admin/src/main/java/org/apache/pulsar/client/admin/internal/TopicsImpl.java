@@ -747,7 +747,7 @@ public class TopicsImpl extends BaseResource implements Topics {
             TopicName topicName = validateTopic(topic);
             checkArgument(topicName.getDomain() == TopicDomain.persistent, "Topic must be persistent");
             checkArgument(StringUtils.isNotEmpty(subName), "Subscription name must not be empty");
-            WebTarget path = topicPath(topicName, "subscription", subName, resource)
+            WebTarget path = topicPath(topicName, "subscription", Codec.encode(subName), resource)
                     .queryParam("includeIndividualDeletedMessages", includeIndividualDeletedMessages);
             // Brokers also call this for partition fan-out, so credential resolution must not block the caller.
             CompletableFuture<T> result = callback.future();

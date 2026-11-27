@@ -243,6 +243,7 @@ public final class HttpAuthenticationDriver {
         if (ctx.isRequestDone()) {
             return CompletableFuture.failedFuture(new CancellationException());
         }
+        ctx.recordChallengeRequest(headers);
         return boundedByRemaining(ctx, transport.get(uri, headers, remaining), remaining, round);
     }
 

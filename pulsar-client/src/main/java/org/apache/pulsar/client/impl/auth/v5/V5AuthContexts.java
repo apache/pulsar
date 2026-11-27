@@ -61,13 +61,6 @@ public final class V5AuthContexts {
         return ctx instanceof HttpAuthCallContextImpl call && call.isRequestDone();
     }
 
-    /** Record whether this SASL round sends a GSSAPI token or replays a cached role token. */
-    public static void setSaslTokenSent(HttpAuthCallContext ctx, boolean sent) {
-        if (ctx instanceof HttpAuthCallContextImpl call) {
-            call.setSaslTokenSent(sent);
-        }
-    }
-
     /**
      * Build an init context from the client's late-bound framework services. When
      * {@code services} is {@code null} the context exposes no services (scheduler / blocking executor /

@@ -217,7 +217,7 @@ public class AsyncGetRequestTest {
 
     @Test
     public void testSubscriptionCursorInternalStatsRequestAndResponse() throws Exception {
-        String path = "/admin/v2/persistent/t/ns/stats-topic/subscription/sub%20%2B%2F%252F/internalStats";
+        String path = "/admin/v2/persistent/t/ns/stats-topic/subscription/sub%2B%252B%252F%25252F/internalStats";
         server.stubFor(get(urlEqualTo(path + "?includeIndividualDeletedMessages=false"))
                 .withHeader(CURSOR_STATS_LOCAL_ONLY_HEADER, absent())
                 .willReturn(stringBody("""
