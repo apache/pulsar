@@ -141,6 +141,9 @@ public class Consumer {
     private volatile int permitsReceivedWhileConsumerBlocked = 0;
 
     private final PendingAcksMap pendingAcks;
+    // Transactional ACKs are the only path that needs delivery identity tracking. Keep ordinary consumers on the
+    // original pending-ack path when the broker cannot accept transactional ACKs.
+    private final boolean trackPendingAckDeliveries;
     private final Object pendingAckDeliveryLock = new Object();
     private final ConcurrentHashMap<Position, Object> pendingAckDeliveries = new ConcurrentHashMap<>();
 
@@ -269,6 +272,7 @@ public class Consumer {
             // We don't need to keep track of pending acks if the subscription is not shared
             this.pendingAcks = null;
         }
+        this.trackPendingAckDeliveries = isTransactionEnabled();
 
         this.clientAddress = cnx.clientSourceAddress();
         this.consumerEpoch = consumerEpoch;
@@ -300,6 +304,7 @@ public class Consumer {
         this.messageAckCounter = null;
         this.messageAckRate = null;
         this.pendingAcks = null;
+        this.trackPendingAckDeliveries = false;
         this.stats = null;
         this.isDurable = false;
         this.isPersistentTopic = false;
@@ -411,13 +416,18 @@ public class Consumer {
                     } else {
                         remainingUnacked = batchSize;
                     }
-                    synchronized (pendingAckDeliveryLock) {
+                    if (trackPendingAckDeliveries) {
+                        synchronized (pendingAckDeliveryLock) {
+                            sendingAllowed = pendingAcks.addPendingAckIfAllowed(
+                                    entry.getLedgerId(), entry.getEntryId(), remainingUnacked, stickyKeyHash);
+                            if (sendingAllowed) {
+                                pendingAckDeliveries.put(
+                                        PositionFactory.create(entry.getLedgerId(), entry.getEntryId()), new Object());
+                            }
+                        }
+                    } else {
                         sendingAllowed = pendingAcks.addPendingAckIfAllowed(
                                 entry.getLedgerId(), entry.getEntryId(), remainingUnacked, stickyKeyHash);
-                        if (sendingAllowed) {
-                            pendingAckDeliveries.put(
-                                    PositionFactory.create(entry.getLedgerId(), entry.getEntryId()), new Object());
-                        }
                     }
                     if (!sendingAllowed) {
                         // sending isn't allowed when pending acks doesn't accept adding the entry
@@ -521,8 +531,10 @@ public class Consumer {
     }
 
     public void close(boolean isResetCursor) throws BrokerServiceException {
-        synchronized (pendingAckDeliveryLock) {
-            pendingAckDeliveries.clear();
+        if (trackPendingAckDeliveries) {
+            synchronized (pendingAckDeliveryLock) {
+                pendingAckDeliveries.clear();
+            }
         }
         subscription.removeConsumer(this, isResetCursor);
         cnx.removedConsumer(this);
@@ -1473,6 +1485,13 @@ public class Consumer {
      * Atomically updates the remaining count only if the expected delivery is still current.
      */
     public boolean updateRemainingUnacked(long ledgerId, long entryId, int ackedDelta, Object expectedDelivery) {
+        if (!trackPendingAckDeliveries) {
+            if (expectedDelivery != null) {
+                return false;
+            }
+            return pendingAcks == null
+                    || pendingAcks.updateRemainingUnacked(ledgerId, entryId, ackedDelta);
+        }
         Position position = PositionFactory.create(ledgerId, entryId);
         synchronized (pendingAckDeliveryLock) {
             if (expectedDelivery != null && pendingAckDeliveries.get(position) != expectedDelivery) {
@@ -1505,6 +1524,12 @@ public class Consumer {
      * Atomically removes the pending ack only if the expected delivery is still current.
      */
     public int removePendingAckAndGetRemainingUnacked(long ledgerId, long entryId, Object expectedDelivery) {
+        if (!trackPendingAckDeliveries) {
+            if (expectedDelivery != null || pendingAcks == null) {
+                return PENDING_ACK_NOT_FOUND;
+            }
+            return pendingAcks.removeAndGetRemainingUnacked(ledgerId, entryId);
+        }
         Position position = PositionFactory.create(ledgerId, entryId);
         synchronized (pendingAckDeliveryLock) {
             if (expectedDelivery != null && pendingAckDeliveries.get(position) != expectedDelivery) {
@@ -1526,6 +1551,9 @@ public class Consumer {
     }
 
     public Object getPendingAckDelivery(long ledgerId, long entryId) {
+        if (!trackPendingAckDeliveries) {
+            return null;
+        }
         synchronized (pendingAckDeliveryLock) {
             return pendingAckDeliveries.get(PositionFactory.create(ledgerId, entryId));
         }
@@ -1548,12 +1576,17 @@ public class Consumer {
         }
 
         MutableInt mutableTotalUnacked = new MutableInt(0);
-        synchronized (pendingAckDeliveryLock) {
+        if (trackPendingAckDeliveries) {
+            synchronized (pendingAckDeliveryLock) {
+                pendingAcks.removeAllUpTo(markDeleteLedgerId, markDeleteEntryId,
+                        (ledgerId, entryId, remainingUnacked, stickyKeyHash) -> {
+                            pendingAckDeliveries.remove(PositionFactory.create(ledgerId, entryId));
+                            mutableTotalUnacked.add(remainingUnacked);
+                        });
+            }
+        } else {
             pendingAcks.removeAllUpTo(markDeleteLedgerId, markDeleteEntryId,
-                    (ledgerId, entryId, remainingUnacked, stickyKeyHash) -> {
-                        pendingAckDeliveries.remove(PositionFactory.create(ledgerId, entryId));
-                        mutableTotalUnacked.add(remainingUnacked);
-                    });
+                    (ledgerId, entryId, remainingUnacked, stickyKeyHash) -> mutableTotalUnacked.add(remainingUnacked));
         }
         int totalUnacked = mutableTotalUnacked.intValue();
         if (totalUnacked > 0) {
@@ -1572,13 +1605,20 @@ public class Consumer {
         if (pendingAcks != null) {
             List<Position> pendingPositions = new ArrayList<>((int) pendingAcks.size());
             MutableInt totalRedeliveryMessages = new MutableInt(0);
-            synchronized (pendingAckDeliveryLock) {
+            if (trackPendingAckDeliveries) {
+                synchronized (pendingAckDeliveryLock) {
+                    pendingAcks.forEachAndClear((ledgerId, entryId, remainingUnacked, stickyKeyHash) -> {
+                        Position position = PositionFactory.create(ledgerId, entryId);
+                        totalRedeliveryMessages.add(remainingUnacked);
+                        pendingPositions.add(position);
+                    });
+                    pendingPositions.forEach(pendingAckDeliveries::remove);
+                }
+            } else {
                 pendingAcks.forEachAndClear((ledgerId, entryId, remainingUnacked, stickyKeyHash) -> {
-                    Position position = PositionFactory.create(ledgerId, entryId);
                     totalRedeliveryMessages.add(remainingUnacked);
-                    pendingPositions.add(position);
+                    pendingPositions.add(PositionFactory.create(ledgerId, entryId));
                 });
-                pendingPositions.forEach(pendingAckDeliveries::remove);
             }
             if (totalRedeliveryMessages.intValue() > 0) {
                 addAndGetUnackedMessages(-totalRedeliveryMessages.intValue());
@@ -1601,13 +1641,25 @@ public class Consumer {
     public void redeliverUnacknowledgedMessages(List<MessageIdData> messageIds) {
         int totalRedeliveryMessages = 0;
         List<Position> pendingPositions = new ArrayList<>();
-        synchronized (pendingAckDeliveryLock) {
+        if (trackPendingAckDeliveries) {
+            synchronized (pendingAckDeliveryLock) {
+                for (MessageIdData msg : messageIds) {
+                    Position position = PositionFactory.create(msg.getLedgerId(), msg.getEntryId());
+                    int remainingUnacked = pendingAcks.removeAndGetRemainingUnacked(
+                            position.getLedgerId(), position.getEntryId());
+                    if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
+                        pendingAckDeliveries.remove(position);
+                        totalRedeliveryMessages += remainingUnacked;
+                        pendingPositions.add(position);
+                    }
+                }
+            }
+        } else {
             for (MessageIdData msg : messageIds) {
                 Position position = PositionFactory.create(msg.getLedgerId(), msg.getEntryId());
                 int remainingUnacked = pendingAcks.removeAndGetRemainingUnacked(
                         position.getLedgerId(), position.getEntryId());
                 if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
-                    pendingAckDeliveries.remove(position);
                     totalRedeliveryMessages += remainingUnacked;
                     pendingPositions.add(position);
                 }
