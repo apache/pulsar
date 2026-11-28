@@ -3022,7 +3022,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     static boolean isSupportedSeekPosition(Object position) {
-        return position instanceof MessageId || position instanceof Long;
+        return position instanceof MessageIdAdv || position instanceof Long;
     }
 
     private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId,

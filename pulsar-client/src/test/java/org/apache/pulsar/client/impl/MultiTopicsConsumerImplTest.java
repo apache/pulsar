@@ -690,9 +690,18 @@ public class MultiTopicsConsumerImplTest {
         assertTrue(impl.getUnAckedMessageTracker().remove(skippedUnacked));
     }
 
-    @Test
+    @DataProvider
+    @SuppressWarnings("deprecation")
+    public static Object[][] invalidSeekPositions() {
+        return new Object[][] {
+                {Integer.valueOf(0)},
+                {new MultiMessageIdImpl(Collections.singletonMap("topic", MessageId.earliest))}
+        };
+    }
+
+    @Test(dataProvider = "invalidSeekPositions")
     @SuppressWarnings("unchecked")
-    public void testSeekByFunctionRejectsInvalidPositionBeforeCleanup() {
+    public void testSeekByFunctionRejectsInvalidPositionBeforeCleanup(Object invalidPosition) {
         String validTopic = "persistent://public/default/topic-partition-0";
         String invalidTopic = "persistent://public/default/topic-partition-1";
         ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
@@ -712,7 +721,7 @@ public class MultiTopicsConsumerImplTest {
         impl.getUnAckedMessageTracker().add(invalidUnacked);
 
         CompletableFuture<Void> seek = impl.seekAsync(
-                topic -> topic.equals(validTopic) ? MessageId.earliest : Integer.valueOf(0));
+                topic -> topic.equals(validTopic) ? MessageId.earliest : invalidPosition);
 
         CompletionException error = expectThrows(CompletionException.class, seek::join);
         assertEquals(error.getCause().getMessage(), "Only support seek by messageId or timestamp");
