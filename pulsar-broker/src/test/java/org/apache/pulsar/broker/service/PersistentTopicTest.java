@@ -2050,7 +2050,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
                 Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId)).join();
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
         assertThrows(IllegalArgumentException.class,
-                () -> sub.acknowledgeIndividualMessagesWithBatchState(List.of(position), Map.of(), 0L));
+                () -> sub.acknowledgeIndividualMessagesFromConsumer(List.of(position), Map.of(), 0L, true));
     }
 
     @Test

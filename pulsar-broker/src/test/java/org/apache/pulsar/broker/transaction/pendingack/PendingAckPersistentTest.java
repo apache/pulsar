@@ -440,6 +440,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
             releaseResetWrite.run();
             if (resetSucceeds) {
                 reset.get(10, TimeUnit.SECONDS);
+                assertThatThrownBy(() -> brokerConsumer.messageAcked(ack, true).get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(BrokerServiceException.SubscriptionFencedException.class);
             } else {
                 assertThatThrownBy(() -> reset.get(10, TimeUnit.SECONDS))
                         .hasCauseInstanceOf(BrokerServiceException.SubscriptionInvalidCursorPosition.class);
@@ -466,6 +468,12 @@ public class PendingAckPersistentTest extends TransactionTestBase {
             ack.setConsumerId(replayConsumer.consumerId());
             replayConsumer.messageAcked(ack, true).get(10, TimeUnit.SECONDS);
             assertOrdinaryBatchAckState(subscription, batchPosition);
+            if (!resetSucceeds) {
+                // A failed seek leaves this generation valid, including for an ACK routed before disconnect.
+                ack.setConsumerId(brokerConsumer.consumerId());
+                brokerConsumer.messageAcked(ack, true).get(10, TimeUnit.SECONDS);
+                assertOrdinaryBatchAckState(subscription, batchPosition);
+            }
         }
     }
 

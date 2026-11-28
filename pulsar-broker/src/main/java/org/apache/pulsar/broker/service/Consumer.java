@@ -102,6 +102,9 @@ public class Consumer {
     private final LongAdder bytesOutCounter;
     private final LongAdder messageAckCounter;
     private final Rate messageAckRate;
+    // Set on attachment and refreshed on the connection thread for Failover consumers that survive a seek.
+    @Setter
+    private volatile long ordinaryAckGeneration;
 
     private volatile long firstMessagesSentTimestamp;
     private volatile long lastConsumedTimestamp;
@@ -554,6 +557,7 @@ public class Consumer {
     }
 
     public CompletableFuture<Void> messageAcked(CommandAck ack, boolean requirePersistedAck) {
+        long generation = ordinaryAckGeneration;
         CompletableFuture<Long> future;
 
         this.lastAckedTimestamp = System.currentTimeMillis();
@@ -599,7 +603,7 @@ public class Consumer {
                 future = CompletableFuture.completedFuture(1L);
             }
         } else {
-            future = individualAck(ack, properties, requirePersistedAck);
+            future = individualAck(ack, properties, requirePersistedAck, generation);
         }
 
         return future
@@ -618,7 +622,7 @@ public class Consumer {
      * timing behavior), and additionally schedule per-position cleanup on txn storage completion.
      */
     private CompletableFuture<Long> individualAck(CommandAck ack, Map<String, Long> properties,
-                                                  boolean requirePersistedAck) {
+                                                  boolean requirePersistedAck, long generation) {
         boolean hasTxn = ack.hasTxnidLeastBits() && ack.hasTxnidMostBits();
 
         if (hasTxn && !isTransactionEnabled()) {
@@ -731,16 +735,13 @@ public class Consumer {
         // Non-transactional
         boolean syncBatchState = hasOrdinaryBatchAck && isTransactionEnabled()
                 && Subscription.isIndividualAckMode(subType);
-        PersistentSubscription batchSubscription = syncBatchState ? (PersistentSubscription) subscription : null;
-        long generation = batchSubscription == null ? 0
-                : batchSubscription.getPendingAckHandle().getOrdinaryAckGeneration();
-        CompletableFuture<Void> ackFuture = syncBatchState
-                ? batchSubscription.acknowledgeIndividualMessagesWithBatchState(nonTxnPositions, properties,
-                        generation)
+        PersistentSubscription persistent = subscription instanceof PersistentSubscription ps ? ps : null;
+        CompletableFuture<Void> ackFuture = persistent != null
+                ? persistent.acknowledgeIndividualMessagesFromConsumer(nonTxnPositions, properties,
+                        generation, syncBatchState)
                 : subscription.acknowledgeMessageAsync(nonTxnPositions, AckType.Individual, properties);
         CompletableFuture<Void> accounted = ackFuture.thenRun(() -> {
-            if (batchSubscription == null
-                    || generation == batchSubscription.getPendingAckHandle().getOrdinaryAckGeneration()) {
+            if (persistent == null || generation == persistent.getPendingAckHandle().getOrdinaryAckGeneration()) {
                 applyPendingAckCompletions(pendingAckCompletions);
             }
         });

@@ -79,8 +79,8 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeIndividualMessagesWithBatchState(List<Position> positions,
-            Map<String, Long> properties, long ordinaryAckGeneration) {
+    public CompletableFuture<Void> acknowledgeIndividualMessagesFromConsumer(List<Position> positions,
+            Map<String, Long> properties, long ordinaryAckGeneration, boolean syncBatchState) {
         return acknowledgeMessageAsync(positions, AckType.Individual, properties);
     }
 

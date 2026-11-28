@@ -27,6 +27,7 @@ import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Shared
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
@@ -116,7 +117,7 @@ public class ConsumerBlockedPermitAccountingTest {
         doAnswer(invocation -> subscription.acknowledgeMessageAsync(
                 invocation.getArgument(0), CommandAck.AckType.Individual, invocation.getArgument(1)))
                 .when((PersistentSubscription) subscription)
-                .acknowledgeIndividualMessagesWithBatchState(any(), any(), anyLong());
+                .acknowledgeIndividualMessagesFromConsumer(any(), any(), anyLong(), anyBoolean());
         when(((PersistentSubscription) subscription).transactionIndividualAcknowledge(any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         dispatcherFlowPermits = new AtomicInteger();
