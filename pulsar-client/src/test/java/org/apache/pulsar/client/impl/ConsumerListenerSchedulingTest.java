@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
@@ -184,6 +185,7 @@ public class ConsumerListenerSchedulingTest {
         assertEquals(fixture.attempted.size(), 3);
         assertTrue(fixture.accepted.isEmpty());
         assertTrue(fixture.consumer.incomingMessages.isEmpty());
+        assertEquals(fixture.consumer.messageListenerQueueSize, 0);
 
         Message<byte[]> next = newMessage();
         fixture.addAndTrigger(next);
@@ -217,9 +219,28 @@ public class ConsumerListenerSchedulingTest {
         assertTrue(fixture.consumer.incomingMessages.isEmpty());
     }
 
+    @Test
+    public void seekDiscardsMessageRejectedWhileClearingTheQueue() throws Exception {
+        Fixture fixture = new Fixture(1);
+        Message<byte[]> old = newMessage();
+        fixture.addAndTrigger(old);
+        // Let the pending drain take the old head as seek starts clearing the receiver queue.
+        fixture.beforeClear = fixture::runNext;
+        fixture.consumer.clearIncomingMessagesAndListenerRetry();
+        fixture.fireRetry(); // Even a timer callback already enqueued must not resubmit the old head.
+        fixture.runRemaining();
+        verify(old).release();
+        assertTrue(fixture.accepted.isEmpty());
+
+        Message<byte[]> next = newMessage();
+        fixture.addAndTrigger(next);
+        fixture.runRemaining();
+        assertEquals(fixture.accepted, List.of(next));
+    }
+
     @SuppressWarnings("unchecked")
     private static Message<byte[]> newMessage() {
-        return mock(Message.class);
+        return mock(MessageImpl.class);
     }
 
     private static final class Fixture {
@@ -229,6 +250,7 @@ public class ConsumerListenerSchedulingTest {
         private final List<Message<?>> accepted = new ArrayList<>();
         private final ConsumerImpl<byte[]> consumer;
         private int failedSubmissions;
+        private Runnable beforeClear;
 
         private Fixture(int failedSubmissions) {
             this(failedSubmissions, true);
@@ -269,6 +291,14 @@ public class ConsumerListenerSchedulingTest {
             consumer = new ConsumerImpl<>(client, "non-persistent://tenant/ns/listener-scheduling", conf,
                     executorProvider, -1, false, false, new CompletableFuture<>(), null, 0, Schema.BYTES,
                     null, true) {
+                @Override
+                protected void clearIncomingMessages() {
+                    if (beforeClear != null) {
+                        beforeClear.run();
+                    }
+                    super.clearIncomingMessages();
+                }
+
                 @Override
                 protected Message<byte[]> internalReceive(long timeout, TimeUnit unit) {
                     // Keep the real listener drain and scheduler, without message decoding or broker state.

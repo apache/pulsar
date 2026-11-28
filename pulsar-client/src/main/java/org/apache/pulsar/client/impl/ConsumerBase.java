@@ -97,6 +97,8 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     protected final ExecutorService internalPinnedExecutor;
     private final ListenerTaskScheduler listenerTaskScheduler;
     private final AtomicReference<ListenerRetry> listenerRetry = new AtomicReference<>();
+    // Only accessed on the internal pinned executor.
+    private long lastListenerPauseLogNanos;
     private final AtomicInteger listenerQueueGeneration = new AtomicInteger();
     protected final UnAckedMessageTracker unAckedMessageTracker;
     final GrowableArrayBlockingQueue<Message<T>> incomingMessages;
@@ -1257,6 +1259,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                                 || getState() == State.Closing || getState() == State.Closed) {
                             retry.cancel();
                         } else {
+                            retry.logPause(error);
                             retry.schedule();
                         }
                         return;
@@ -1264,6 +1267,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                         // A failed submission has dequeued a message, but may leave more messages to drain.
                         // Preserve a later turn even when earlier failures consumed the coalesced notification.
                         // Retrying here makes progress; retrying a failed dequeue could loop indefinitely.
+                        discardFailedListenerSubmission(msg);
                         listenerTaskScheduler.trigger();
                         throw error;
                     }
@@ -1288,6 +1292,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         private final Runnable task;
         private final MessageId messageId;
         private final AtomicInteger state = new AtomicInteger(WAITING);
+        private boolean loggedPause;
         private volatile Timeout timeout;
         private long delayMillis = 100;
 
@@ -1295,6 +1300,16 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             this.message = message;
             this.task = task;
             this.messageId = message.getMessageId();
+        }
+
+        private void logPause(RejectedExecutionException error) {
+            long now = System.nanoTime();
+            if (lastListenerPauseLogNanos == 0 || now - lastListenerPauseLogNanos >= TimeUnit.MINUTES.toNanos(1)) {
+                lastListenerPauseLogNanos = now;
+                loggedPause = true;
+                log.warn().attr("messageId", messageId).exceptionMessage(error)
+                        .log("Listener delivery paused after executor rejection");
+            }
         }
 
         private void schedule() {
@@ -1323,31 +1338,44 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             if (!state.compareAndSet(WAITING, SUBMITTING)) {
                 return;
             }
+            if (message instanceof TopicMessageImpl<?> topicMessage
+                    && topicMessage.receivedByconsumer.getState() == State.Closed) {
+                // A removed topic can no longer deliver its retained message. Resume the other topics.
+                listenerRetry.compareAndSet(this, null);
+                releaseListenerMessage(message);
+                listenerTaskScheduler.trigger();
+                return;
+            }
             try {
                 messageListenerExecutor.execute(message, () -> {
                     if (state.get() == CANCELLED) {
-                        release();
+                        releaseListenerMessage(message);
                     } else {
                         task.run();
                     }
                 });
             } catch (RejectedExecutionException e) {
                 if (state.compareAndSet(SUBMITTING, WAITING)) {
+                    if (!loggedPause) {
+                        logPause(e);
+                    }
                     schedule();
                 } else {
                     // Cancellation leaves an in-flight submission responsible for its message.
-                    release();
+                    releaseListenerMessage(message);
                 }
                 return;
             } catch (RuntimeException | Error e) {
                 state.set(FINISHED);
                 listenerRetry.compareAndSet(this, null);
-                release();
+                discardFailedListenerSubmission(message);
                 listenerTaskScheduler.trigger();
                 throw e;
             }
             // An accepted task owns the message even if cancellation raced with execute().
-            state.compareAndSet(SUBMITTING, FINISHED);
+            if (state.compareAndSet(SUBMITTING, FINISHED) && loggedPause) {
+                log.info().attr("messageId", messageId).log("Listener delivery resumed after executor rejection");
+            }
             listenerRetry.compareAndSet(this, null);
             listenerTaskScheduler.trigger();
         }
@@ -1360,29 +1388,44 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             }
             listenerRetry.compareAndSet(this, null);
             if (previous == WAITING) {
-                release();
-            }
-        }
-
-        private void release() {
-            try {
-                message.release();
-            } finally {
-                MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.decrementAndGet(ConsumerBase.this);
+                releaseListenerMessage(message);
             }
         }
     }
 
-    // Close and seek discard a retry. Ordinary redelivery keeps it like an already queued listener task,
-    // so callMessageListener can return its permit and check the updated consumer epoch.
-    final MessageId clearListenerRetry() {
+    private void discardFailedListenerSubmission(Message<T> message) {
+        try {
+            if (message instanceof TopicMessageImpl<T> topicMessage) {
+                topicMessage.receivedByconsumer.increaseAvailablePermits((MessageImpl<?>) topicMessage.getMessage());
+            } else {
+                ((ConsumerImpl<?>) this).increaseAvailablePermits((MessageImpl<?>) message);
+            }
+        } finally {
+            releaseListenerMessage(message);
+        }
+    }
+
+    private void releaseListenerMessage(Message<T> message) {
+        try {
+            message.release();
+        } finally {
+            MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.decrementAndGet(this);
+        }
+    }
+
+    final void clearIncomingMessagesAndListenerRetry() {
+        // A concurrent drain can still reject the old queue head until the queue has been cleared.
+        clearIncomingMessages();
+        clearListenerRetry();
+    }
+
+    // Invalidate both a published retry and a first submission that has not reported rejection yet.
+    final void clearListenerRetry() {
         listenerQueueGeneration.incrementAndGet();
         ListenerRetry retry = listenerRetry.getAndSet(null);
         if (retry != null) {
             retry.cancel();
-            return retry.messageId;
         }
-        return null;
     }
 
     private void executeMessageListener(Message<?> message, Runnable runnable) {
@@ -1512,10 +1555,17 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     }
 
     protected void clearIncomingMessages() {
-        // release messages if they are pooled messages
-        incomingMessages.forEach(Message::release);
-        incomingMessages.clear();
-        resetIncomingMessageSize();
+        // Only release messages that the queue actually transfers to this cleanup.
+        List<Message<T>> discarded = new ArrayList<>();
+        incomingMessages.drainTo(discarded);
+        releaseIncomingMessages(discarded);
+    }
+
+    final void releaseIncomingMessages(List<? extends Message<?>> discarded) {
+        for (Message<?> message : discarded) {
+            decreaseIncomingMessageSize(message);
+            message.release();
+        }
     }
 
     /**

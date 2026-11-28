@@ -274,6 +274,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         .log("Receive message from sub consumer");
             // Stop to process the remaining message after the consumer is closed.
             if (getState() == State.Closed) {
+                messages.forEach(Message::release);
                 return;
             }
             // Process the message, add to the queue and trigger listener or async callback
@@ -688,7 +689,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void cleanupMultiConsumer() {
-        clearListenerRetry();
+        clearIncomingMessagesAndListenerRetry();
         if (unAckedMessageTracker != null) {
             unAckedMessageTracker.close();
         }
@@ -859,9 +860,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private void beforeSeek() {
         duringSeek = true;
-        clearListenerRetry();
         unAckedMessageTracker.clear();
-        clearIncomingMessages();
+        clearIncomingMessagesAndListenerRetry();
     }
 
     private void afterSeek(CompletableFuture<Void> seekFuture, @Nullable Throwable throwable) {

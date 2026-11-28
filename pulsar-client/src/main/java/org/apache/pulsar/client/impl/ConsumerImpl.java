@@ -197,7 +197,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final Map<String, String> metadata;
 
     private final boolean readCompacted;
-    private final boolean resetIncludeHead;
+    // An explicit start/seek uses the configured policy. A reconnect resumes after the dequeued position.
+    private volatile boolean includeStartMessage;
 
     private final SubscriptionInitialPosition subscriptionInitialPosition;
     private final ConnectionHandler connectionHandler;
@@ -340,7 +341,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
         this.negativeAcksTracker = new NegativeAcksTracker(this, conf);
-        this.resetIncludeHead = conf.isResetIncludeHead();
+        this.includeStartMessage = conf.isResetIncludeHead();
         this.createTopicIfDoesNotExist = createTopicIfDoesNotExist;
         this.maxPendingChunkedMessage = conf.getMaxPendingChunkedMessage();
         this.pendingChunkedMessageUuidQueue = new GrowableArrayBlockingQueue<>();
@@ -569,6 +570,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         try {
             if (incomingMessages.isEmpty()) {
                 expectMoreIncomingMessages();
+            }
+            if (listener != null && subscriptionMode == SubscriptionMode.NonDurable && timeout == 0) {
+                // Reconnect snapshots the queue and lastDequeuedMessageId under this same lock.
+                synchronized (this) {
+                    message = incomingMessages.poll();
+                    if (message != null) {
+                        messageProcessed(message);
+                    }
+                    return message;
+                }
             }
             message = incomingMessages.poll(timeout, unit);
             if (message == null) {
@@ -1076,16 +1087,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * not seen by the application.
      */
     private void clearReceiverQueue(boolean updateStartMessageId) {
-        MessageIdAdv rejectedMessageId = (MessageIdAdv) clearListenerRetry();
         List<Message<?>> currentMessageQueue = new ArrayList<>(incomingMessages.size());
         incomingMessages.drainTo(currentMessageQueue);
-        resetIncomingMessageSize();
 
         CompletableFuture<Void> seekFuture = this.seekFuture;
         MessageIdAdv seekMessageId = this.seekMessageId;
 
+        MessageId firstQueuedId = currentMessageQueue.isEmpty() ? null : currentMessageQueue.get(0).getMessageId();
+        releaseIncomingMessages(currentMessageQueue);
         if (seekStatus.get() != SeekStatus.NOT_STARTED) {
+            clearListenerRetry();
             if (updateStartMessageId) {
+                includeStartMessage = conf.isResetIncludeHead();
                 startMessageId = seekMessageId;
             }
             if (seekStatus.compareAndSet(SeekStatus.COMPLETED, SeekStatus.NOT_STARTED)) {
@@ -1093,12 +1106,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             return;
         } else if (subscriptionMode == SubscriptionMode.Durable) {
+            // The broker will redeliver the unacknowledged message after reconnect.
+            clearListenerRetry();
             return;
         }
 
-        if (rejectedMessageId != null || !currentMessageQueue.isEmpty()) {
-            MessageIdAdv nextMessageInQueue = rejectedMessageId != null ? rejectedMessageId
-                    : (MessageIdAdv) currentMessageQueue.get(0).getMessageId();
+        // A non-durable listener keeps ownership of its dequeued message, including an in-flight
+        // submission. Resume the broker from the first message still in the receiver queue.
+        if (firstQueuedId != null) {
+            MessageIdAdv nextMessageInQueue = (MessageIdAdv) firstQueuedId;
             MessageIdAdv previousMessage;
             if (MessageIdAdvUtils.isBatch(nextMessageInQueue)) {
                 // Get on the previous message within the current batch
@@ -1109,14 +1125,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // Get on previous message in previous entry
                 previousMessage = MessageIdAdvUtils.prevMessageId(nextMessageInQueue);
             }
-            // release messages if they are pooled messages
-            currentMessageQueue.forEach(Message::release);
             if (updateStartMessageId) {
+                includeStartMessage = false;
                 startMessageId = previousMessage;
             }
         } else if (updateStartMessageId && !lastDequeuedMessageId.equals(MessageId.earliest)) {
             // If the queue was empty we need to restart from the message just after the last one that has been dequeued
             // in the past
+            includeStartMessage = false;
             startMessageId = new BatchMessageIdImpl((MessageIdImpl) lastDequeuedMessageId);
         } // else: No message was received or dequeued by this consumer. Next message would still be the startMessageId
     }
@@ -1414,10 +1430,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final AtomicInteger skippedMessages = new AtomicInteger(0);
         try {
             conf.getPayloadProcessor().process(payload, entryContext, schema, message -> {
-                if (message != null) {
-                    executeNotifyCallback((MessageImpl<T>) message);
-                } else {
+                if (message == null) {
                     skippedMessages.incrementAndGet();
+                } else if (((MessageIdAdv) message.getMessageId()).getBatchIndex() < 0
+                        && shouldSkipStartEntry(messageId)) {
+                    message.release();
+                    skippedMessages.incrementAndGet();
+                } else {
+                    executeNotifyCallback((MessageImpl<T>) message);
                 }
             });
         } catch (Throwable throwable) {
@@ -1541,12 +1561,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             // If the topic is non-persistent, we should not ignore any messages.
-            if (this.topicName.isPersistent() && isSameEntry(msgId) && isPriorEntryIndex(messageId.getEntryId())) {
+            if (shouldSkipStartEntry(msgId)) {
                 // We need to discard entries that were prior to startMessageId
                 log.debug().attr("startMessageId", startMessageId)
                         .log("Ignoring message from before the startMessageId");
 
                 uncompressedPayload.release();
+                // The broker spent a permit on this entry, but no listener or receive call will return it.
+                increaseAvailablePermits(cnx);
                 return;
             }
 
@@ -1870,12 +1892,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    private boolean isPriorEntryIndex(long idx) {
-        return resetIncludeHead ? idx < startMessageId.getEntryId() : idx <= startMessageId.getEntryId();
+    private boolean shouldSkipStartEntry(MessageIdImpl messageId) {
+        return topicName.isPersistent() && !includeStartMessage && isSameEntry(messageId);
     }
 
     private boolean isPriorBatchIndex(long idx) {
-        return resetIncludeHead ? idx < startMessageId.getBatchIndex() : idx <= startMessageId.getBatchIndex();
+        return includeStartMessage ? idx < startMessageId.getBatchIndex() : idx <= startMessageId.getBatchIndex();
     }
 
     private boolean isSameEntry(MessageIdImpl messageId) {
@@ -2659,8 +2681,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
                 lastDequeuedMessageId = MessageId.earliest;
 
-                clearListenerRetry();
-                clearIncomingMessages();
+                clearIncomingMessagesAndListenerRetry();
                 CompletableFuture<Void> future = null;
                 synchronized (this) {
                     if (!hasParentConsumer && cnx() == null) {
@@ -2668,6 +2689,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         seekStatus.set(SeekStatus.COMPLETED);
                     } else {
                         future = seekFuture;
+                        includeStartMessage = conf.isResetIncludeHead();
                         startMessageId = seekMessageId;
                         seekStatus.set(SeekStatus.NOT_STARTED);
                     }
@@ -2787,7 +2809,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (MessageId.latest.equals(startMessageId) || hasSoughtByTimestamp) {
                 CompletableFuture<GetLastMessageIdResponse> future = internalGetLastMessageIdAsync();
                 // if the consumer is configured to read inclusive then we need to seek to the last message
-                if (resetIncludeHead && !hasSoughtByTimestamp) {
+                if (includeStartMessage && !hasSoughtByTimestamp) {
                     future = future.thenCompose((lastMessageIdResponse) ->
                             seekAsync(lastMessageIdResponse.lastMessageId)
                                     .thenApply((ignore) -> lastMessageIdResponse));
@@ -2796,7 +2818,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 future.thenAccept(response -> {
                     completehasMessageAvailableWithValue(booleanFuture,
                             hasMoreMessagesThanMarkDeletePosition(response,
-                                    !hasSoughtByTimestamp && resetIncludeHead, resetIncludeHead));
+                                    !hasSoughtByTimestamp && includeStartMessage, includeStartMessage));
                 }).exceptionally(ex -> {
                     log.error().exception(ex)
                             .log("Failed getLastMessageId command");
@@ -2807,7 +2829,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return booleanFuture;
             }
 
-            if (hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead)) {
+            if (hasMoreMessages(lastMessageIdInBroker, startMessageId, includeStartMessage)) {
                 completehasMessageAvailableWithValue(booleanFuture, true);
                 return booleanFuture;
             }
@@ -2815,7 +2837,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             getLastMessageIdAsync().thenAccept(messageId -> {
                 lastMessageIdInBroker = messageId;
                 completehasMessageAvailableWithValue(booleanFuture,
-                        hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead));
+                        hasMoreMessages(lastMessageIdInBroker, startMessageId, includeStartMessage));
             }).exceptionally(e -> {
                 log.error().exception(e)
                         .log("Failed getLastMessageId command");

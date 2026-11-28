@@ -44,8 +44,10 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
@@ -204,16 +206,25 @@ public class MessageListenerExecutorTest extends SharedPulsarBaseTest {
         }
         CountDownLatch unblock = new CountDownLatch(1);
         ThreadPoolExecutor executor = saturatedExecutor(unblock);
-        AtomicReference<ByteBuf> rejectedPayload = new AtomicReference<>();
+        BlockingQueue<ByteBuf> payloads = new LinkedBlockingQueue<>();
         AtomicInteger rejections = new AtomicInteger();
         AtomicInteger delivered = new AtomicInteger();
         try (Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic).subscriptionName("close-rejection").receiverQueueSize(3).poolMessages(true)
+                .messagePayloadProcessor(new MessagePayloadProcessor() {
+                    @Override
+                    public <T> void process(MessagePayload raw, MessagePayloadContext context, Schema<T> schema,
+                                            java.util.function.Consumer<Message<T>> deliver) throws Exception {
+                        DEFAULT.process(raw, context, schema, msg -> {
+                            payloads.add(payload(msg));
+                            deliver.accept(msg);
+                        });
+                    }
+                })
                 .messageListenerExecutor((message, task) -> {
                     try {
                         executor.execute(task);
                     } catch (RejectedExecutionException e) {
-                        rejectedPayload.compareAndSet(null, payload(message));
                         rejections.incrementAndGet();
                         throw e;
                     }
@@ -226,9 +237,17 @@ public class MessageListenerExecutorTest extends SharedPulsarBaseTest {
                      .topic(topic).enableBatching(false).create()) {
             producer.newMessage().key("same-key").value(1).send();
             Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> rejections.get() >= 2);
+            producer.newMessage().key("same-key").value(2).send();
+            producer.newMessage().key("same-key").value(3).send();
+            ConsumerBase<?> parent = (ConsumerBase<?>) consumer;
+            Awaitility.await().untilAsserted(() -> assertThat(parent.getTotalIncomingMessages()).isEqualTo(2));
+            assertThat(parent.getIncomingMessageSize()).isPositive();
+            assertThat(payloads).hasSize(3);
             consumer.close();
+            assertThat(parent.getTotalIncomingMessages()).isZero();
+            assertThat(parent.getIncomingMessageSize()).isZero();
             Awaitility.await().atMost(Duration.ofSeconds(5))
-                    .untilAsserted(() -> assertThat(rejectedPayload.get().refCnt()).isZero());
+                    .untilAsserted(() -> assertThat(payloads).allSatisfy(buf -> assertThat(buf.refCnt()).isZero()));
             int attemptsAtClose = rejections.get();
             unblock.countDown();
             Awaitility.await().during(Duration.ofMillis(1200)).atMost(Duration.ofSeconds(3)).untilAsserted(() -> {
@@ -400,6 +419,139 @@ public class MessageListenerExecutorTest extends SharedPulsarBaseTest {
             unblock.countDown();
             executor.shutdownNow();
             assertThat(executor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    @DataProvider
+    public Object[][] reconnectDuringRetry() {
+        return new Object[][] {{false, false, false}, {true, false, false}, {false, true, false}, {true, true, false},
+                {false, false, true}, {true, true, true}};
+    }
+
+    @Test(dataProvider = "reconnectDuringRetry", timeOut = 30000)
+    public void testNonDurableReconnectDuringListenerSubmission(boolean duringAcceptedRetry, boolean inclusiveStart,
+                                                               boolean usePayloadProcessor) throws Exception {
+        String topic = newTopicName();
+        CountDownLatch submitting = new CountDownLatch(1);
+        CountDownLatch reconnected = new CountDownLatch(1);
+        Runnable awaitReconnect = () -> {
+            submitting.countDown();
+            assertThat(Uninterruptibles.awaitUninterruptibly(reconnected, 15, TimeUnit.SECONDS)).isTrue();
+        };
+        AtomicInteger attempts = new AtomicInteger();
+        BlockingQueue<Integer> received = new LinkedBlockingQueue<>();
+        ConsumerBuilder<Integer> builder = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic).subscriptionName("in-flight-reconnect").subscriptionMode(SubscriptionMode.NonDurable)
+                .receiverQueueSize(1).poolMessages(true)
+                .messageListenerExecutor((message, task) -> {
+                    int attempt = attempts.incrementAndGet();
+                    if (attempt == 1) {
+                        if (!duringAcceptedRetry) {
+                            awaitReconnect.run();
+                        }
+                        throw new RejectedExecutionException();
+                    }
+                    task.run();
+                    if (duringAcceptedRetry && attempt == 2) {
+                        awaitReconnect.run();
+                    }
+                }).messageListener((c, message) -> {
+                    received.add(message.getValue());
+                    message.release();
+                });
+        if (inclusiveStart) {
+            builder.startMessageIdInclusive();
+        }
+        if (usePayloadProcessor) {
+            builder.messagePayloadProcessor(MessagePayloadProcessor.DEFAULT);
+        }
+        try (Consumer<Integer> consumer = builder.subscribe();
+             Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32).topic(topic)
+                     .enableBatching(false).create()) {
+            producer.send(0);
+            assertThat(submitting.await(5, TimeUnit.SECONDS)).isTrue();
+            ConsumerImpl<?> single = (ConsumerImpl<?>) consumer;
+            ClientCnx old = single.getClientCnx();
+            old.close();
+            Awaitility.await().atMost(Duration.ofSeconds(10)).until(() -> single.isConnected()
+                    && single.getClientCnx() != old);
+            reconnected.countDown();
+            MessageId marker = producer.send(1);
+            assertThat(received.poll(5, TimeUnit.SECONDS)).isEqualTo(0);
+            assertThat(received.poll(5, TimeUnit.SECONDS)).isEqualTo(1);
+
+            // An explicit seek must still honor the configured inclusivity after the reconnect.
+            consumer.seek(marker);
+            producer.send(2);
+            if (inclusiveStart) {
+                assertThat(received.poll(5, TimeUnit.SECONDS)).isEqualTo(1);
+            }
+            assertThat(received.poll(5, TimeUnit.SECONDS)).isEqualTo(2);
+        } finally {
+            reconnected.countDown();
+        }
+    }
+
+    @Test(dataProvider = "rejectionAttempts", timeOut = 30000)
+    public void testFailedSubmissionReturnsPermitAndReleasesMessage(int failureAttempt) throws Exception {
+        String topic = newTopicName();
+        AtomicInteger attempts = new AtomicInteger();
+        CompletableFuture<ByteBuf> failedPayload = new CompletableFuture<>();
+        BlockingQueue<Integer> received = new LinkedBlockingQueue<>();
+        try (Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32).topic(topic)
+                .subscriptionName("submission-failure").receiverQueueSize(1).poolMessages(true)
+                .messageListenerExecutor((message, task) -> {
+                    int attempt = attempts.incrementAndGet();
+                    if (attempt == failureAttempt) {
+                        failedPayload.complete(payload(message));
+                        throw new IllegalStateException("submission failed");
+                    }
+                    if (attempt < failureAttempt) {
+                        throw new RejectedExecutionException();
+                    }
+                    task.run();
+                }).messageListener((c, message) -> {
+                    received.add(message.getValue());
+                    message.release();
+                }).subscribe();
+             Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                     .topic(topic).enableBatching(false).create()) {
+            producer.send(0);
+            ByteBuf buffer = failedPayload.get(5, TimeUnit.SECONDS);
+            Awaitility.await().untilAsserted(() -> assertThat(buffer.refCnt()).isZero());
+            producer.send(1);
+            assertThat(received.poll(5, TimeUnit.SECONDS)).isEqualTo(1);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testRemovingTopicWithRejectedMessageResumesListener() throws Exception {
+        String removedTopic = newTopicName();
+        String activeTopic = newTopicName();
+        CompletableFuture<ByteBuf> rejectedPayload = new CompletableFuture<>();
+        BlockingQueue<Integer> received = new LinkedBlockingQueue<>();
+        try (Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topics(List.of(removedTopic, activeTopic)).subscriptionName("removed-topic").poolMessages(true)
+                .messageListenerExecutor((message, task) -> {
+                    if (message.getTopicName().equals(removedTopic)) {
+                        rejectedPayload.complete(payload(message));
+                        throw new RejectedExecutionException();
+                    }
+                    task.run();
+                }).messageListener((c, message) -> {
+                    received.add(message.getValue());
+                    message.release();
+                }).subscribe();
+             Producer<Integer> first = pulsarClient.newProducer(Schema.INT32).topic(removedTopic).create();
+             Producer<Integer> second = pulsarClient.newProducer(Schema.INT32).topic(activeTopic).create()) {
+            first.send(0);
+            ByteBuf buffer = rejectedPayload.get(5, TimeUnit.SECONDS);
+            second.send(1);
+            MultiTopicsConsumerImpl<?> multi = (MultiTopicsConsumerImpl<?>) consumer;
+            Awaitility.await().until(() -> multi.getTotalIncomingMessages() == 1);
+            multi.unsubscribeAsync(removedTopic).get(5, TimeUnit.SECONDS);
+            assertThat(received.poll(5, TimeUnit.SECONDS)).isEqualTo(1);
+            assertThat(buffer.refCnt()).isZero();
         }
     }
 
