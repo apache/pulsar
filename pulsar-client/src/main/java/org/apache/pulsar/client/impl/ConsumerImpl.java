@@ -213,6 +213,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private volatile boolean hasReachedEndOfTopic;
 
+    private final Set<CompletableFuture<?>> pendingGetLastMessageIdFutures = ConcurrentHashMap.newKeySet();
+
     private final MessageCrypto<?, ?> msgCrypto;
 
     private final Map<String, String> metadata;
@@ -1461,9 +1463,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
         negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
+        failPendingGetLastMessageIdFutures();
         //terminate incomingMessages queue, stop accept the new messages and waking up blocked thread.
         incomingMessages.terminate(this::discardIncomingMessage);
         clearIncomingMessages();
+    }
+
+    private void failPendingGetLastMessageIdFutures() {
+        if (pendingGetLastMessageIdFutures.isEmpty()) {
+            return;
+        }
+        PulsarClientException.AlreadyClosedException ex = new PulsarClientException.AlreadyClosedException(
+            String.format("The consumer %s is closing: subscription %s of topic %s",
+                    consumerName, subscription, topicName.toString()));
+        pendingGetLastMessageIdFutures.forEach(f -> {
+            if (!f.isDone()) {
+                CompletableFuture.runAsync(() -> f.completeExceptionally(ex));
+            }
+        });
     }
 
     void activeConsumerChanged(boolean isActive) {
@@ -3332,6 +3349,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 .build();
 
         CompletableFuture<GetLastMessageIdResponse> getLastMessageIdFuture = new CompletableFuture<>();
+        pendingGetLastMessageIdFutures.add(getLastMessageIdFuture);
+        getLastMessageIdFuture.whenComplete((v, t) -> pendingGetLastMessageIdFutures.remove(getLastMessageIdFuture));
 
         internalGetLastMessageIdAsync(backoff, opTimeoutMs, getLastMessageIdFuture);
         return getLastMessageIdFuture;
@@ -3340,6 +3359,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private void internalGetLastMessageIdAsync(final Backoff backoff,
                                                final AtomicLong remainingTime,
                                                CompletableFuture<GetLastMessageIdResponse> future) {
+        State state = getState();
+        if (state == State.Closing || state == State.Closed) {
+            future.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                String.format("The consumer %s was already closed when the subscription %s of the topic %s "
+                        + "getting the last message id", consumerName, subscription, topicName.toString())));
+            return;
+        }
         ClientCnx cnx = cnx();
         if (isConnected() && cnx != null) {
             if (!Commands.peerSupportsGetLastMessageId(cnx.getRemoteEndpointProtocolVersion())) {
@@ -3397,10 +3423,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             log.warn().attr("nextDelayMs", nextDelay)
                     .log("Could not get connection while getLastMessageId -- Will try again after delay");
-            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
-                remainingTime.addAndGet(-nextDelay);
-                internalGetLastMessageIdAsync(backoff, remainingTime, future);
-            }, nextDelay, TimeUnit.MILLISECONDS);
+            try {
+                ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
+                    remainingTime.addAndGet(-nextDelay);
+                    internalGetLastMessageIdAsync(backoff, remainingTime, future);
+                }, nextDelay, TimeUnit.MILLISECONDS);
+            } catch (RejectedExecutionException e) {
+                future.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                    String.format("getLastMessageId retry for subscription %s of topic %s was rejected: "
+                            + "client is shutting down", subscription, topicName.toString())));
+            }
         }
     }
 
