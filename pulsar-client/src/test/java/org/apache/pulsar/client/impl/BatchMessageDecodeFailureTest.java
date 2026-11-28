@@ -28,6 +28,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -39,9 +40,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
@@ -85,7 +86,9 @@ public class BatchMessageDecodeFailureTest {
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
         executorProvider = new ExecutorProvider(1, "BatchDecodeFailureTest");
-        internalExecutor = Executors.newSingleThreadScheduledExecutor();
+        // Run the delivery callbacks on the calling thread, so a test can acknowledge a message while the batch is
+        // still being decoded.
+        internalExecutor = MoreExecutors.newDirectExecutorService();
         sentCommands.clear();
     }
 
@@ -102,6 +105,11 @@ public class BatchMessageDecodeFailureTest {
     }
 
     private void createConsumer(boolean batchIndexAckEnabled) {
+        createConsumer(batchIndexAckEnabled, 0, null);
+    }
+
+    private void createConsumer(boolean batchIndexAckEnabled, long ackTimeoutMillis,
+                                DeadLetterPolicy deadLetterPolicy) {
         ClientCnx cnx = ClientTestFixtures.mockClientCnx();
         ChannelHandlerContext ctx = cnx.ctx();
         doAnswer(invocation -> {
@@ -124,6 +132,8 @@ public class BatchMessageDecodeFailureTest {
         ConsumerConfigurationData<byte[]> consumerConf = new ConsumerConfigurationData<>();
         consumerConf.setSubscriptionName("test-sub");
         consumerConf.setBatchIndexAckEnabled(batchIndexAckEnabled);
+        consumerConf.setAckTimeoutMillis(ackTimeoutMillis);
+        consumerConf.setDeadLetterPolicy(deadLetterPolicy);
         // send the acks right away, so that the test sees them without flushing the tracker
         consumerConf.setAcknowledgementsGroupTimeMicros(0);
 
@@ -373,6 +383,30 @@ public class BatchMessageDecodeFailureTest {
                 .get(1, TimeUnit.SECONDS);
     }
 
+    /**
+     * The application acknowledges the prefix messages while the batch is still being decoded, so each ack sees the
+     * tail bits of the shared ack set still set and leaves the entry in the tracker. Discarding the corrupted tail
+     * then acks the whole entry: the entry must not stay in the ack-timeout tracker or in the possible dead letter
+     * messages.
+     */
+    @Test
+    public void testDiscardingCorruptedTailRemovesTheEntryFromAckTracking() throws Exception {
+        createConsumer(true, TimeUnit.SECONDS.toMillis(30),
+                DeadLetterPolicy.builder().maxRedeliverCount(1)
+                        .deadLetterTopic("persistent://tenant/ns1/test-dlq").build());
+
+        // three pending receives, each acknowledges its message as soon as it is delivered
+        for (int i = 0; i < 3; i++) {
+            consumer.receiveAsync().thenCompose(message -> consumer.acknowledgeAsync(message));
+        }
+
+        receiveBatch(1, 5, null, batchPayload(5, 3, Corruption.MISSING_REQUIRED_FIELD));
+
+        assertTrue(consumer.getUnAckedMessageTracker().isEmpty());
+        assertNotNull(consumer.getPossibleSendToDeadLetterTopicMessages());
+        assertTrue(consumer.getPossibleSendToDeadLetterTopicMessages().isEmpty());
+    }
+
     @Test
     public void testValidBatch() throws Exception {
         createConsumer(true);
@@ -399,7 +433,7 @@ public class BatchMessageDecodeFailureTest {
         } finally {
             payload.release();
         }
-        // the delivered messages are enqueued on the internal executor, wait for them
+        // the delivery callbacks run inline on the direct executor, the submit flushes anything queued
         internalExecutor.submit(() -> { }).get();
     }
 
