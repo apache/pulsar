@@ -54,6 +54,7 @@ import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.HttpResponseBodyPart;
 import org.asynchttpclient.RequestBuilder;
@@ -171,7 +172,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build())
+            addAuthHeaders(functions, builder)
+                    .thenCompose(request -> asyncHttpRequestExecutor.executeRequest(request.build()))
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                             future.completeExceptionally(
@@ -184,7 +186,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
 
@@ -262,7 +264,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
 
-            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build())
+            addAuthHeaders(functions, builder)
+                    .thenCompose(request -> asyncHttpRequestExecutor.executeRequest(request.build()))
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                             future.completeExceptionally(
@@ -275,7 +278,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
         } catch (Exception e) {
@@ -354,8 +357,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         WebTarget path = functions.path(tenant).path(namespace).path(function).path("trigger");
 
         final CompletableFuture<String> future = new CompletableFuture<>();
-        try {
-            request(path).async().post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
+        withAuthentication(path, future, builder -> builder.async()
+                .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA),
                     new InvocationCallback<String>() {
                         @Override
                         public void completed(String response) {
@@ -369,10 +372,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                                     .log("Failed to perform http post request");
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
-                    });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+                    }));
         return future;
     }
 
@@ -463,7 +463,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     .addBodyPart(new FilePart("data", new File(sourceFile), MediaType.APPLICATION_OCTET_STREAM))
                     .addBodyPart(new StringPart("path", path, MediaType.TEXT_PLAIN));
 
-            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build())
+            addAuthHeaders(functions, builder)
+                    .thenCompose(request -> asyncHttpRequestExecutor.executeRequest(request.build()))
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                             future.completeExceptionally(
@@ -476,7 +477,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
         } catch (Exception e) {
@@ -543,15 +544,17 @@ public class FunctionsImpl extends ComponentResource implements Functions {
             RequestBuilder builder = get(target.getUri().toASCIIString());
 
             CompletableFuture<org.asynchttpclient.Response> responseFuture =
-                    asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build(),
-                            () -> new AsyncCompletionHandlerBase() {
+                    addAuthHeaders(functions, builder).thenCompose(
+                            request -> asyncHttpRequestExecutor.executeRequest(request.build(),
+                                    () -> new AsyncCompletionHandlerBase() {
 
-                            @Override
-                            public State onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
-                                os.write(bodyPart.getBodyByteBuffer());
-                                return State.CONTINUE;
-                            }
-                        });
+                                    @Override
+                                    public State onBodyPartReceived(HttpResponseBodyPart bodyPart)
+                                            throws Exception {
+                                        os.write(bodyPart.getBodyByteBuffer());
+                                        return State.CONTINUE;
+                                    }
+                                }));
 
             responseFuture
                     .whenComplete((response, throwable) -> {
@@ -573,7 +576,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
         } catch (Exception e) {
@@ -678,8 +681,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                             .path("state").path(state.getKey()).getUri().toASCIIString());
             builder.addBodyPart(new StringPart("state", objectWriter()
                     .writeValueAsString(state), MediaType.APPLICATION_JSON));
-            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build())
-                    .toCompletableFuture()
+            addAuthHeaders(functions, builder)
+                    .thenCompose(request -> asyncHttpRequestExecutor.executeRequest(request.build()))
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                             future.completeExceptionally(getApiException(
@@ -690,7 +693,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
 
@@ -718,8 +721,8 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                             .addBodyPart(new ByteArrayPart("functionMetaData", functionMetaData))
                     .addBodyPart(new StringPart("delete", Boolean.toString(delete)));
 
-            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build())
-                    .toCompletableFuture()
+            addAuthHeaders(functions, builder)
+                    .thenCompose(request -> asyncHttpRequestExecutor.executeRequest(request.build()))
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                             future.completeExceptionally(
@@ -732,7 +735,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                         }
                     })
                     .exceptionally(throwable -> {
-                        future.completeExceptionally(getApiException(throwable));
+                        future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                         return null;
                     });
 

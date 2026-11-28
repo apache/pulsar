@@ -541,10 +541,9 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
 
         final CompletableFuture<MessageId> future = new CompletableFuture<>();
-        try {
-            final WebTarget path = topicPath(tn, "terminate");
+        final WebTarget path = topicPath(tn, "terminate");
 
-            request(path).async().post(Entity.entity("", MediaType.APPLICATION_JSON),
+        withAuthentication(path, future, builder -> builder.async().post(Entity.entity("", MediaType.APPLICATION_JSON),
                     new InvocationCallback<MessageIdImpl>() {
 
                         @Override
@@ -559,10 +558,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                                     .log("Failed to perform http post request");
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
-                    });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+                    }));
 
         return future;
     }
@@ -577,10 +573,9 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
 
         final CompletableFuture<Map<Integer, MessageId>> future = new CompletableFuture<>();
-        try {
-            final WebTarget path = topicPath(tn, "terminate", "partitions");
+        final WebTarget path = topicPath(tn, "terminate", "partitions");
 
-            request(path).async().post(Entity.entity("", MediaType.APPLICATION_JSON),
+        withAuthentication(path, future, builder -> builder.async().post(Entity.entity("", MediaType.APPLICATION_JSON),
                     new InvocationCallback<Map<Integer, MessageIdImpl>>() {
 
                         @Override
@@ -599,10 +594,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                                     .log("Failed to perform http post request");
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
-                    });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+                    }));
 
         return future;
     }
@@ -1240,8 +1232,8 @@ public class TopicsImpl extends BaseResource implements Topics {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn, "offload");
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        try {
-            request(path).async().put(Entity.entity(messageId, MediaType.APPLICATION_JSON)
+        withAuthentication(path, future, builder -> builder.async()
+                .put(Entity.entity(messageId, MediaType.APPLICATION_JSON)
                     , new InvocationCallback<MessageIdImpl>() {
                         @Override
                         public void completed(MessageIdImpl response) {
@@ -1252,10 +1244,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                         public void failed(Throwable throwable) {
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
-                    });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+                    }));
         return future;
     }
 
@@ -1751,8 +1740,8 @@ public class TopicsImpl extends BaseResource implements Topics {
         WebTarget path = topicPath(topicName, "backlogSize");
 
         final CompletableFuture<Long> future = new CompletableFuture<>();
-        try {
-            request(path).async().put(Entity.entity(messageId, MediaType.APPLICATION_JSON),
+        withAuthentication(path, future, builder -> builder.async()
+                .put(Entity.entity(messageId, MediaType.APPLICATION_JSON),
                     new InvocationCallback<Long>() {
 
                 @Override
@@ -1765,10 +1754,7 @@ public class TopicsImpl extends BaseResource implements Topics {
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
 
-            });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+            }));
         return future;
     }
 

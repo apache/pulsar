@@ -207,29 +207,29 @@ public class PulsarAdminImpl implements PulsarAdmin {
                 clientConfigData.getAutoCertRefreshSeconds(), sharedResources);
 
         long requestTimeoutMs = clientConfigData.getRequestTimeoutMs();
-        this.clusters = lendAuthExecutor(new ClustersImpl(root, auth, requestTimeoutMs));
-        this.brokers = lendAuthExecutor(new BrokersImpl(root, auth, requestTimeoutMs));
-        this.brokerStats = lendAuthExecutor(new BrokerStatsImpl(root, auth, requestTimeoutMs));
-        this.proxyStats = lendAuthExecutor(new ProxyStatsImpl(root, auth, requestTimeoutMs));
-        this.tenants = lendAuthExecutor(new TenantsImpl(root, auth, requestTimeoutMs));
-        this.resourcegroups = lendAuthExecutor(new ResourceGroupsImpl(root, auth, requestTimeoutMs));
-        this.namespaces = lendAuthExecutor(new NamespacesImpl(root, auth, requestTimeoutMs));
-        this.topics = lendAuthExecutor(new TopicsImpl(root, auth, requestTimeoutMs));
-        this.localTopicPolicies = lendAuthExecutor(new TopicPoliciesImpl(root, auth, requestTimeoutMs, false));
-        this.globalTopicPolicies = lendAuthExecutor(new TopicPoliciesImpl(root, auth, requestTimeoutMs, true));
-        this.nonPersistentTopics = lendAuthExecutor(new NonPersistentTopicsImpl(root, auth, requestTimeoutMs));
-        this.resourceQuotas = lendAuthExecutor(new ResourceQuotasImpl(root, auth, requestTimeoutMs));
-        this.lookups = lendAuthExecutor(new LookupImpl(root, auth, useTls, requestTimeoutMs, topics));
-        this.functions = lendAuthExecutor(new FunctionsImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
-        this.sources = lendAuthExecutor(new SourcesImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
-        this.sinks = lendAuthExecutor(new SinksImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
-        this.worker = lendAuthExecutor(new WorkerImpl(root, auth, requestTimeoutMs));
-        this.schemas = lendAuthExecutor(new SchemasImpl(root, auth, requestTimeoutMs));
-        this.bookies = lendAuthExecutor(new BookiesImpl(root, auth, requestTimeoutMs));
-        this.packages = lendAuthExecutor(new PackagesImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
-        this.transactions = lendAuthExecutor(new TransactionsImpl(root, auth, requestTimeoutMs));
-        this.metadataMigration = lendAuthExecutor(new MetadataMigrationImpl(root, auth, requestTimeoutMs));
-        this.scalableTopics = lendAuthExecutor(new ScalableTopicsImpl(root, auth, requestTimeoutMs));
+        this.clusters = lendAdminState(new ClustersImpl(root, auth, requestTimeoutMs));
+        this.brokers = lendAdminState(new BrokersImpl(root, auth, requestTimeoutMs));
+        this.brokerStats = lendAdminState(new BrokerStatsImpl(root, auth, requestTimeoutMs));
+        this.proxyStats = lendAdminState(new ProxyStatsImpl(root, auth, requestTimeoutMs));
+        this.tenants = lendAdminState(new TenantsImpl(root, auth, requestTimeoutMs));
+        this.resourcegroups = lendAdminState(new ResourceGroupsImpl(root, auth, requestTimeoutMs));
+        this.namespaces = lendAdminState(new NamespacesImpl(root, auth, requestTimeoutMs));
+        this.topics = lendAdminState(new TopicsImpl(root, auth, requestTimeoutMs));
+        this.localTopicPolicies = lendAdminState(new TopicPoliciesImpl(root, auth, requestTimeoutMs, false));
+        this.globalTopicPolicies = lendAdminState(new TopicPoliciesImpl(root, auth, requestTimeoutMs, true));
+        this.nonPersistentTopics = lendAdminState(new NonPersistentTopicsImpl(root, auth, requestTimeoutMs));
+        this.resourceQuotas = lendAdminState(new ResourceQuotasImpl(root, auth, requestTimeoutMs));
+        this.lookups = lendAdminState(new LookupImpl(root, auth, useTls, requestTimeoutMs, topics));
+        this.functions = lendAdminState(new FunctionsImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
+        this.sources = lendAdminState(new SourcesImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
+        this.sinks = lendAdminState(new SinksImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
+        this.worker = lendAdminState(new WorkerImpl(root, auth, requestTimeoutMs));
+        this.schemas = lendAdminState(new SchemasImpl(root, auth, requestTimeoutMs));
+        this.bookies = lendAdminState(new BookiesImpl(root, auth, requestTimeoutMs));
+        this.packages = lendAdminState(new PackagesImpl(root, auth, asyncHttpConnector, requestTimeoutMs));
+        this.transactions = lendAdminState(new TransactionsImpl(root, auth, requestTimeoutMs));
+        this.metadataMigration = lendAdminState(new MetadataMigrationImpl(root, auth, requestTimeoutMs));
+        this.scalableTopics = lendAdminState(new ScalableTopicsImpl(root, auth, requestTimeoutMs));
 
         if (originalCtxLoader != null) {
             Thread.currentThread().setContextClassLoader(originalCtxLoader);
@@ -629,15 +629,24 @@ public class PulsarAdminImpl implements PulsarAdmin {
     }
 
     /**
-     * Lend a resource this admin's blocking authentication executor, so the deprecated v4 credential
-     * composition it runs per request stays on the admin's own pool (PIP-478).
+     * Lend a resource the pieces of this admin it needs to authenticate (PIP-478): the blocking executor,
+     * so the deprecated v4 credential composition it runs per request stays on the admin's own pool, and
+     * a challenge transport, so a v5 SASL warmup is made by a client built from this admin's configuration
+     * rather than one the plugin builds for itself.
+     *
+     * <p>The transport comes from the connector built above rather than the one Jersey serves the REST
+     * requests over, because Jersey creates its connector lazily on the first request and there is none to
+     * borrow from here. Both are built by the same provider, from the same {@code ClientConfigurationData}
+     * and against the one TLS factory it shares between them, so either carries the trust configuration
+     * the warmup was missing.
      *
      * @param resource the freshly constructed resource
      * @param <T> the resource type
      * @return the same resource
      */
-    private <T extends BaseResource> T lendAuthExecutor(T resource) {
+    private <T extends BaseResource> T lendAdminState(T resource) {
         resource.setBlockingAuthExecutor(blockingAuthExecutor);
+        resource.setChallengeTransport(asyncHttpConnector.getChallengeTransport());
         return resource;
     }
 

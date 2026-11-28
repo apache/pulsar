@@ -107,8 +107,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public CompletableFuture<Void> deleteSchemaAsync(String topic, boolean force) {
         WebTarget path = schemaPath(TopicName.get(topic)).queryParam("force", Boolean.toString(force));
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        try {
-            request(path).async().delete(new InvocationCallback<DeleteSchemaResponse>() {
+        withAuthentication(path, future, builder -> builder.async()
+                .delete(new InvocationCallback<DeleteSchemaResponse>() {
                 @Override
                 public void completed(DeleteSchemaResponse deleteSchemaResponse) {
                     future.complete(null);
@@ -118,10 +118,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
                 public void failed(Throwable throwable) {
                     future.completeExceptionally(getApiException(throwable.getCause()));
                 }
-            });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+            }));
         return future;
     }
 
@@ -156,8 +153,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public CompletableFuture<IsCompatibilityResponse> testCompatibilityAsync(String topic, PostSchemaPayload payload) {
         TopicName tn = TopicName.get(topic);
         final CompletableFuture<IsCompatibilityResponse> future = new CompletableFuture<>();
-        try {
-            request(compatibilityPath(tn)).async().post(Entity.json(payload),
+        withAuthentication(compatibilityPath(tn), future, builder -> builder.async().post(Entity.json(payload),
                     new InvocationCallback<IsCompatibilityResponse>() {
                         @Override
                         public void completed(IsCompatibilityResponse isCompatibilityResponse) {
@@ -168,10 +164,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
                         public void failed(Throwable throwable) {
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
-                    });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+                    }));
         return future;
     }
 
@@ -183,8 +176,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public CompletableFuture<Long> getVersionBySchemaAsync(String topic, PostSchemaPayload payload) {
         final CompletableFuture<Long> future = new CompletableFuture<>();
-        try {
-            request(versionPath(TopicName.get(topic))).async().post(Entity.json(payload)
+        withAuthentication(versionPath(TopicName.get(topic)), future, builder -> builder.async()
+                .post(Entity.json(payload)
                     , new InvocationCallback<LongSchemaVersionResponse>() {
                         @Override
                         public void completed(LongSchemaVersionResponse longSchemaVersionResponse) {
@@ -195,10 +188,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
                         public void failed(Throwable throwable) {
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
-                    });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+                    }));
         return future;
     }
 
@@ -210,8 +200,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public CompletableFuture<IsCompatibilityResponse> testCompatibilityAsync(String topic, SchemaInfo schemaInfo) {
         final CompletableFuture<IsCompatibilityResponse> future = new CompletableFuture<>();
-        try {
-            request(compatibilityPath(TopicName.get(topic))).async()
+        withAuthentication(compatibilityPath(TopicName.get(topic)), future, builder -> builder.async()
                     .post(
                             Entity.json(convertSchemaInfoToPostSchemaPayload(schemaInfo)),
                             new InvocationCallback<IsCompatibilityResponse>() {
@@ -224,10 +213,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
                                 public void failed(Throwable throwable) {
                                     future.completeExceptionally(getApiException(throwable.getCause()));
                                 }
-                            });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+                            }));
         return future;
     }
 
@@ -239,8 +225,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public CompletableFuture<Long> getVersionBySchemaAsync(String topic, SchemaInfo schemaInfo) {
         final CompletableFuture<Long> future = new CompletableFuture<>();
-        try {
-            request(versionPath(TopicName.get(topic))).async().post(
+        withAuthentication(versionPath(TopicName.get(topic)), future, builder -> builder.async().post(
                     Entity.json(convertSchemaInfoToPostSchemaPayload(schemaInfo)),
                     new InvocationCallback<LongSchemaVersionResponse>() {
                         @Override
@@ -252,10 +237,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
                         public void failed(Throwable throwable) {
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
-                    });
-        } catch (PulsarAdminException cae) {
-            future.completeExceptionally(cae);
-        }
+                    }));
         return future;
     }
 

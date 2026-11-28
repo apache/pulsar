@@ -38,6 +38,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpRequestExecutor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import org.apache.pulsar.packages.management.core.common.PackageName;
 import org.asynchttpclient.AsyncCompletionHandlerBase;
@@ -97,8 +98,8 @@ public class PackagesImpl extends ComponentResource implements Packages {
                 .post(packages.path(PackageName.get(packageName).toRestPath()).getUri().toASCIIString())
                 .addBodyPart(new FilePart("file", new File(path), MediaType.APPLICATION_OCTET_STREAM))
                 .addBodyPart(new StringPart("metadata", new Gson().toJson(metadata), MediaType.APPLICATION_JSON));
-            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(packages, builder).build())
-                .toCompletableFuture()
+            addAuthHeaders(packages, builder)
+                .thenCompose(request -> asyncHttpRequestExecutor.executeRequest(request.build()))
                 .thenAccept(response -> {
                     if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                         future.completeExceptionally(
@@ -111,11 +112,11 @@ public class PackagesImpl extends ComponentResource implements Packages {
                     }
                 })
                 .exceptionally(throwable -> {
-                    future.completeExceptionally(getApiException(throwable));
+                    future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                     return null;
                 });
-        } catch (PulsarAdminException e) {
-            future.completeExceptionally(e);
+        } catch (Exception e) {
+            future.completeExceptionally(getApiException(e));
         }
         return future;    }
 
@@ -138,15 +139,17 @@ public class PackagesImpl extends ComponentResource implements Packages {
             RequestBuilder builder = get(webTarget.getUri().toASCIIString());
 
             CompletableFuture<org.asynchttpclient.Response> responseFuture =
-                asyncHttpRequestExecutor.executeRequest(addAuthHeaders(webTarget, builder).build(),
-                        () -> new AsyncCompletionHandlerBase() {
+                addAuthHeaders(webTarget, builder).thenCompose(
+                        request -> asyncHttpRequestExecutor.executeRequest(request.build(),
+                                () -> new AsyncCompletionHandlerBase() {
 
-                            @Override
-                            public State onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
-                                os.write(bodyPart.getBodyByteBuffer());
-                                return State.CONTINUE;
-                            }
-                    });
+                                    @Override
+                                    public State onBodyPartReceived(HttpResponseBodyPart bodyPart)
+                                            throws Exception {
+                                        os.write(bodyPart.getBodyByteBuffer());
+                                        return State.CONTINUE;
+                                    }
+                            }));
             responseFuture
                 .whenComplete((response, throwable) -> {
                     try {
@@ -167,7 +170,7 @@ public class PackagesImpl extends ComponentResource implements Packages {
                     }
                 })
                 .exceptionally(throwable -> {
-                    future.completeExceptionally(getApiException(throwable));
+                    future.completeExceptionally(getApiException(FutureUtil.unwrapCompletionException(throwable)));
                     return null;
                 });
         } catch (Exception e) {

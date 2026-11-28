@@ -18,24 +18,56 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.Response;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException.GettingAuthenticationDataException;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpRequestExecutor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.v5.auth.AuthenticationInitContext;
+import org.apache.pulsar.client.api.v5.auth.HttpAuthCallContext;
+import org.apache.pulsar.client.api.v5.auth.HttpAuthChallengeHandler;
+import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
+import org.apache.pulsar.client.api.v5.auth.HttpAuthHeadersProvider;
+import org.apache.pulsar.client.impl.auth.v5.AsyncHttpAuthenticationProvider;
+import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver;
+import org.apache.pulsar.client.impl.auth.v5.HttpChallengeTransport;
+import org.apache.pulsar.common.functions.FunctionConfig;
+import org.asynchttpclient.AsyncHandler;
+import org.asynchttpclient.Request;
+import org.asynchttpclient.RequestBuilder;
 import org.testng.annotations.Test;
 
 /**
@@ -47,6 +79,9 @@ import org.testng.annotations.Test;
  * blocking {@code getAuthData()} — an OAuth2 or Athenz shim refreshing its credential over synchronous
  * HTTP — ran wherever the caller happened to be, which for a broker calling its own admin client is a
  * request-handling thread.
+ *
+ * <p>The same pre-request stage also decides which HTTP client the v5 SASL-style warmup rounds go over,
+ * so the lending of the admin's challenge transport is pinned here too.
  */
 public class AdminAuthOffloadTest {
 
@@ -124,6 +159,63 @@ public class AdminAuthOffloadTest {
         }
     }
 
+    /**
+     * A v5-native body of the SASL-over-HTTP shape, reduced to what the driver needs: one challenge round,
+     * then the server's role token replayed onto the real request. No Kerberos, no network.
+     *
+     * <p>The v5 {@code Authentication} stays fully qualified: this file is mostly about the v4 interface
+     * of the same simple name, which the plugins above implement.
+     */
+    private static final class FakeChallengeBody implements org.apache.pulsar.client.api.v5.auth.Authentication,
+            HttpAuthChallengeHandler, HttpAuthHeadersProvider {
+
+        @Override
+        public CompletableFuture<Void> initializeAsync(AuthenticationInitContext ctx) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<HttpAuthHeaders> respondToHttpChallengeAsync(HttpAuthCallContext ctx) {
+            return CompletableFuture.completedFuture(HttpAuthHeaders.of("sasl-token", "client"));
+        }
+
+        @Override
+        public CompletableFuture<HttpAuthHeaders> getHttpHeadersAsync(HttpAuthCallContext ctx) {
+            return CompletableFuture.completedFuture(HttpAuthHeaders.of("role-token",
+                    ctx.serverChallengeHeaders().flatMap(headers -> headers.get("role-token")).orElse("none")));
+        }
+    }
+
+    /** A transport that records the URIs it served and answers {@code 401} once, then {@code 200}. */
+    private static final class RecordingTransport implements HttpChallengeTransport {
+        final List<URI> uris = new ArrayList<>();
+
+        @Override
+        public CompletableFuture<Result> get(URI uri, HttpAuthHeaders requestHeaders, Duration timeout) {
+            uris.add(uri);
+            return CompletableFuture.completedFuture(uris.size() == 1
+                    ? new Result(401, HttpAuthHeaders.of("server-state", "negotiate"))
+                    : new Result(200, HttpAuthHeaders.of("role-token", "RT")));
+        }
+    }
+
+    /**
+     * A v4 plugin exposing a v5-native SASL-over-HTTP body, the shape {@code AuthenticationSasl} presents —
+     * including a default transport of its own, which is the one that ignores the admin's TLS settings.
+     */
+    private static final class ChallengeAuthentication extends ThreadRecordingAuthentication
+            implements AsyncHttpAuthenticationProvider {
+
+        final RecordingTransport ownTransport = new RecordingTransport();
+        private final HttpAuthenticationDriver driver =
+                new HttpAuthenticationDriver(new FakeChallengeBody(), null, ownTransport);
+
+        @Override
+        public Optional<HttpAuthenticationDriver> httpAuthenticationDriver() {
+            return Optional.of(driver);
+        }
+    }
+
     /** The minimal concrete resource needed to reach the protected header composition. */
     private static class TestResource extends BaseResource {
         TestResource(Authentication auth) {
@@ -132,6 +224,22 @@ public class AdminAuthOffloadTest {
 
         CompletableFuture<Map<String, String>> headers(URI uri) {
             return computeAuthHeaders(uri);
+        }
+    }
+
+    /** The minimal concrete {@link ComponentResource}, the base of the raw-AsyncHttpClient operations. */
+    private static final class TestComponentResource extends ComponentResource {
+        TestComponentResource(Authentication auth) {
+            super(auth, 30_000L);
+        }
+    }
+
+    /** A plugin whose credential resolution always fails, for the error-propagation checks. */
+    private static final class FailingAuthentication extends ThreadRecordingAuthentication {
+        @Override
+        @Deprecated
+        public AuthenticationDataProvider getAuthData() {
+            throw new IllegalStateException("credential refresh failed");
         }
     }
 
@@ -201,40 +309,88 @@ public class AdminAuthOffloadTest {
 
     /**
      * Lending is opt-in per construction site, so a resource added to {@link PulsarAdminImpl} later without
-     * the wrapper would compile, run, and silently fall back to the shared pool — the fix undone with no
-     * symptom. Walking the admin's own accessors is what turns that into a test failure; pinning one
-     * resource would not, since the twenty-fourth is the one that would be missed.
+     * the wrapper would compile, run, and silently fall back to the shared pool and to the plugin's own
+     * HTTP client — the fix undone with no symptom, in the transport's case until someone puts a private
+     * CA in front of the broker. Walking the admin's own accessors is what turns that into a test failure;
+     * pinning one resource would not, since the twenty-fourth is the one that would be missed.
      */
     @Test
-    public void everyResourceTheAdminExposesIsLentThePool() throws Exception {
+    public void everyResourceTheAdminExposesIsLentTheAdminsState() throws Exception {
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl("http://broker.example:8080").build()) {
-            Executor pool = ((PulsarAdminImpl) admin).blockingAuthExecutorForTest();
-            List<String> notLent = new ArrayList<>();
-            int checked = 0;
-
+            Map<String, BaseResource> resources = new LinkedHashMap<>();
             for (Method accessor : PulsarAdmin.class.getMethods()) {
                 if (accessor.getParameterCount() != 0 || Modifier.isStatic(accessor.getModifiers())
                         || accessor.getReturnType() == void.class) {
                     continue;
                 }
                 if (accessor.invoke(admin) instanceof BaseResource resource) {
-                    checked++;
-                    if (resource.blockingAuthExecutorForTest() != pool) {
-                        notLent.add(accessor.getName());
-                    }
+                    resources.put(accessor.getName(), resource);
                 }
             }
             // The one resource accessor that takes an argument, so the loop above cannot reach it.
-            checked++;
-            if (((BaseResource) admin.topicPolicies(true)).blockingAuthExecutorForTest() != pool) {
-                notLent.add("topicPolicies(true)");
-            }
+            resources.put("topicPolicies(true)", (BaseResource) admin.topicPolicies(true));
 
-            assertThat(notLent).as("admin resources left on the shared pool").isEmpty();
-            assertThat(checked)
+            Executor pool = ((PulsarAdminImpl) admin).blockingAuthExecutorForTest();
+            Set<HttpChallengeTransport> transports = Collections.newSetFromMap(new IdentityHashMap<>());
+            List<String> notLentThePool = new ArrayList<>();
+            List<String> notLentATransport = new ArrayList<>();
+            resources.forEach((name, resource) -> {
+                if (resource.blockingAuthExecutorForTest() != pool) {
+                    notLentThePool.add(name);
+                }
+                if (resource.challengeTransportForTest() == null) {
+                    notLentATransport.add(name);
+                } else {
+                    transports.add(resource.challengeTransportForTest());
+                }
+            });
+
+            assertThat(notLentThePool).as("admin resources left on the shared pool").isEmpty();
+            assertThat(notLentATransport).as("admin resources left on the plugin's own HTTP client").isEmpty();
+            // One transport, not one per resource: it is the admin's single AsyncHttpClient that carries the
+            // configuration, so a second instance would mean a second place for the pairing to drift.
+            assertThat(transports).as("the admin's resources must share one transport").hasSize(1);
+            assertThat(resources)
                     .as("the walk must actually reach the admin's resources, not silently filter them all out")
-                    .isGreaterThanOrEqualTo(20);
+                    .hasSizeGreaterThanOrEqualTo(20);
         }
+    }
+
+    /**
+     * The SASL warmup rounds must go over the admin's own HTTP client. The built-in plugin's default
+     * transport is a bare {@code ClientBuilder.newClient()}, which knows nothing of the admin's trust
+     * store, so against a broker behind a private CA the warmup fails where the real request would have
+     * succeeded. The headers come out the same either way, so the transport identity is what pins it.
+     */
+    @Test
+    public void theSaslWarmupRunsOverTheLentTransport() throws Exception {
+        URI uri = URI.create("https://broker.example:8443/admin/v2/clusters");
+        ChallengeAuthentication auth = new ChallengeAuthentication();
+        RecordingTransport lent = new RecordingTransport();
+        TestResource resource = new TestResource(auth);
+        resource.setChallengeTransport(lent);
+
+        assertThat(resource.headers(uri).get(30, TimeUnit.SECONDS))
+                .containsExactly(Map.entry("role-token", "RT"));
+        assertThat(lent.uris).as("the lent transport must serve every challenge round")
+                .containsExactly(uri, uri);
+        assertThat(auth.ownTransport.uris)
+                .as("the plugin's own HTTP client must not be used once the admin lent a transport")
+                .isEmpty();
+    }
+
+    /**
+     * A resource built outside a {@link PulsarAdminImpl} — a test, an embedder — has no transport to
+     * borrow, and must keep authenticating over the plugin's own HTTP client rather than failing.
+     */
+    @Test
+    public void aResourceWithNoLentTransportFallsBackToThePlugin() throws Exception {
+        URI uri = URI.create("https://broker.example:8443/admin/v2/clusters");
+        ChallengeAuthentication auth = new ChallengeAuthentication();
+
+        assertThat(new TestResource(auth).headers(uri).get(30, TimeUnit.SECONDS))
+                .containsExactly(Map.entry("role-token", "RT"));
+        assertThat(auth.ownTransport.uris).containsExactly(uri, uri);
     }
 
     /**
@@ -269,6 +425,140 @@ public class AdminAuthOffloadTest {
             assertThat(auth.newRequestHeaderThread.get().getName()).isEqualTo("lent-auth-pool");
         } finally {
             lentPool.shutdownNow();
+        }
+    }
+
+    /**
+     * The operations that submit over the raw AsyncHttpClient — function, source, sink and package uploads and
+     * downloads — compose their headers through {@link ComponentResource#addAuthHeaders}, synchronously, before
+     * any future of theirs exists. A caller that chains one onto a previous admin future therefore runs that
+     * composition on the connector's IO thread, and the v5 warmup now goes over that same connector, so
+     * waiting for the headers there would hold the very loop the warmup needs: with one IO thread, a blocking
+     * wait never sees it complete. The composition must hand back a future instead.
+     */
+    @Test
+    public void composingHeadersForARawRequestNeverWaitsOnTheCallingThread() throws Exception {
+        ExecutorService ioLoop = Executors.newSingleThreadExecutor(r -> new Thread(r, "ahc-io-1"));
+        Client client = ClientBuilder.newClient();
+        try {
+            WebTarget target = client.target("http://broker.example:8080/admin/v2/functions");
+            TestComponentResource resource = new TestComponentResource(new ChallengeAuthentication());
+            // A transport that needs the loop to answer, the way the connector's AsyncHttpClient callback does.
+            AtomicInteger rounds = new AtomicInteger();
+            resource.setChallengeTransport((uri, requestHeaders, timeout) -> CompletableFuture.supplyAsync(
+                    () -> rounds.incrementAndGet() == 1
+                            ? new HttpChallengeTransport.Result(401, HttpAuthHeaders.of("server-state", "negotiate"))
+                            : new HttpChallengeTransport.Result(200, HttpAuthHeaders.of("role-token", "RT")),
+                    ioLoop));
+
+            RequestBuilder builder = new RequestBuilder("GET").setUrl(target.getUri().toASCIIString());
+            CompletableFuture<RequestBuilder> composed = CompletableFuture
+                    .supplyAsync(() -> resource.addAuthHeaders(target, builder), ioLoop)
+                    .thenCompose(headers -> headers);
+
+            assertThat(composed.get(30, TimeUnit.SECONDS).build().getHeaders().get("role-token"))
+                    .as("the warmup must be able to use the loop the composition was started on")
+                    .isEqualTo("RT");
+            assertThat(rounds.get()).isEqualTo(2);
+        } finally {
+            client.close();
+            ioLoop.shutdownNow();
+        }
+    }
+
+    /**
+     * The Jersey-backed {@code *Async} helpers used to reach the warmup through the blocking
+     * {@link BaseResource#request(WebTarget)}. Jersey's response callback is invoked straight from the
+     * AsyncHttpClient callback with no executor hop, so a caller chaining one admin operation onto
+     * another's future ran that wait on the connector's IO thread — the loop the warmup itself needs.
+     * They compose on {@code requestAsync} now, so the wait is gone and only the blocking builder that
+     * the synchronous APIs use is left.
+     */
+    @Test
+    public void theJerseyAsyncHelpersNeverWaitForTheWarmupOnTheCallingThread() throws Exception {
+        WireMockServer server = new WireMockServer(WireMockConfiguration.wireMockConfig().port(0));
+        server.start();
+        ExecutorService ioLoop = Executors.newSingleThreadExecutor(r -> new Thread(r, "ahc-io-1"));
+        Client client = ClientBuilder.newClient();
+        try {
+            server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
+                    .willReturn(aResponse().withStatus(200)
+                            .withHeader("Content-Type", "application/json").withBody("[]")));
+            WebTarget target = client.target("http://localhost:" + server.port() + "/admin/v2/clusters");
+            TestResource resource = new TestResource(new ChallengeAuthentication());
+            AtomicInteger rounds = new AtomicInteger();
+            resource.setChallengeTransport((uri, requestHeaders, timeout) -> CompletableFuture.supplyAsync(
+                    () -> rounds.incrementAndGet() == 1
+                            ? new HttpChallengeTransport.Result(401, HttpAuthHeaders.of("server-state", "negotiate"))
+                            : new HttpChallengeTransport.Result(200, HttpAuthHeaders.of("role-token", "RT")),
+                    ioLoop));
+
+            CompletableFuture<String> body = new CompletableFuture<>();
+            ioLoop.execute(() -> resource.asyncGetRequest(target, new InvocationCallback<Response>() {
+                @Override
+                public void completed(Response response) {
+                    body.complete(response.readEntity(String.class));
+                }
+
+                @Override
+                public void failed(Throwable throwable) {
+                    body.completeExceptionally(throwable);
+                }
+            }));
+
+            assertThat(body.get(30, TimeUnit.SECONDS))
+                    .as("the warmup must be able to use the loop the admin call was issued from")
+                    .isEqualTo("[]");
+            assertThat(rounds.get()).isEqualTo(2);
+        } finally {
+            client.close();
+            ioLoop.shutdownNow();
+            server.stop();
+        }
+    }
+
+    /**
+     * A credential failure reached the caller as {@code GettingAuthenticationDataException} while the
+     * composition was synchronous and the exception was thrown inside the operation's {@code try}. Now that
+     * it travels through a future, the dependent stage relays a {@code CompletionException}, which
+     * {@code getApiException} does not unwrap, so each terminal handler unwraps once before mapping. Both
+     * shapes are covered: a raw AsyncHttpClient operation and a Jersey-backed one.
+     */
+    @Test
+    public void aCredentialFailureStillReachesTheCallerAsTheAuthenticationSubtype() throws Exception {
+        AtomicInteger requestsSent = new AtomicInteger();
+        Client client = ClientBuilder.newClient();
+        try {
+            AsyncHttpRequestExecutor executor = new AsyncHttpRequestExecutor() {
+                @Override
+                public CompletableFuture<org.asynchttpclient.Response> executeRequest(Request request) {
+                    requestsSent.incrementAndGet();
+                    return new CompletableFuture<>();
+                }
+
+                @Override
+                public CompletableFuture<org.asynchttpclient.Response> executeRequest(Request request,
+                        Supplier<AsyncHandler<org.asynchttpclient.Response>> handlerSupplier) {
+                    requestsSent.incrementAndGet();
+                    return new CompletableFuture<>();
+                }
+            };
+            FunctionsImpl functions = new FunctionsImpl(client.target("http://broker.example:8080"),
+                    new FailingAuthentication(), executor, 30_000L);
+            FunctionConfig config = FunctionConfig.builder().tenant("t").namespace("ns").name("fn").build();
+
+            // The raw path: the headers are composed before the multipart request is submitted.
+            assertThatThrownBy(() -> functions.createFunctionAsync(config, null).get(30, TimeUnit.SECONDS))
+                    .cause()
+                    .isInstanceOf(GettingAuthenticationDataException.class);
+            // The Jersey path, through the shared withAuthentication helper.
+            assertThatThrownBy(() -> functions.deleteFunctionAsync("t", "ns", "fn").get(30, TimeUnit.SECONDS))
+                    .cause()
+                    .isInstanceOf(GettingAuthenticationDataException.class);
+            assertThat(requestsSent.get()).as("no request may be sent when the credential cannot be built")
+                    .isZero();
+        } finally {
+            client.close();
         }
     }
 }

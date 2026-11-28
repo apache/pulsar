@@ -21,11 +21,10 @@ package org.apache.pulsar.client.admin.internal;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import jakarta.ws.rs.client.WebTarget;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.RequestBuilder;
 
@@ -38,29 +37,41 @@ public class ComponentResource extends BaseResource {
         super(auth, requestTimeoutMs);
     }
 
-    public RequestBuilder addAuthHeaders(WebTarget target, RequestBuilder requestBuilder) throws PulsarAdminException {
-
-        try {
-            if (auth != null) {
-                Set<Entry<String, String>> headers = getAuthHeaders(target);
-                if (headers != null && !headers.isEmpty()) {
-                    headers.forEach(header -> requestBuilder.addHeader(header.getKey(), header.getValue()));
-                }
-            }
-            return requestBuilder;
-        } catch (Throwable t) {
-            throw new PulsarAdminException.GettingAuthenticationDataException(t);
+    /**
+     * Attach the authentication headers for {@code target} to {@code requestBuilder}, completing once they
+     * are known.
+     *
+     * <p>Composing them asynchronously keeps the operations that submit over the raw AsyncHttpClient off the
+     * blocking path the v4 hooks used to take here. It matters since the v5 SASL warmup goes over the same
+     * connector those operations submit over (PIP-478): waiting for it on the calling thread deadlocks a
+     * caller that chains an admin operation onto a previous admin future, because that continuation runs on
+     * the connector's IO thread and the warmup needs the very loop it would hold.
+     */
+    public CompletableFuture<RequestBuilder> addAuthHeaders(WebTarget target, RequestBuilder requestBuilder) {
+        if (auth == null) {
+            return CompletableFuture.completedFuture(requestBuilder);
         }
-    }
-
-    private Set<Entry<String, String>> getAuthHeaders(WebTarget target) throws Exception {
-        // The blocking get() runs on the caller's admin/application thread (addAuthHeaders is invoked
-        // synchronously from the raw-AsyncHttpClient admin operations), never the Netty event loop, and the
-        // SASL warmup completes on the plugin's own JAX-RS client pool — so this cannot deadlock. This
-        // mirrors the blocking authFuture.get() it replaces, now routed through the shared HTTP auth driver
-        // (PIP-478) when the plugin exposes the v5 SASL-over-HTTP capability.
-        Map<String, String> headers = computeAuthHeaders(target.getUri()).get();
-        return (headers == null || headers.isEmpty()) ? null : headers.entrySet();
+        CompletableFuture<RequestBuilder> future = new CompletableFuture<>();
+        try {
+            computeAuthHeaders(target.getUri()).whenComplete((headers, ex) -> {
+                if (ex != null) {
+                    future.completeExceptionally(new PulsarAdminException.GettingAuthenticationDataException(
+                            FutureUtil.unwrapCompletionException(ex)));
+                    return;
+                }
+                try {
+                    if (headers != null) {
+                        headers.forEach(requestBuilder::addHeader);
+                    }
+                    future.complete(requestBuilder);
+                } catch (Throwable t) {
+                    future.completeExceptionally(new PulsarAdminException.GettingAuthenticationDataException(t));
+                }
+            });
+        } catch (Throwable t) {
+            future.completeExceptionally(new PulsarAdminException.GettingAuthenticationDataException(t));
+        }
+        return future;
     }
 
     protected ObjectWriter objectWriter() {
