@@ -56,6 +56,7 @@ import org.apache.pulsar.common.api.proto.CommandSendError;
 import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
@@ -255,6 +256,11 @@ public class ClientChannelHelper {
         protected void handleCommandScalableTopicAssignmentUpdate(
                 CommandScalableTopicAssignmentUpdate update) {
             queue.offer(new CommandScalableTopicAssignmentUpdate().copyFrom(update));
+        }
+
+        @Override
+        protected void handleTopicMigrated(CommandTopicMigrated commandTopicMigrated) {
+            queue.offer(new CommandTopicMigrated().copyFrom(commandTopicMigrated));
         }
     };
 

@@ -129,10 +129,12 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.ClusterResources.ClusterPoliciesResources;
+import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.TopicListener;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
@@ -184,6 +186,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated;
 import org.apache.pulsar.common.api.proto.CommandWatchTcAssignmentsUpdate;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -197,6 +200,8 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.ClusterPolicies;
+import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicType;
@@ -3215,6 +3220,83 @@ public class ServerCnxTest {
         } finally {
             channel.finishAndReleaseAll();
         }
+    }
+
+    @Test(timeOut = 30000)
+    public void testAddProducerRedirectsTerminatedTopicWhenClusterIsMigrating() throws Exception {
+        resetChannel();
+        try {
+            channel.writeInbound(Commands.newConnect("none", "", null));
+            assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+            // the ledger is already terminated but the migration marker is not stored yet
+            Topic topic = ownMock(spy(brokerService.getOrCreateTopic(successTopicName).get()));
+            doReturn(CompletableFuture.completedFuture(Optional.of(topic)))
+                    .when(brokerService).getTopicCreatingIfAllowed(eq(TopicName.get(successTopicName)), any());
+            doReturn(CompletableFuture.failedFuture(new TopicTerminatedException("Topic was already terminated")))
+                    .when(topic).addProducer(any(), any());
+            doReturn(true).when(topic).shouldProducerMigrate();
+            var clusterPolicies = migrationUrlLookup(true);
+
+            long requestId = 17;
+            channel.writeInbound(Commands.newProducer(successTopicName, 1, requestId, "producer", Map.of(), false));
+            CommandTopicMigrated migrated = (CommandTopicMigrated) getResponse();
+            verify(clusterPolicies).getClusterPoliciesAsync(svcConfig.getClusterName());
+            assertThat(migrated.getResourceType()).isEqualTo(CommandTopicMigrated.ResourceType.Producer);
+            assertThat(migrated.getBrokerServiceUrl()).isEqualTo("pulsar://green-proxy:6650");
+
+            verify(topic).addProducer(any(), any());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testAddProducerReturnsTerminatedErrorWhenClusterIsNotMigrating() throws Exception {
+        resetChannel();
+        try {
+            channel.writeInbound(Commands.newConnect("none", "", null));
+            assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+            Topic topic = ownMock(spy(brokerService.getOrCreateTopic(successTopicName).get()));
+            doReturn(CompletableFuture.completedFuture(Optional.of(topic)))
+                    .when(brokerService).getTopicCreatingIfAllowed(eq(TopicName.get(successTopicName)), any());
+            var terminatedError = new TopicTerminatedException("Topic was already terminated");
+            doReturn(CompletableFuture.failedFuture(terminatedError)).when(topic).addProducer(any(), any());
+            var clusterPolicies = migrationUrlLookup(false);
+
+            long requestId = 17;
+            channel.writeInbound(Commands.newProducer(successTopicName, 1, requestId, "producer", Map.of(), false));
+            CommandError error = (CommandError) getResponse();
+            verify(clusterPolicies).getClusterPoliciesAsync(svcConfig.getClusterName());
+            assertThat(error.getRequestId()).isEqualTo(requestId);
+            assertThat(error.getError()).as("a terminated topic outside a migration keeps its error code")
+                    .isEqualTo(ServerError.TopicTerminatedError);
+            assertThat(error.getMessage()).as("original terminated error").isEqualTo(terminatedError.toString());
+
+            var producer = ArgumentCaptor.forClass(Producer.class);
+            verify(topic).addProducer(producer.capture(), any());
+            verify(topic).removeProducer(same(producer.getValue()));
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    private ClusterPoliciesResources migrationUrlLookup(boolean migrated) {
+        var clusterResources = mock(ClusterResources.class);
+        var clusterPolicies = mock(ClusterPoliciesResources.class);
+        var localPolicies = mock(LocalPoliciesResources.class);
+        var resources = pulsar.getPulsarResources();
+        doReturn(clusterResources).when(resources).getClusterResources();
+        doReturn(localPolicies).when(resources).getLocalPolicies();
+        when(clusterResources.getClusterPoliciesResources()).thenReturn(clusterPolicies);
+        var policies = ClusterPoliciesImpl.builder().migrated(true)
+                .migratedClusterUrl(new ClusterPolicies.ClusterUrl(null, null, "pulsar://green-proxy:6650", null))
+                .build();
+        Optional<ClusterPoliciesImpl> clusterData = migrated ? Optional.of(policies) : Optional.empty();
+        when(clusterPolicies.getClusterPoliciesAsync(svcConfig.getClusterName()))
+                .thenReturn(CompletableFuture.completedFuture(clusterData));
+        when(localPolicies.getLocalPoliciesAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        return clusterPolicies;
     }
 
     private ClusterPoliciesResources failMigrationUrlLookup() {
