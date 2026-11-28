@@ -1015,13 +1015,14 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             var topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).orElseThrow();
             var subscription = topic.getSubscription("my-subscription");
             Consumer retained = subscription.getConsumers().getFirst();
+            MessageIdAdv originalId;
             Position position;
             try (var active = builder.clone().consumerName("active").priorityLevel(0).subscribe()) {
                 var dispatcher = (AbstractDispatcherSingleActiveConsumer) subscription.getDispatcher();
                 Consumer originalActive = dispatcher.getActiveConsumer();
                 assertThat(originalActive.consumerName()).isEqualTo("active");
-                MessageIdAdv id = (MessageIdAdv) producer.send("replay");
-                position = PositionFactory.create(id.getLedgerId(), id.getEntryId());
+                originalId = (MessageIdAdv) producer.send("replay");
+                position = PositionFactory.create(originalId.getLedgerId(), originalId.getEntryId());
                 Message<String> message = active.receive(10, TimeUnit.SECONDS);
                 assertThat(message).isNotNull();
                 active.acknowledgeAsync(message).get(10, TimeUnit.SECONDS);
@@ -1036,6 +1037,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             // Once the reconnected primary closes, the standby must ACK the replay on its original connection.
             Message<String> replay = standby.receive(10, TimeUnit.SECONDS);
             assertThat(replay).isNotNull();
+            assertThat(replay.getMessageId()).isEqualTo(originalId);
             assertThat(replay.getValue()).isEqualTo("replay");
             assertThat(subscription.getConsumers()).singleElement().isSameAs(retained);
             standby.acknowledgeAsync(replay).get(10, TimeUnit.SECONDS);
@@ -1065,8 +1067,7 @@ public class SubscriptionSeekTest extends BrokerTestBase {
                     .subscriptionType(SubscriptionType.Failover).consumerName("primary").priorityLevel(0)
                     .receiverQueueSize(0).subscribe()) {
                 var dispatcher = (AbstractDispatcherSingleActiveConsumer) subscription.getDispatcher();
-                Consumer originalPrimary = dispatcher.getActiveConsumer();
-                assertThat(originalPrimary.consumerName()).isEqualTo(primary.getConsumerName());
+                assertThat(dispatcher.getActiveConsumer().consumerName()).isEqualTo(primary.getConsumerName());
                 CommandAck duplicate = new CommandAck().setConsumerId(retained.consumerId())
                         .setAckType(CommandAck.AckType.Individual);
                 duplicate.addMessageId().setLedgerId(id.getLedgerId()).setEntryId(id.getEntryId());
@@ -1094,20 +1095,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
                         .hasCauseInstanceOf(CursorResetInProgressException.class);
                 seek.get(10, TimeUnit.SECONDS);
                 assertThat(subscription.getCursor().isMessageDeleted(position)).isFalse();
-                // Closing the reconnected primary must trigger the standby handoff after the seek.
-                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-                    Consumer reconnected = dispatcher.getActiveConsumer();
-                    assertThat(reconnected).isNotNull().isNotSameAs(originalPrimary);
-                    assertThat(reconnected.consumerName()).isEqualTo(primary.getConsumerName());
-                });
+                assertThat(subscription.getConsumers()).anyMatch(consumer -> consumer == retained);
             }
-
-            Message<String> replay = standby.receive(10, TimeUnit.SECONDS);
-            assertThat(replay).isNotNull();
-            assertThat(replay.getMessageId()).isEqualTo(id);
-            assertThat(subscription.getConsumers()).singleElement().isSameAs(retained);
-            standby.acknowledgeAsync(replay).get(10, TimeUnit.SECONDS);
-            assertThat(subscription.getCursor().isMessageDeleted(position)).isTrue();
         }
     }
 

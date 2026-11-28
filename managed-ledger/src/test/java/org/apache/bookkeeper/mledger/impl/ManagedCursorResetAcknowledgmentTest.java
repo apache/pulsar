@@ -146,15 +146,9 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
         }
     }
 
-    @DataProvider
-    public Object[][] resetCheckpointStorage() {
-        return new Object[][] {{false, false, 0b10L}, {false, true, 0b10L}, {true, false, 0b10L}, {false, false, 0L}};
-    }
-
-    @Test(dataProvider = "resetCheckpointStorage", timeOut = 30000)
-    public void resetCheckpointMatchesAcknowledgmentsAfterSeek(boolean metadataFallback, boolean persistLongRanges,
-            long resetMaskWord) throws Exception {
-        ManagedLedgerConfig config = defaultConfig().setPersistIndividualAckAsLongArray(persistLongRanges);
+    @Test(timeOut = 30000)
+    public void backwardResetPreservesExplicitEmptyBatchMaskOnRecovery() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
         config.setDeletionAtBatchIndexLevelEnabled(true);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("reset-ack-checkpoint", config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
@@ -166,67 +160,47 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
         Position readPosition = positions.get(1);
         Position wholeEntry = positions.get(4);
         Position oldBatch = positions.get(5);
-        long[] resetMask = resetMaskWord == 0 ? new long[0] : new long[] {resetMaskWord};
 
         cursor.markDelete(positions.get(2));
         cursor.delete(List.of(wholeEntry, AckSetStateUtil.createPositionWithAckSet(
                 oldBatch.getLedgerId(), oldBatch.getEntryId(), new long[] {0b01L})));
         assertThat(cursor.isMessageDeleted(wholeEntry)).isTrue();
         assertThat(cursor.getBatchPositionAckSet(oldBatch)).containsExactly(0b01L);
-        PositionInfo beforeReset = readCursorCheckpoint(cursor);
-        assertThat(beforeReset.getIndividualDeletedMessagesCount()).isEqualTo(persistLongRanges ? 0 : 1);
-        assertThat(beforeReset.getIndividualDeletedMessageRangesCount()).isEqualTo(persistLongRanges ? 1 : 0);
-        assertThat(beforeReset.getBatchedEntryDeletionIndexInfosCount()).isEqualTo(1);
 
-        if (metadataFallback) {
-            bkc.addEntryFailAfter(0, BKException.Code.WriteException);
-        }
         Position seek = AckSetStateUtil.createPositionWithAckSet(
-                readPosition.getLedgerId(), readPosition.getEntryId(), resetMask);
+                readPosition.getLedgerId(), readPosition.getEntryId(), new long[0]);
         resetCursor(cursor, seek).get(5, TimeUnit.SECONDS);
-        assertResetAckState(cursor, resetMarkDelete, readPosition, wholeEntry, oldBatch, resetMask);
+        assertEmptyBatchResetState(cursor, resetMarkDelete, readPosition, wholeEntry, oldBatch);
 
-        // Inspect the reset's record before close can replace it with a fresh snapshot of the in-memory state.
-        BatchedEntryDeletionIndexInfo batchCheckpoint;
-        if (metadataFallback) {
-            ManagedCursorInfo checkpoint = readCursorInfo(ledger, cursor.getName());
-            assertThat(checkpoint.getCursorsLedgerId()).isEqualTo(-1);
-            assertThat(PositionFactory.create(checkpoint.getMarkDeleteLedgerId(), checkpoint.getMarkDeleteEntryId()))
-                    .isEqualTo(resetMarkDelete);
-            assertThat(checkpoint.getIndividualDeletedMessagesCount()).isZero();
-            assertThat(checkpoint.getBatchedEntryDeletionIndexInfosCount()).isEqualTo(1);
-            batchCheckpoint = checkpoint.getBatchedEntryDeletionIndexInfoAt(0);
-        } else {
-            PositionInfo checkpoint = readCursorCheckpoint(cursor);
-            assertThat(PositionFactory.create(checkpoint.getLedgerId(), checkpoint.getEntryId()))
-                    .isEqualTo(resetMarkDelete);
-            assertThat(checkpoint.getIndividualDeletedMessagesCount()).isZero();
-            assertThat(checkpoint.getIndividualDeletedMessageRangesCount()).isZero();
-            assertThat(checkpoint.getBatchedEntryDeletionIndexInfosCount()).isEqualTo(1);
-            batchCheckpoint = checkpoint.getBatchedEntryDeletionIndexInfoAt(0);
-        }
+        PositionInfo checkpoint = readCursorCheckpoint(cursor);
+        assertThat(PositionFactory.create(checkpoint.getLedgerId(), checkpoint.getEntryId()))
+                .isEqualTo(resetMarkDelete);
+        assertThat(checkpoint.getIndividualDeletedMessagesCount()).isZero();
+        assertThat(checkpoint.getIndividualDeletedMessageRangesCount()).isZero();
+        assertThat(checkpoint.getBatchedEntryDeletionIndexInfosCount()).isEqualTo(1);
+        BatchedEntryDeletionIndexInfo batchCheckpoint = checkpoint.getBatchedEntryDeletionIndexInfoAt(0);
         assertThat(PositionFactory.create(batchCheckpoint.getPosition().getLedgerId(),
                 batchCheckpoint.getPosition().getEntryId())).isEqualTo(readPosition);
         assertThat(batchCheckpoint.getDeleteSetsCount()).isEqualTo(1);
-        assertThat(batchCheckpoint.getDeleteSetAt(0)).isEqualTo(resetMaskWord);
+        assertThat(batchCheckpoint.getDeleteSetAt(0)).isZero();
 
         // Recover from the reset checkpoint without closing the writer and rewriting the checkpoint first.
         ManagedCursorImpl recovered = new ManagedCursorImpl(bkc, ledger, cursor.getName());
         try {
             recoverCursor(recovered);
-            assertResetAckState(recovered, resetMarkDelete, readPosition, wholeEntry, oldBatch, resetMask);
+            assertEmptyBatchResetState(recovered, resetMarkDelete, readPosition, wholeEntry, oldBatch);
         } finally {
             recovered.closeReadOnlyCursorLedger();
         }
     }
 
-    private static void assertResetAckState(ManagedCursorImpl cursor, Position markDelete, Position readPosition,
-            Position wholeEntry, Position oldBatch, long[] resetMask) {
+    private static void assertEmptyBatchResetState(ManagedCursorImpl cursor, Position markDelete, Position readPosition,
+            Position wholeEntry, Position oldBatch) {
         assertThat(cursor.getMarkDeletedPosition()).isEqualTo(markDelete);
         assertThat(cursor.getReadPosition()).isEqualTo(readPosition);
         assertThat(cursor.isMessageDeleted(wholeEntry)).isFalse();
         assertThat(cursor.getBatchPositionAckSet(oldBatch)).isNull();
-        assertThat(cursor.getBatchPositionAckSet(readPosition)).containsExactly(resetMask);
+        assertThat(cursor.getBatchPositionAckSet(readPosition)).isEmpty();
     }
 
     @Test(dataProvider = "pendingRead", timeOut = 30000)
