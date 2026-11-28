@@ -137,6 +137,7 @@ import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandConsumerStats;
+import org.apache.pulsar.common.api.proto.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxn;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartition;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscription;
@@ -196,7 +197,6 @@ import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicType;
-import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
@@ -1840,25 +1840,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     ByteBuf createConsumerStatsResponse(Consumer consumer, long requestId) {
-        ConsumerStatsImpl consumerStats = consumer.getStats();
         Subscription subscription = consumer.getSubscription();
 
         BaseCommand cmd = Commands.newConsumerStatsResponseCommand(ServerError.UnknownError, null, requestId);
-        cmd.getConsumerStatsResponse()
-                .clearErrorCode()
-                .setRequestId(requestId)
-                .setMsgRateOut(consumerStats.msgRateOut)
-                .setMsgThroughputOut(consumerStats.msgThroughputOut)
-                .setMsgRateRedeliver(consumerStats.msgRateRedeliver)
-                .setConsumerName(consumerStats.consumerName)
-                .setAvailablePermits(consumerStats.availablePermits)
-                .setUnackedMessages(consumerStats.unackedMessages)
-                .setBlockedConsumerOnUnackedMsgs(consumerStats.blockedConsumerOnUnackedMsgs)
-                .setAddress(consumerStats.getAddress())
-                .setConnectedSince(consumerStats.getConnectedSince())
+        CommandConsumerStatsResponse response = cmd.getConsumerStatsResponse();
+        consumer.populateStatsResponse(response);
+        response.clearErrorCode()
                 .setMsgBacklog(subscription.getNumberOfEntriesInBacklog(false))
                 .setMsgRateExpired(subscription.getExpiredMessageRate())
-                .setMessageAckRate(consumerStats.messageAckRate)
                 .setType(subscription.getTypeString());
 
         return Commands.serializeWithSize(cmd);

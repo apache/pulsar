@@ -58,6 +58,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.KeyLongValue;
@@ -1238,6 +1239,19 @@ public class Consumer {
             drainingHashesConsumerStatsUpdater.accept(this, stats);
         }
         return stats;
+    }
+
+    void populateStatsResponse(CommandConsumerStatsResponse response) {
+        response.setMsgRateOut(stats.msgRateOut)
+                .setMsgThroughputOut(stats.msgThroughputOut)
+                .setMsgRateRedeliver(stats.msgRateRedeliver)
+                .setConsumerName(consumerName)
+                .setAvailablePermits(getAvailablePermits())
+                .setUnackedMessages(unackedMessages)
+                .setBlockedConsumerOnUnackedMsgs(blockedConsumerOnUnackedMsgs)
+                .setAddress(stats.getAddress())
+                .setConnectedSince(stats.getConnectedSince())
+                .setMessageAckRate(stats.messageAckRate);
     }
 
     public long getMsgOutCounter() {

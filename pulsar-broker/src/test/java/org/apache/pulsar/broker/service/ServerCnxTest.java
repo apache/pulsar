@@ -163,6 +163,7 @@ import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnected;
+import org.apache.pulsar.common.api.proto.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
@@ -200,6 +201,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
@@ -3133,6 +3135,70 @@ public class ServerCnxTest {
         assertTrue(channel.isOpen());
 
         channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testConsumerStatsResponseSkipsDrainingHashes() throws Exception {
+        resetChannel();
+        try {
+            channel.writeInbound(Commands.newConnect("none", "", null));
+            assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+
+            long consumerId = 1;
+            long requestId = 2;
+            channel.writeInbound(Commands.newSubscribe(successTopicName, successSubName, consumerId, 1,
+                    SubType.Key_Shared, 0, "consumer", 0));
+            assertThat(getResponse()).isInstanceOf(CommandSuccess.class);
+            Consumer consumer = serverCnx.getConsumers().get(consumerId).getNow(null);
+
+            ConsumerStatsImpl initialStats = new ConsumerStatsImpl();
+            initialStats.msgOutCounter = 2;
+            initialStats.bytesOutCounter = 128;
+            initialStats.availablePermits = 10;
+            initialStats.unackedMessages = 7;
+            initialStats.blockedConsumerOnUnackedMsgs = true;
+            consumer.updateStats(initialStats);
+            consumer.updateRates();
+            ConsumerStatsImpl consumerStats = consumer.getStats();
+            doReturn(12L).when(cursorMock).getNumberOfEntriesInBacklog(false);
+
+            var drainingHashesUpdater = consumer.getDrainingHashesConsumerStatsUpdater();
+            assertThat(drainingHashesUpdater).isNotNull();
+            AtomicBoolean drainingHashesUpdated = new AtomicBoolean();
+            consumer.setDrainingHashesConsumerStatsUpdater((c, stats) -> {
+                drainingHashesUpdated.set(true);
+                drainingHashesUpdater.accept(c, stats);
+            });
+
+            BaseCommand cmd = new BaseCommand().setType(Type.CONSUMER_STATS);
+            cmd.setConsumerStats().setRequestId(requestId).setConsumerId(consumerId);
+            channel.writeInbound(Commands.serializeWithSize(cmd));
+            assertThat(getResponse()).isInstanceOfSatisfying(CommandConsumerStatsResponse.class, response -> {
+                assertThat(response.getRequestId()).isEqualTo(requestId);
+                assertThat(response.hasErrorCode()).isFalse();
+                assertThat(response.getMsgRateOut()).isEqualTo(consumerStats.msgRateOut);
+                assertThat(response.getMsgThroughputOut()).isEqualTo(consumerStats.msgThroughputOut);
+                assertThat(response.hasMsgRateRedeliver()).isTrue();
+                assertThat(response.getMsgRateRedeliver()).isEqualTo(consumerStats.msgRateRedeliver);
+                assertThat(response.getConsumerName()).isEqualTo("consumer");
+                assertThat(response.getAvailablePermits()).isEqualTo(10);
+                assertThat(response.getUnackedMessages()).isEqualTo(7);
+                assertThat(response.isBlockedConsumerOnUnackedMsgs()).isTrue();
+                assertThat(response.getAddress()).isEqualTo(consumerStats.getAddress());
+                assertThat(response.getConnectedSince()).isEqualTo(consumerStats.getConnectedSince());
+                assertThat(response.getMsgBacklog()).isEqualTo(12);
+                assertThat(response.hasMsgRateExpired()).isTrue();
+                assertThat(response.getMsgRateExpired()).isEqualTo(consumer.getSubscription().getExpiredMessageRate());
+                assertThat(response.hasMessageAckRate()).isTrue();
+                assertThat(response.getMessageAckRate()).isEqualTo(consumerStats.messageAckRate);
+                assertThat(response.getType()).isEqualTo("Key_Shared");
+            });
+            assertThat(drainingHashesUpdated).as("draining hash stats updated by CONSUMER_STATS").isFalse();
+            consumer.getStats();
+            assertThat(drainingHashesUpdated).as("draining hash stats updated by full stats").isTrue();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
     }
 
     @Test(timeOut = 30000)
