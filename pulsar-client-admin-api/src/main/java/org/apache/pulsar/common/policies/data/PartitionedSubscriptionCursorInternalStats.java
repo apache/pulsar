@@ -27,6 +27,7 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorS
  */
 public class PartitionedSubscriptionCursorInternalStats {
 
+    /** Captured partition count. Base-topic properties are omitted from this diagnostic. */
     public PartitionedTopicMetadata metadata;
     public boolean complete;
     public Map<String, CursorStats> partitions;

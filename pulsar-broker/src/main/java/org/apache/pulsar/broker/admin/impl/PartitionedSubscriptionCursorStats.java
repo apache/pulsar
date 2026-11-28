@@ -72,6 +72,11 @@ final class PartitionedSubscriptionCursorStats {
     private record PartitionResult(CursorStats stats, PartitionError error) {
     }
 
+    @FunctionalInterface
+    interface PartitionRequest {
+        void dispatch(String partition, CompletableFuture<CursorStats> result);
+    }
+
     private PartitionedSubscriptionCursorStats(TopicName topic, PartitionedTopicMetadata metadata,
                                                boolean includeIndividualDeletedMessages,
                                                ScheduledExecutorService executor, Duration timeout) {
@@ -86,8 +91,7 @@ final class PartitionedSubscriptionCursorStats {
 
     static CompletableFuture<PartitionedSubscriptionCursorInternalStats> collect(
             TopicName topic, PartitionedTopicMetadata metadata, boolean includeIndividualDeletedMessages,
-            Function<CompletableFuture<Void>, CompletableFuture<Function<String, CompletableFuture<CursorStats>>>>
-                    prepareRequest,
+            Function<CompletableFuture<Void>, CompletableFuture<PartitionRequest>> prepareRequest,
             ScheduledExecutorService executor, Duration timeout) {
         return FutureUtil.supplySafely(() -> {
             var collection = new PartitionedSubscriptionCursorStats(topic, metadata, includeIndividualDeletedMessages,
@@ -98,7 +102,7 @@ final class PartitionedSubscriptionCursorStats {
     }
 
     private CompletableFuture<PartitionedSubscriptionCursorInternalStats> collect(
-            CompletableFuture<Function<String, CompletableFuture<CursorStats>>> request) {
+            CompletableFuture<PartitionRequest> request) {
         // The same deadline covers getting the internal client and collecting the partition responses.
         FutureUtil.completeAfter(completion, request.thenCompose(this::requestPartitions));
         return completion.handle((unused, error) -> {
@@ -120,7 +124,7 @@ final class PartitionedSubscriptionCursorStats {
         });
     }
 
-    private CompletableFuture<Void> requestPartitions(Function<String, CompletableFuture<CursorStats>> request) {
+    private CompletableFuture<Void> requestPartitions(PartitionRequest request) {
         if (isFinished()) {
             return CompletableFuture.completedFuture(null);
         }
@@ -135,24 +139,30 @@ final class PartitionedSubscriptionCursorStats {
         return completion.isDone() || System.nanoTime() - deadlineNanos >= 0;
     }
 
-    private CompletableFuture<Void> requestNextAsync(Function<String, CompletableFuture<CursorStats>> request) {
+    private CompletableFuture<Void> requestNextAsync(PartitionRequest request) {
         return CompletableFuture.completedFuture(null).thenComposeAsync(unused -> {
             int index = nextPartition.getAndIncrement();
             if (index >= metadata.partitions || isFinished()) {
                 return CompletableFuture.completedFuture(null);
             }
             String partition = topic.getPartition(index).toString();
-            CompletableFuture<CursorStats> future = FutureUtil.supplySafely(() -> request.apply(partition));
+            // Admin observes this same future before starting credentials or HTTP, even if dispatch is delayed.
+            var future = new CompletableFuture<CursorStats>();
             if (!trackRequest(index, future)) {
-                future.cancel(false);
                 return CompletableFuture.completedFuture(null);
             }
-            return future.handle((stats, error) -> {
+            var recorded = future.handle((stats, error) -> {
                 if (!isFinished()) {
                     recordResult(index, partitionResult(partition, stats, error));
                 }
                 return null;
-            }).thenCompose(ignored -> isFinished() ? CompletableFuture.completedFuture(null)
+            });
+            try {
+                request.dispatch(partition, future);
+            } catch (Throwable error) {
+                future.completeExceptionally(error);
+            }
+            return recorded.thenCompose(ignored -> isFinished() ? CompletableFuture.completedFuture(null)
                     : requestNextAsync(request));
         }, executor);
     }

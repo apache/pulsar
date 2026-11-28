@@ -721,8 +721,19 @@ public class TopicsImpl extends BaseResource implements Topics {
     /** Internal broker fan-out follows ownership redirects within the local cluster only. */
     public CompletableFuture<CursorStats> getLocalSubscriptionCursorInternalStatsAsync(
             String topic, String subName, boolean includeIndividualDeletedMessages) {
+        return getLocalSubscriptionCursorInternalStatsAsync(
+                topic, subName, includeIndividualDeletedMessages, new CompletableFuture<>());
+    }
+
+    /** Complete the partition request registered by the coordinator before dispatch. */
+    public CompletableFuture<CursorStats> getLocalSubscriptionCursorInternalStatsAsync(
+            String topic, String subName, boolean includeIndividualDeletedMessages,
+            CompletableFuture<CursorStats> result) {
+        if (result == null) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Partition result must not be null"));
+        }
         return getSubscriptionCursorStatsAsync(topic, subName, "internalStats", includeIndividualDeletedMessages,
-                true, new FutureCallback<CursorStats>() {});
+                true, new FutureCallback<CursorStats>(result) {});
     }
 
     @Override
@@ -743,14 +754,17 @@ public class TopicsImpl extends BaseResource implements Topics {
 
     private <T> CompletableFuture<T> getSubscriptionCursorStatsAsync(String topic, String subName, String resource,
             boolean includeIndividualDeletedMessages, boolean localOnly, FutureCallback<T> callback) {
-        return FutureUtil.supplySafely(() -> {
+        CompletableFuture<T> result = callback.future();
+        if (result.isDone()) {
+            return result;
+        }
+        try {
             TopicName topicName = validateTopic(topic);
             checkArgument(topicName.getDomain() == TopicDomain.persistent, "Topic must be persistent");
             checkArgument(StringUtils.isNotEmpty(subName), "Subscription name must not be empty");
             WebTarget path = topicPath(topicName, "subscription", Codec.encode(subName), resource)
                     .queryParam("includeIndividualDeletedMessages", includeIndividualDeletedMessages);
             // Brokers also call this for partition fan-out, so credential resolution must not block the caller.
-            CompletableFuture<T> result = callback.future();
             var builderFuture = localOnly ? requestAsync(path, result) : requestAsync(path);
             builderFuture.whenComplete((builder, error) -> {
                 if (result.isDone()) {
@@ -778,8 +792,10 @@ public class TopicsImpl extends BaseResource implements Topics {
                     result.completeExceptionally(failure);
                 }
             });
-            return result;
-        });
+        } catch (Throwable failure) {
+            result.completeExceptionally(failure);
+        }
+        return result;
     }
 
     @Override

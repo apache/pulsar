@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
 import org.apache.pulsar.client.api.v5.auth.AuthenticationInitContext;
@@ -114,7 +115,8 @@ public class HttpAuthenticationDriverTest {
                 .authenticateAsync(URI_A, transport, Duration.ZERO).get())
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(PulsarClientException.AuthenticationException.class)
-                .hasMessageContaining("timeout budget");
+                .hasMessageContaining("timeout budget")
+                .hasRootCauseInstanceOf(TimeoutException.class);
 
         assertThat(transport.callCount).isZero();
         assertThat(auth.respondCalls).isZero();
@@ -130,7 +132,8 @@ public class HttpAuthenticationDriverTest {
                 .authenticateAsync(URI_A, hanging, Duration.ofMillis(200)).get(10, TimeUnit.SECONDS))
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(PulsarClientException.AuthenticationException.class)
-                .hasMessageContaining("timed out");
+                .hasMessageContaining("timed out")
+                .hasRootCauseInstanceOf(TimeoutException.class);
     }
 
     @Test
@@ -144,7 +147,8 @@ public class HttpAuthenticationDriverTest {
                 .authenticateAsync(URI_A, transport, Duration.ofMillis(200)).get(10, TimeUnit.SECONDS))
                 .isInstanceOf(ExecutionException.class)
                 .hasCauseInstanceOf(PulsarClientException.AuthenticationException.class)
-                .hasMessageContaining("timed out");
+                .hasMessageContaining("timed out")
+                .hasRootCauseInstanceOf(TimeoutException.class);
 
         // The GET is never issued: the hang is in the evaluation stage, before the transport is reached.
         assertThat(transport.callCount).isZero();

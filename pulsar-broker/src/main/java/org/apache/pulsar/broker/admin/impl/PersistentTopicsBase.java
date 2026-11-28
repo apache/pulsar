@@ -1661,8 +1661,7 @@ public class PersistentTopicsBase extends AdminResource {
             if (metadata.deleted) {
                 throw new RestException(Status.NOT_FOUND, "Partitioned topic metadata not found");
             }
-            var snapshot = new PartitionedTopicMetadata(metadata.partitions,
-                    metadata.properties == null ? null : new HashMap<>(metadata.properties));
+            var snapshot = new PartitionedTopicMetadata(metadata.partitions);
             // Bound the diagnostic by one metadata operation's timeout. A cold partition can finish loading
             // after the response and be available on the next request.
             Duration timeout = Duration.ofSeconds(
@@ -1672,8 +1671,8 @@ public class PersistentTopicsBase extends AdminResource {
                         throw new RestException(Status.SERVICE_UNAVAILABLE, "Broker admin client unavailable");
                     }).thenApply(admin -> {
                         TopicsImpl topics = (TopicsImpl) admin.topics();
-                        return partition -> topics.getLocalSubscriptionCursorInternalStatsAsync(
-                                partition, subName, includeIndividualDeletedMessages);
+                        return (partition, result) -> topics.getLocalSubscriptionCursorInternalStatsAsync(
+                                partition, subName, includeIndividualDeletedMessages, result);
                     }), pulsar().getExecutor(), timeout);
         });
     }

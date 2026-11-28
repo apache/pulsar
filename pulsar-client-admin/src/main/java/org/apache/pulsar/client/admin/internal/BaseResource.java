@@ -551,7 +551,15 @@ public abstract class BaseResource {
      * @param <T> type to which the response body is parsed in case of success
      */
     abstract static class FutureCallback<T> implements InvocationCallback<T> {
-        private final CompletableFuture<T> future = new CompletableFuture<>();
+        private final CompletableFuture<T> future;
+
+        FutureCallback() {
+            this(new CompletableFuture<>());
+        }
+
+        FutureCallback(CompletableFuture<T> future) {
+            this.future = future;
+        }
 
         @Override
         public void completed(T value) {

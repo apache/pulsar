@@ -736,7 +736,8 @@ public class TopicAuthZTest extends AuthZTest {
         String subscription = "cursor-stats-subscription";
         String subject = UUID.randomUUID().toString();
         String token = Jwts.builder().claim("sub", subject).signWith(SECRET_KEY).compact();
-        superUserAdmin.topics().createPartitionedTopic(topic.toString(), 2);
+        Map<String, String> topicProperties = Map.of("owner", "analytics");
+        superUserAdmin.topics().createPartitionedTopic(topic.toString(), 2, topicProperties);
 
         try (PulsarAdmin requester = PulsarAdmin.builder().serviceHttpUrl(getPulsarService().getWebServiceAddress())
                 .authentication(new AuthenticationToken(token)).build()) {
@@ -777,6 +778,12 @@ public class TopicAuthZTest extends AuthZTest {
 
             checks.clear();
             superUserAdmin.topics().grantPermission(topic.toString(), subject, Set.of(AuthAction.produce));
+            doReturn(CompletableFuture.completedFuture(false)).when(authorizationService).allowTopicOperationAsync(
+                    eq(topic), argThat(op -> op == TopicOperation.GET_METADATA || op == TopicOperation.LOOKUP),
+                    eq(subject), nullable(AuthenticationDataSource.class));
+            assertThat(superUserAdmin.topics().getProperties(topic.toString())).containsAllEntriesOf(topicProperties);
+            assertThatThrownBy(() -> requester.topics().getProperties(topic.toString()))
+                    .isInstanceOf(PulsarAdminException.NotAuthorizedException.class);
             assertThat(requester.topics().getSubscriptionCursorInternalStats(firstPartition.toString(), subscription))
                     .isNotNull();
             assertThat(checks).containsExactly(new AuthorizationCheck(firstPartition, subject, subscription));
@@ -785,6 +792,8 @@ public class TopicAuthZTest extends AuthZTest {
             var stats = requester.topics().getPartitionedSubscriptionCursorInternalStats(
                     topic.toString(), subscription);
             assertThat(stats.complete).isTrue();
+            assertThat(stats.metadata.partitions).isEqualTo(2);
+            assertThat(stats.metadata.properties).isNull();
             assertThat(checks).containsExactlyInAnyOrder(
                     new AuthorizationCheck(topic, subject, subscription),
                     new AuthorizationCheck(firstPartition, BROKER_INTERNAL_CLIENT_SUBJECT, subscription),

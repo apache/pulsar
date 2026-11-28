@@ -182,7 +182,8 @@ public final class HttpAuthenticationDriver {
         long remainingNanos = deadlineNanos - System.nanoTime();
         if (remainingNanos <= 0) {
             return CompletableFuture.failedFuture(new PulsarClientException.AuthenticationException(
-                    "SASL over HTTP exchange exceeded its timeout budget before round " + round));
+                    "SASL over HTTP exchange exceeded its timeout budget before round " + round)
+                    .initCause(new TimeoutException()));
         }
         Duration remaining = Duration.ofNanos(remainingNanos);
         // Bound the WHOLE round — the plugin's challenge evaluation (respondToHttpChallengeAsync, which for
@@ -246,7 +247,7 @@ public final class HttpAuthenticationDriver {
                     if (cause instanceof TimeoutException) {
                         return CompletableFuture.failedFuture(new PulsarClientException.AuthenticationException(
                                 "SASL over HTTP round " + round + " timed out after " + remaining.toMillis()
-                                        + " ms"));
+                                        + " ms").initCause(cause));
                     }
                     return CompletableFuture.failedFuture(cause);
                 });

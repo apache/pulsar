@@ -38,6 +38,7 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.ssl.SslHandshakeTimeoutException;
+import jakarta.ws.rs.client.ClientBuilder;
 import jakarta.ws.rs.core.Response.Status;
 import java.io.IOException;
 import java.net.ConnectException;
@@ -54,8 +55,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.admin.impl.PartitionedSubscriptionCursorStats.PartitionRequest;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -63,6 +64,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.GettingAuthentication
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector.MaxRedirectException;
 import org.apache.pulsar.client.admin.internal.http.AsyncHttpConnector.RetryException;
+import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.v5.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
@@ -70,6 +72,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.utils.TestLogAppender;
 import org.testng.annotations.Test;
 
@@ -94,18 +97,14 @@ public class PartitionedSubscriptionCursorStatsTest {
 
             var partitions = new CopyOnWriteArrayList<String>();
             var requests = new CopyOnWriteArrayList<CompletableFuture<CursorStats>>();
-            var uncancellable = new CompletableFuture<CursorStats>() {
-                @Override
-                public boolean cancel(boolean mayInterruptIfRunning) {
-                    return false;
-                }
-            };
+            var lateResponse = new CompletableFuture<CursorStats>();
             var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(32), false,
-                    ignored -> CompletableFuture.completedFuture(name -> {
-                        var request = requests.size() == 1 ? uncancellable : new CompletableFuture<CursorStats>();
+                    ignored -> CompletableFuture.completedFuture((name, request) -> {
+                        if (requests.size() == 1) {
+                            FutureUtil.completeAfter(request, lateResponse);
+                        }
                         partitions.add(name);
                         requests.add(request);
-                        return request;
                     }), executor, TIMEOUT);
 
             await().untilAsserted(() -> assertThat(requests).hasSize(16));
@@ -125,8 +124,8 @@ public class PartitionedSubscriptionCursorStatsTest {
                 assertThat(error.errorCode).isEqualTo("TIMEOUT");
             });
 
-            assertThat(requests.subList(2, requests.size())).allMatch(CompletableFuture::isCancelled);
-            assertThat(uncancellable.complete(new CursorStats())).isTrue();
+            assertThat(requests.subList(1, requests.size())).allMatch(CompletableFuture::isCancelled);
+            assertThat(lateResponse.complete(new CursorStats())).isTrue();
             worker.submit(() -> { }).get(10, TimeUnit.SECONDS);
             assertThat(requests).hasSize(17);
             assertThat(response.join().partitions).containsOnlyKeys(successfulPartition);
@@ -135,10 +134,54 @@ public class PartitionedSubscriptionCursorStatsTest {
     }
 
     @Test
+    public void testDeadlineDuringDispatchCancelsPartitionBeforeAuthentication() throws Exception {
+        var ready = new CompletableFuture<Void>();
+        var cancelledAtDispatch = new CompletableFuture<Boolean>();
+        var auth = mock(Authentication.class);
+        try (var client = ClientBuilder.newClient(); var worker = Executors.newSingleThreadScheduledExecutor()) {
+            var topics = new TopicsImpl(client.target("http://localhost"), auth, 30_000);
+            var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(2), false,
+                    deadline -> ready.thenApply(ignored -> (partition, result) -> {
+                        if (TopicName.getPartitionIndex(partition) == 0) {
+                            result.complete(new CursorStats());
+                        } else {
+                            // Force expiry while the worker is dispatching, before the Admin request starts.
+                            deadline.completeExceptionally(new TimeoutException());
+                            boolean cancelled = result.isCancelled();
+                            topics.getLocalSubscriptionCursorInternalStatsAsync(partition, "sub", false, result);
+                            cancelledAtDispatch.complete(cancelled);
+                        }
+                    }), worker, TIMEOUT);
+            ready.complete(null);
+
+            var partial = response.get(10, TimeUnit.SECONDS);
+            assertThat(partial.partitions).containsOnlyKeys(TOPIC.getPartition(0).toString());
+            assertPartitionError(partial, 1, 503, "TIMEOUT");
+            assertThat(cancelledAtDispatch.get(10, TimeUnit.SECONDS)).isTrue();
+            verifyNoInteractions(auth);
+        }
+    }
+
+    @Test
+    public void testCompletedPartitionIsRecordedBeforeDispatchReturns() throws Exception {
+        var stats = new CursorStats();
+        try (var executor = Executors.newSingleThreadScheduledExecutor()) {
+            var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(1), false,
+                    deadline -> CompletableFuture.completedFuture((partition, result) -> {
+                        result.complete(stats);
+                        deadline.completeExceptionally(new TimeoutException());
+                    }), executor, TIMEOUT).get(10, TimeUnit.SECONDS);
+            assertThat(response.complete).isTrue();
+            assertThat(response.partitions).containsOnlyKeys(TOPIC.getPartition(0).toString());
+            assertThat(response.partitions.get(TOPIC.getPartition(0).toString())).isSameAs(stats);
+        }
+    }
+
+    @Test
     public void testDeadlineIncludesWaitingForInternalAdminClient() {
         TopicName topic = mock(TopicName.class);
         var requestCompletion = new AtomicReference<CompletableFuture<Void>>();
-        var initialization = new CompletableFuture<Function<String, CompletableFuture<CursorStats>>>();
+        var initialization = new CompletableFuture<PartitionRequest>();
         try (var executor = Executors.newSingleThreadScheduledExecutor()) {
             var response = PartitionedSubscriptionCursorStats.collect(topic, new PartitionedTopicMetadata(2), false,
                     deadline -> {
@@ -211,12 +254,13 @@ public class PartitionedSubscriptionCursorStatsTest {
         try (var logs = TestLogAppender.create(PartitionedSubscriptionCursorStats.class);
              var executor = Executors.newScheduledThreadPool(2)) {
             var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(count),
-                    false, ignored -> CompletableFuture.completedFuture(name -> {
+                    false, ignored -> CompletableFuture.completedFuture((name, result) -> {
                         int partition = TopicName.getPartitionIndex(name);
                         if (partition == 0) {
-                            return CompletableFuture.completedFuture(new CursorStats());
+                            result.complete(new CursorStats());
+                        } else {
+                            result.completeExceptionally(failures.get(partition - 1).error());
                         }
-                        return CompletableFuture.failedFuture(failures.get(partition - 1).error());
                     }), executor, TIMEOUT).get(10, TimeUnit.SECONDS);
             assertThat(response.complete).isFalse();
             assertThat(response.partitions).containsOnlyKeys(TOPIC.getPartition(0).toString());
@@ -259,13 +303,14 @@ public class PartitionedSubscriptionCursorStatsTest {
              var plain = PulsarAdmin.builder().serviceHttpUrl(server.baseUrl()).build();
              var executor = Executors.newScheduledThreadPool(2)) {
             var response = PartitionedSubscriptionCursorStats.collect(TOPIC, new PartitionedTopicMetadata(3), false,
-                    ignored -> CompletableFuture.completedFuture(partition -> {
+                    ignored -> CompletableFuture.completedFuture((partition, result) -> {
                         if (partition.equals(TOPIC.getPartition(0).toString())) {
-                            return CompletableFuture.completedFuture(new CursorStats());
+                            result.complete(new CursorStats());
+                        } else {
+                            var admin = partition.equals(TOPIC.getPartition(1).toString()) ? oauth : plain;
+                            ((TopicsImpl) admin.topics()).getLocalSubscriptionCursorInternalStatsAsync(
+                                    partition, "sub", false, result);
                         }
-                        var admin = partition.equals(TOPIC.getPartition(1).toString()) ? oauth : plain;
-                        return ((TopicsImpl) admin.topics()).getLocalSubscriptionCursorInternalStatsAsync(
-                                partition, "sub", false);
                     }), executor, TIMEOUT).get(10, TimeUnit.SECONDS);
             assertPartitionError(response, 1, 500, "INTERNAL_ERROR");
             assertPartitionError(response, 2, 401, "AUTHORIZATION_FAILED");
@@ -279,14 +324,15 @@ public class PartitionedSubscriptionCursorStatsTest {
             var notFound = new PulsarAdminException(null, "private upstream response", 404);
             var metadata = new PartitionedTopicMetadata(2);
             var allMissing = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata, false,
-                    ignored -> CompletableFuture.completedFuture(name -> CompletableFuture.failedFuture(notFound)),
+                    ignored -> CompletableFuture.completedFuture(
+                            (name, result) -> result.completeExceptionally(notFound)),
                     executor, TIMEOUT);
             assertThatThrownBy(allMissing::join).hasCauseInstanceOf(RestException.class)
                     .cause().isInstanceOfSatisfying(RestException.class,
                             error -> assertThat(error.getResponse().getStatus()).isEqualTo(404));
 
             var mixed = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata, false,
-                    ignored -> CompletableFuture.completedFuture(name -> CompletableFuture.failedFuture(
+                    ignored -> CompletableFuture.completedFuture((name, result) -> result.completeExceptionally(
                             TopicName.getPartitionIndex(name) == 0 ? notFound : new TimeoutException())),
                     executor, TIMEOUT);
             assertThatThrownBy(mixed::join).hasCauseInstanceOf(RestException.class)
@@ -302,9 +348,13 @@ public class PartitionedSubscriptionCursorStatsTest {
             for (boolean includeRanges : List.of(false, true)) {
                 var metadata = new PartitionedTopicMetadata(2);
                 var partial = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata, includeRanges,
-                        ignored -> CompletableFuture.completedFuture(name -> TopicName.getPartitionIndex(name) == 0
-                                ? CompletableFuture.completedFuture(new CursorStats())
-                                : CompletableFuture.failedFuture(failure)), executor, TIMEOUT)
+                        ignored -> CompletableFuture.completedFuture((name, result) -> {
+                            if (TopicName.getPartitionIndex(name) == 0) {
+                                result.complete(new CursorStats());
+                            } else {
+                                result.completeExceptionally(failure);
+                            }
+                        }), executor, TIMEOUT)
                         .get(10, TimeUnit.SECONDS);
                 var error = partial.errors.get(TOPIC.getPartition(1).toString());
                 assertThat(error.statusCode).isEqualTo(412);
@@ -312,7 +362,8 @@ public class PartitionedSubscriptionCursorStatsTest {
                 assertRangeHint(error.reason, includeRanges);
 
                 var unavailable = PartitionedSubscriptionCursorStats.collect(TOPIC, metadata, includeRanges,
-                        ignored -> CompletableFuture.completedFuture(name -> CompletableFuture.failedFuture(failure)),
+                        ignored -> CompletableFuture.completedFuture(
+                                (name, result) -> result.completeExceptionally(failure)),
                         executor, TIMEOUT);
                 assertThatThrownBy(unavailable::join).cause().isInstanceOfSatisfying(RestException.class, ex -> {
                     assertThat(ex.getResponse().getStatus()).isEqualTo(503);
