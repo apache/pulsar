@@ -32,6 +32,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -48,6 +51,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -56,6 +60,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -264,6 +269,219 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
         Reader<byte[]> readLatest = pulsarClient.newReader().topic(topic).startMessageId(MessageId.latest)
                                                 .readerName(subscription + "latest").create();
         Assert.assertFalse(readLatest.hasMessageAvailable());
+    }
+
+    private enum BatchReaderTopology {
+        SINGLE_TOPIC, PARTITIONED_TOPIC, MULTI_TOPIC
+    }
+
+    private record BatchReaderTopics(List<String> readerTopics, List<String> sourceTopics) {
+    }
+
+    @DataProvider
+    public static Object[][] batchReaderCases() {
+        return new Object[][] {
+                {BatchReaderTopology.SINGLE_TOPIC, false},
+                {BatchReaderTopology.SINGLE_TOPIC, true},
+                {BatchReaderTopology.PARTITIONED_TOPIC, false},
+                {BatchReaderTopology.PARTITIONED_TOPIC, true},
+                {BatchReaderTopology.MULTI_TOPIC, false},
+                {BatchReaderTopology.MULTI_TOPIC, true}
+        };
+    }
+
+    private BatchReaderTopics createBatchReaderTopics(BatchReaderTopology topology) throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/batch-reader");
+        return switch (topology) {
+            case SINGLE_TOPIC -> {
+                admin.topics().createNonPartitionedTopic(topic);
+                yield new BatchReaderTopics(List.of(topic), List.of(topic));
+            }
+            case PARTITIONED_TOPIC -> {
+                admin.topics().createPartitionedTopic(topic, 2);
+                yield new BatchReaderTopics(List.of(topic), List.of(topic + "-partition-0", topic + "-partition-1"));
+            }
+            case MULTI_TOPIC -> {
+                List<String> topics = List.of(topic + "-first", topic + "-second");
+                for (String source : topics) {
+                    admin.topics().createNonPartitionedTopic(source);
+                }
+                yield new BatchReaderTopics(topics, topics);
+            }
+        };
+    }
+
+    private Messages<String> batchRead(Reader<String> reader, boolean async) throws Exception {
+        if (!async) {
+            return reader.readNextBatch();
+        }
+        CompletableFuture<Messages<String>> future = reader.readNextBatchAsync();
+        try {
+            return future.get(5, TimeUnit.SECONDS);
+        } finally {
+            future.cancel(false);
+        }
+    }
+
+    @Test(dataProvider = "batchReaderCases", timeOut = 30000)
+    public void testBatchReadNextOrdered(BatchReaderTopology topology, boolean async) throws Exception {
+        BatchReaderTopics topics = createBatchReaderTopics(topology);
+        int messagesPerSource = 5;
+        Map<String, List<String>> expected = new HashMap<>();
+        for (int source = 0; source < topics.sourceTopics().size(); source++) {
+            String sourceId = Integer.toString(source);
+            List<String> values = new ArrayList<>();
+            try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                    .topic(topics.sourceTopics().get(source)).enableBatching(false).create()) {
+                for (int i = 0; i < messagesPerSource; i++) {
+                    String value = sourceId + ":" + i;
+                    values.add(value);
+                    producer.send(value);
+                }
+            }
+            expected.put(sourceId, values);
+        }
+
+        try (Reader<String> reader = pulsarClient.newReader(Schema.STRING).topics(topics.readerTopics())
+                .startMessageId(MessageId.earliest).create()) {
+            ConsumerBase<?> consumer = reader instanceof ReaderImpl<?> singleReader
+                    ? singleReader.getConsumer() : ((MultiTopicsReaderImpl<?>) reader).getMultiTopicsConsumer();
+            int totalMessages = topics.sourceTopics().size() * messagesPerSource;
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> consumer.getTotalIncomingMessages() == totalMessages);
+
+            Messages<String> messages = batchRead(reader, async);
+            assertEquals(messages.size(), totalMessages);
+            Map<String, List<String>> actual = new HashMap<>();
+            for (Message<String> message : messages) {
+                String value = message.getValue();
+                String sourceId = value.substring(0, value.indexOf(':'));
+                actual.computeIfAbsent(sourceId, ignored -> new ArrayList<>()).add(value);
+            }
+            assertEquals(actual, expected);
+        }
+    }
+
+    @Test(dataProvider = "batchReaderCases", timeOut = 30000)
+    public void testBatchReadNextWithCustomPolicy(BatchReaderTopology topology, boolean async) throws Exception {
+        BatchReaderTopics topics = createBatchReaderTopics(topology);
+        for (String topic : topics.sourceTopics()) {
+            try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                    .topic(topic).enableBatching(false).create()) {
+                producer.send("first");
+                producer.send("second");
+            }
+        }
+
+        BatchReceivePolicy policy = BatchReceivePolicy.builder().maxNumMessages(1).build();
+        try (Reader<String> reader = pulsarClient.newReader(Schema.STRING).topics(topics.readerTopics())
+                .startMessageId(MessageId.earliest).batchReceivePolicy(policy).create()) {
+            ConsumerBase<?> consumer = reader instanceof ReaderImpl<?> singleReader
+                    ? singleReader.getConsumer() : ((MultiTopicsReaderImpl<?>) reader).getMultiTopicsConsumer();
+            int totalMessages = topics.sourceTopics().size() * 2;
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> consumer.getTotalIncomingMessages() == totalMessages);
+
+            for (int i = 0; i < totalMessages; i++) {
+                assertEquals(batchRead(reader, async).size(), 1);
+            }
+        }
+    }
+
+    @Test(dataProvider = "batchReaderCases", timeOut = 30000)
+    public void testBatchReadNextEmpty(BatchReaderTopology topology, boolean async) throws Exception {
+        BatchReaderTopics topics = createBatchReaderTopics(topology);
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try (Reader<String> reader = pulsarClient.newReader(Schema.STRING).topics(topics.readerTopics())
+                .startMessageId(MessageId.earliest).create()) {
+            Future<?> result = executor.submit(() -> {
+                long start = System.nanoTime();
+                Messages<String> messages = batchRead(reader, async);
+                long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start);
+                assertEquals(messages.size(), 0);
+                assertTrue(elapsedMs >= 80, "Empty batch returned before the default 100ms timeout: " + elapsedMs);
+                return null;
+            });
+            result.get(5, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    @Test(dataProvider = "batchReaderCases", timeOut = 30000)
+    public void testBatchReadNextWithListenerOrClosed(BatchReaderTopology topology, boolean async) throws Exception {
+        BatchReaderTopics topics = createBatchReaderTopics(topology);
+        try (Reader<String> reader = pulsarClient.newReader(Schema.STRING).topics(topics.readerTopics())
+                .startMessageId(MessageId.earliest).readerListener((r, message) -> { }).create()) {
+            if (async) {
+                assertThatThrownBy(() -> batchRead(reader, true))
+                        .hasCauseInstanceOf(PulsarClientException.InvalidConfigurationException.class);
+            } else {
+                assertThatThrownBy(() -> batchRead(reader, false))
+                        .isInstanceOf(PulsarClientException.InvalidConfigurationException.class);
+            }
+        }
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING).topics(topics.readerTopics())
+                .startMessageId(MessageId.earliest).create();
+        reader.close();
+        if (async) {
+            assertThatThrownBy(() -> batchRead(reader, true))
+                    .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        } else {
+            assertThatThrownBy(() -> batchRead(reader, false))
+                    .isInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        }
+    }
+
+    @Test(dataProvider = "batchReaderCases", timeOut = 30000)
+    public void testCloseWhileBatchReadIsPending(BatchReaderTopology topology, boolean async) throws Exception {
+        BatchReaderTopics topics = createBatchReaderTopics(topology);
+        BatchReceivePolicy policy = BatchReceivePolicy.builder().maxNumMessages(1).build();
+        try (ExecutorService executor = Executors.newSingleThreadExecutor();
+             Reader<String> reader = pulsarClient.newReader(Schema.STRING).topics(topics.readerTopics())
+                     .startMessageId(MessageId.earliest).batchReceivePolicy(policy).create()) {
+            ConsumerBase<?> consumer = reader instanceof ReaderImpl<?> singleReader
+                    ? singleReader.getConsumer() : ((MultiTopicsReaderImpl<?>) reader).getMultiTopicsConsumer();
+            Future<Messages<String>> pending = async ? reader.readNextBatchAsync()
+                    : executor.submit(reader::readNextBatch);
+            try {
+                Awaitility.await().atMost(5, TimeUnit.SECONDS).until(consumer::hasPendingBatchReceive);
+                reader.close();
+                assertThatThrownBy(() -> pending.get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+            } finally {
+                pending.cancel(true);
+            }
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testBatchReadNextWithZeroQueueSize() throws Exception {
+        BatchReaderTopics topics = createBatchReaderTopics(BatchReaderTopology.SINGLE_TOPIC);
+        try (Reader<String> reader = pulsarClient.newReader(Schema.STRING).topics(topics.readerTopics())
+                .startMessageId(MessageId.earliest).receiverQueueSize(0).create()) {
+            assertThatThrownBy(reader::readNextBatch)
+                    .isInstanceOf(PulsarClientException.InvalidConfigurationException.class);
+            assertThatThrownBy(() -> batchRead(reader, true))
+                    .hasCauseInstanceOf(PulsarClientException.InvalidConfigurationException.class);
+        }
+    }
+
+    @Test(dataProvider = "batchReaderCases", timeOut = 30000)
+    public void testCancelledBatchReadNextDoesNotConsumeMessages(BatchReaderTopology topology, boolean async)
+            throws Exception {
+        BatchReaderTopics topics = createBatchReaderTopics(topology);
+        try (Reader<String> reader = pulsarClient.newReader(Schema.STRING).topics(topics.readerTopics())
+                .startMessageId(MessageId.earliest).create();
+             Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                     .topic(topics.sourceTopics().get(0)).enableBatching(false).create()) {
+            CompletableFuture<Messages<String>> cancelled = reader.readNextBatchAsync();
+            assertTrue(cancelled.cancel(false));
+            producer.send("after-cancellation");
+            Messages<String> messages = batchRead(reader, async);
+            assertEquals(messages.size(), 1);
+            assertEquals(messages.iterator().next().getValue(), "after-cancellation");
+        }
     }
 
     @Test

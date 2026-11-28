@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.DecryptFailListener;
@@ -35,6 +34,7 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderDecryptFailListener;
@@ -52,10 +52,6 @@ public class ReaderImpl<T> implements Reader<T> {
     private static final Logger LOG = Logger.get(ReaderImpl.class);
     private final Logger log;
 
-    private static final BatchReceivePolicy DISABLED_BATCH_RECEIVE_POLICY = BatchReceivePolicy.builder()
-            .timeout(0, TimeUnit.MILLISECONDS)
-            .maxNumMessages(1)
-            .build();
     private final ConsumerImpl<T> consumer;
 
     public ReaderImpl(PulsarClientImpl client, ReaderConfigurationData<T> readerConfiguration,
@@ -78,6 +74,7 @@ public class ReaderImpl<T> implements Reader<T> {
         consumerConfiguration.setSubscriptionMode(readerConfiguration.getSubscriptionMode());
         consumerConfiguration.setSubscriptionInitialPosition(readerConfiguration.getSubscriptionInitialPosition());
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
+        consumerConfiguration.setBatchReceivePolicy(readerConfiguration.getBatchReceivePolicy());
         consumerConfiguration.setReadCompacted(readerConfiguration.isReadCompacted());
         consumerConfiguration.setPoolMessages(readerConfiguration.isPoolMessages());
 
@@ -87,10 +84,6 @@ public class ReaderImpl<T> implements Reader<T> {
                 readerConfiguration.isAutoAckOldestChunkedMessageOnQueueFull());
         consumerConfiguration.setExpireTimeOfIncompleteChunkedMessageMillis(
                 readerConfiguration.getExpireTimeOfIncompleteChunkedMessageMillis());
-
-        // Reader doesn't need any batch receiving behaviours
-        // disable the batch receive timer for the ConsumerImpl instance wrapped by the ReaderImpl
-        consumerConfiguration.setBatchReceivePolicy(DISABLED_BATCH_RECEIVE_POLICY);
 
         if (readerConfiguration.getReaderName() != null) {
             consumerConfiguration.setConsumerName(readerConfiguration.getReaderName());
@@ -198,13 +191,25 @@ public class ReaderImpl<T> implements Reader<T> {
 
         // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
         // it will specify the subscription position anyway
-        consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
-            log.warn().attr("messageId", msg.getMessageId())
-                    .exception(ex)
-                    .log("acknowledge message cumulative fail");
-            return null;
-        });
+        if (msg != null) {
+            consumer.acknowledgeCumulativeAsync(msg).exceptionally(ex -> {
+                log.warn().attr("messageId", msg.getMessageId())
+                        .exception(ex)
+                        .log("acknowledge message cumulative fail");
+                return null;
+            });
+        }
         return msg;
+    }
+
+    @Override
+    public Messages<T> readNextBatch() throws PulsarClientException {
+        Messages<T> messages = consumer.batchReceive();
+        if (messages == null) {
+            throw new PulsarClientException.AlreadyClosedException("Reader already closed");
+        }
+        acknowledgeBatch(messages);
+        return messages;
     }
 
     @Override
@@ -226,19 +231,53 @@ public class ReaderImpl<T> implements Reader<T> {
     public CompletableFuture<Message<T>> readNextAsync() {
         CompletableFuture<Message<T>> originalFuture = consumer.receiveAsync();
         CompletableFuture<Message<T>> result = originalFuture.thenApply(msg -> {
-            consumer.acknowledgeCumulativeAsync(msg)
-                    .exceptionally(ex -> {
-                        log.error().attr("messageId", msg.getMessageId())
-                                .exception(ex)
-                                .log("acknowledge message cumulative fail");
-                        return null;
-                    });
+            if (msg != null) {
+                consumer.acknowledgeCumulativeAsync(msg)
+                        .exceptionally(ex -> {
+                            log.error().attr("messageId", msg.getMessageId())
+                                    .exception(ex)
+                                    .log("acknowledge message cumulative fail");
+                            return null;
+                        });
+            }
             return msg;
         });
         CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
         handler.attachToFuture(result);
         handler.setCancelAction(() -> originalFuture.cancel(false));
         return result;
+    }
+
+    @Override
+    public CompletableFuture<Messages<T>> readNextBatchAsync() {
+        CompletableFuture<Messages<T>> originalFuture = consumer.batchReceiveAsync();
+        CompletableFuture<Messages<T>> result = originalFuture.thenApply(messages -> {
+            acknowledgeBatch(messages);
+            return messages;
+        });
+        CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
+        handler.attachToFuture(result);
+        handler.setCancelAction(() -> originalFuture.cancel(false));
+        return result;
+    }
+
+    private void acknowledgeBatch(Messages<T> messages) {
+        if (messages == null) {
+            return;
+        }
+        Message<T> last = null;
+        for (Message<T> message : messages) {
+            last = message;
+        }
+        if (last != null) {
+            Message<T> lastMessage = last;
+            consumer.acknowledgeCumulativeAsync(lastMessage).exceptionally(ex -> {
+                log.warn().attr("messageId", lastMessage.getMessageId())
+                        .exception(ex)
+                        .log("acknowledge message cumulative fail");
+                return null;
+            });
+        }
     }
 
     @Override

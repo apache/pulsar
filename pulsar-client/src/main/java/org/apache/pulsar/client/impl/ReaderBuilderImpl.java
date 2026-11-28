@@ -30,6 +30,7 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -201,6 +202,14 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     public ReaderBuilder<T> receiverQueueSize(int receiverQueueSize) {
         checkArgument(receiverQueueSize >= 0, "receiverQueueSize needs to be >= 0");
         conf.setReceiverQueueSize(receiverQueueSize);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> batchReceivePolicy(BatchReceivePolicy batchReceivePolicy) {
+        checkArgument(batchReceivePolicy != null, "batchReceivePolicy must not be null.");
+        batchReceivePolicy.verify();
+        conf.setBatchReceivePolicy(batchReceivePolicy);
         return this;
     }
 
