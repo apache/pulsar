@@ -242,7 +242,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         eventLoopGroup = new MultiThreadIoEventLoopGroup(LocalIoHandler.newFactory());
         doReturn(eventLoopGroup.next()).when(channel).eventLoop();
         doReturn(channel).when(ctx).channel();
-        doReturn(ctx).when(serverCnx).ctx();
+        stubServerCnxEventLoop(serverCnx);
         doReturn(CompletableFuture.completedFuture(Optional.of(true))).when(serverCnx).checkConnectionLiveness();
 
         NamespaceService nsSvc = pulsarTestContext.getPulsarService().getNamespaceService();
@@ -644,6 +644,10 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topic.getProducers().values().forEach(producer -> Assert.assertEquals(producer.getEpoch(), 3));
     }
 
+    private void stubServerCnxEventLoop(ServerCnx cnx) {
+        doReturn(ctx).when(cnx).ctx();
+    }
+
     private Producer getMockedProducerWithSpecificAddress(Topic topic, long producerId, InetAddress address) {
         final String producerNameBase = "producer";
         final String role = "appid1";
@@ -654,6 +658,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(new InetSocketAddress(address, 1234)).when(cnx).clientAddress();
         doReturn(address.getHostAddress()).when(cnx).clientSourceAddress();
         doReturn(new PulsarCommandSenderImpl(null, cnx, maxTopicListInFlightLimiter)).when(cnx).getCommandSender();
+        stubServerCnxEventLoop(cnx);
 
         return new Producer(topic, cnx, producerId, producerNameBase + producerId, role, false, null,
                 SchemaVersion.Latest, 0, false, ProducerAccessMode.Shared, Optional.empty(), true);
@@ -1191,6 +1196,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doReturn(new InetSocketAddress(address, 1234)).when(cnx).clientAddress();
         doReturn(address.getHostAddress()).when(cnx).clientSourceAddress();
         doReturn(new PulsarCommandSenderImpl(null, cnx, maxTopicListInFlightLimiter)).when(cnx).getCommandSender();
+        stubServerCnxEventLoop(cnx);
 
         return new Consumer(sub, SubType.Shared, topic.getName(), consumerId, 0, consumerNameBase + consumerId, true,
                 cnx, role, Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH);
