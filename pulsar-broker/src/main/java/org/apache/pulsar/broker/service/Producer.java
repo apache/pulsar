@@ -125,6 +125,7 @@ public class Producer {
     private final AtomicBoolean brokerInterceptorClosedNotified = new AtomicBoolean(false);
     private final AtomicInteger brokerInterceptorCreateInProgress = new AtomicInteger();
     private final AtomicBoolean brokerInterceptorClosePendingDuringCreate = new AtomicBoolean();
+    private final AtomicBoolean brokerInterceptorClosedBeforeCreate = new AtomicBoolean();
     private final AtomicBoolean brokerInterceptorCreateLifecycleInvoked = new AtomicBoolean(false);
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
@@ -893,9 +894,15 @@ public class Producer {
     }
 
     public void noteBrokerInterceptorClosePendingDuringCreate() {
-        if (brokerInterceptorCreateInProgress.get() > 0) {
-            brokerInterceptorClosePendingDuringCreate.set(true);
-        }
+        brokerInterceptorClosePendingDuringCreate.set(true);
+    }
+
+    public void markBrokerInterceptorClosedBeforeCreate() {
+        brokerInterceptorClosedBeforeCreate.set(true);
+    }
+
+    public boolean isBrokerInterceptorClosedBeforeCreate() {
+        return brokerInterceptorClosedBeforeCreate.get();
     }
 
     public CompletableFuture<Void> disconnect() {

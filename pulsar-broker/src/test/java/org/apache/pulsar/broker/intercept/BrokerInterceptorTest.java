@@ -30,6 +30,7 @@ import java.net.URLClassLoader;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -338,6 +339,31 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
             Awaitility.await().untilAsserted(() ->
                     assertEquals(counterBrokerInterceptor.getConsumerClosedInvocations().get(), 1));
         }
+    }
+
+    @Test
+    public void testUnloadWithConsumerBeforeCreatedInterceptorKeepsCreateCloseBalanced() throws Exception {
+        String topicName = "persistent://public/default/broker-interceptor-pre-create-unload-" + UUID.randomUUID();
+        String subName = "broker-interceptor-pre-create-sub";
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        CompletableFuture<Consumer<String>> subscribeFuture = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribeAsync();
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).pollInterval(1, TimeUnit.MILLISECONDS).until(() -> {
+            Optional<org.apache.pulsar.broker.service.Topic> topic =
+                    pulsar.getBrokerService().getTopic(topicName, false).join();
+            if (topic.isEmpty()) {
+                return false;
+            }
+            org.apache.pulsar.broker.service.Subscription subscription = topic.get().getSubscription(subName);
+            return subscription != null && !subscription.getConsumers().isEmpty();
+        });
+        admin.topics().unload(topicName);
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(counterBrokerInterceptor.getConsumerCreatedInvocations().get(),
+                    counterBrokerInterceptor.getConsumerClosedInvocations().get());
+            assertEquals(counterBrokerInterceptor.getConsumerCount(), 0);
+        });
+        subscribeFuture.cancel(true);
     }
 
     @Test

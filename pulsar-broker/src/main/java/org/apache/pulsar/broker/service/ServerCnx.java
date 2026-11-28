@@ -5027,12 +5027,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (brokerInterceptor == null) {
             return;
         }
+        if (consumer.isBrokerInterceptorClosedBeforeCreate()) {
+            return;
+        }
         consumer.beginBrokerInterceptorCreate();
         execute(() -> runConsumerCreatedInterceptor(consumer, metadata));
     }
 
     private void runConsumerCreatedInterceptor(Consumer consumer, Map<String, String> metadata) {
         try {
+            if (consumer.isBrokerInterceptorClosedBeforeCreate()) {
+                return;
+            }
             try {
                 brokerInterceptor.consumerCreated(this, consumer, metadata);
                 if (!(brokerInterceptor instanceof BrokerInterceptors)) {
@@ -5054,12 +5060,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (brokerInterceptor == null || !producer.markBrokerInterceptorCreateLifecycleInvoked()) {
             return;
         }
+        if (producer.isBrokerInterceptorClosedBeforeCreate()) {
+            return;
+        }
         producer.beginBrokerInterceptorCreate();
         execute(() -> runProducerCreatedInterceptor(producer, metadata));
     }
 
     private void runProducerCreatedInterceptor(Producer producer, Map<String, String> metadata) {
         try {
+            if (producer.isBrokerInterceptorClosedBeforeCreate()) {
+                return;
+            }
             try {
                 brokerInterceptor.producerCreated(this, producer, metadata);
                 if (!(brokerInterceptor instanceof BrokerInterceptors)) {
@@ -5084,6 +5096,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
         if (!consumer.hasBrokerInterceptorCreateNotifications()) {
             consumer.noteBrokerInterceptorClosePendingDuringCreate();
+            consumer.markBrokerInterceptorClosedBeforeCreate();
             return;
         }
         if (!consumer.markBrokerInterceptorClosedNotified()) {
@@ -5113,6 +5126,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
         if (!producer.hasBrokerInterceptorCreateNotifications()) {
             producer.noteBrokerInterceptorClosePendingDuringCreate();
+            producer.markBrokerInterceptorClosedBeforeCreate();
             return;
         }
         if (!producer.markBrokerInterceptorClosedNotified()) {
