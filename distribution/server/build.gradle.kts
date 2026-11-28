@@ -123,7 +123,8 @@ dependencies {
     distLib(libs.log4j.jul)
     // The async loggers that bin/pulsar enables need the LMAX Disruptor
     distLib(libs.disruptor)
-    distLib(libs.simpleclient.log4j2)
+    // The Prometheus appender that conf/log4j2.yaml configures
+    distLib(project(":pulsar-log4j2-prometheus-metrics"))
 
     // Metrics
     distLib(libs.dropwizardmetrics.core)

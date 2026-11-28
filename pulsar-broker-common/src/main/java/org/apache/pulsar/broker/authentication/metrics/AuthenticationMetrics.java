@@ -25,17 +25,20 @@ import io.opentelemetry.api.metrics.LongCounter;
 import io.prometheus.metrics.core.metrics.Counter;
 
 public class AuthenticationMetrics {
+    // Nothing exports exemplars, so the counters skip the sampling that 1.x counters do by default.
     @Deprecated
     private static final Counter authSuccessMetrics = Counter.builder()
             .name("pulsar_authentication_success")
             .help("Pulsar authentication success")
             .labelNames("provider_name", "auth_method")
+            .withoutExemplars()
             .register();
     @Deprecated
     private static final Counter authFailuresMetrics = Counter.builder()
             .name("pulsar_authentication_failures")
             .help("Pulsar authentication failures")
             .labelNames("provider_name", "auth_method", "reason")
+            .withoutExemplars()
             .register();
 
     public static final String INSTRUMENTATION_SCOPE_NAME = "org.apache.pulsar.authentication";

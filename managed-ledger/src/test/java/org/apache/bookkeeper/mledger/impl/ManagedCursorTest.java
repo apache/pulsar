@@ -7700,12 +7700,11 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         verify(lastEntry, never()).release();
     }
 
-    @Test
-    public void testReadEntriesWithSkipDeletedEntries() throws Exception {
-        @Cleanup
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipDeletedEntries",
-                initManagedLedgerConfig(defaultConfig()));
-        ledger = Mockito.spy(ledger);
+    /**
+     * Records the entry ids of every range read issued through the batched and the sequential
+     * {@code asyncReadEntry} overloads of the given spied ledger, delegating to the real reads.
+     */
+    private static List<Long> recordActualReadEntryIds(ManagedLedgerImpl ledger) {
         List<Long> actualReadEntryIds = new ArrayList<>();
         Mockito.doAnswer(inv -> {
                     long start = inv.getArgument(1);
@@ -7717,7 +7716,31 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 })
                 .when(ledger)
                 .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
-                        Mockito.anyLong(), Mockito.any(), Mockito.any());
+                        Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(), Mockito.any(),
+                        Mockito.anyBoolean());
+        // Reads with a single contiguous range take the sequential read overload instead of the
+        // batched one, record those reads as well.
+        Mockito.doAnswer(inv -> {
+                    long start = inv.getArgument(1);
+                    long end = inv.getArgument(2);
+                    for (long i = start; i <= end; i++) {
+                        actualReadEntryIds.add(i);
+                    }
+                    return inv.callRealMethod();
+                })
+                .when(ledger)
+                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
+                        Mockito.anyLong(), Mockito.any(OpReadEntry.class), Mockito.any());
+        return actualReadEntryIds;
+    }
+
+    @Test
+    public void testReadEntriesWithSkipDeletedEntries() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipDeletedEntries",
+                initManagedLedgerConfig(defaultConfig()));
+        ledger = Mockito.spy(ledger);
+        List<Long> actualReadEntryIds = recordActualReadEntryIds(ledger);
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
@@ -7796,8 +7819,21 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertTrue(cursorReadPosition.getLedgerId() == expectReadPosition.getLedgerId()
                 && cursorReadPosition.getEntryId() == expectReadPosition.getEntryId());
 
-        assertEquals(readEntries.size(), actualReadEntryIds.size());
-        assertEquals(entries - deletedPositions.size(), actualReadEntryIds.size());
+        // Small holes of deleted entries are read through instead of splitting the range when
+        // batch reads are enabled, so the bookie reads include the deleted entries inside the
+        // merged holes while those entries are filtered out before delivery.
+        assertEquals(entries - deletedPositions.size(), readEntries.size());
+        Set<Long> deliveredEntryIds = new HashSet<>();
+        for (Entry entry : readEntries) {
+            deliveredEntryIds.add(entry.getEntryId());
+        }
+        // no entry is delivered twice
+        assertEquals(readEntries.size(), deliveredEntryIds.size());
+        // every fetched entry is either delivered or a deleted entry read through a merged hole
+        for (long actualReadEntryId : actualReadEntryIds) {
+            assertTrue(deliveredEntryIds.contains(actualReadEntryId)
+                    || deletedPositions.contains(map.get((int) actualReadEntryId)));
+        }
         for (Entry entry : readEntries) {
             long entryId = entry.getEntryId();
             assertTrue(actualReadEntryIds.contains(entryId));
@@ -7813,18 +7849,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                         initManagedLedgerConfig(defaultConfig()));
         ledger = Mockito.spy(ledger);
 
-        List<Long> actualReadEntryIds = new ArrayList<>();
-        Mockito.doAnswer(inv -> {
-                    long start = inv.getArgument(1);
-                    long end = inv.getArgument(2);
-                    for (long i = start; i <= end; i++) {
-                        actualReadEntryIds.add(i);
-                    }
-                    return inv.callRealMethod();
-                })
-                .when(ledger)
-                .asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
-                        Mockito.anyLong(), Mockito.any(), Mockito.any());
+        List<Long> actualReadEntryIds = recordActualReadEntryIds(ledger);
         @Cleanup
         ManagedCursor cursor = ledger.openCursor("c");
 
@@ -7887,8 +7912,23 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         f1.get();
 
 
-        assertEquals(actualReadEntryIds.size(), readEntries.size());
-        assertEquals(entries - deletedPositions.size() - skippedPositions.size(), actualReadEntryIds.size());
+        // Small holes of deleted or skipped entries are read through instead of splitting the
+        // range when batch reads are enabled, so the bookie reads include the deleted and
+        // skipped entries inside the merged holes while those entries are filtered out before
+        // delivery.
+        assertEquals(entries - deletedPositions.size() - skippedPositions.size(), readEntries.size());
+        Set<Long> deliveredEntryIds = new HashSet<>();
+        for (Entry entry : readEntries) {
+            deliveredEntryIds.add(entry.getEntryId());
+        }
+        // no entry is delivered twice
+        assertEquals(readEntries.size(), deliveredEntryIds.size());
+        // every fetched entry is delivered or read through a merged hole
+        for (long actualReadEntryId : actualReadEntryIds) {
+            assertTrue(deliveredEntryIds.contains(actualReadEntryId)
+                    || deletedPositions.contains(map.get((int) actualReadEntryId))
+                    || skippedPositions.contains(actualReadEntryId));
+        }
         for (Entry entry : readEntries) {
             long entryId = entry.getEntryId();
             assertTrue(actualReadEntryIds.contains(entryId));

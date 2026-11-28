@@ -3269,31 +3269,34 @@ public class BrokerService implements Closeable {
 
     public void monitorBacklogQuota() {
         long startTimeMillis = System.currentTimeMillis();
-        forEachPersistentTopic(topic -> {
-            topic.updateOldPositionInfo().thenAccept(__ -> {
-                if (topic.isSizeBacklogExceeded()) {
+        forEachPersistentTopic(topic -> checkBacklogQuota(topic).whenComplete((unused, throwable) -> {
+            if (throwable != null) {
+                log.error()
+                        .attr("topic", topic.getName())
+                        .exception(throwable)
+                        .log("Error when checkBacklogQuota() in monitorBacklogQuota");
+            }
+            backlogQuotaCheckDuration.observe(
+                    MILLISECONDS.toSeconds(System.currentTimeMillis() - startTimeMillis));
+        }));
+    }
+
+    @VisibleForTesting
+    CompletableFuture<Void> checkBacklogQuota(PersistentTopic topic) {
+        return FutureUtil.supplySafely(topic::updateOldPositionInfo).thenCompose(__ -> {
+            if (topic.isSizeBacklogExceeded()) {
+                getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                        BacklogQuota.BacklogQuotaType.destination_storage, false);
+                return CompletableFuture.completedFuture(null);
+            }
+            return topic.checkTimeBacklogExceeded(false).thenAccept(isExceeded -> {
+                if (isExceeded) {
                     getBacklogQuotaManager().handleExceededBacklogQuota(topic,
-                            BacklogQuota.BacklogQuotaType.destination_storage, false);
+                            BacklogQuota.BacklogQuotaType.message_age,
+                            pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
                 } else {
-                    topic.checkTimeBacklogExceeded(false).thenAccept(isExceeded -> {
-                        if (isExceeded) {
-                            getBacklogQuotaManager().handleExceededBacklogQuota(topic,
-                                    BacklogQuota.BacklogQuotaType.message_age,
-                                    pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
-                        } else {
-                            log.debug().attr("topic", topic.getName()).log("Quota not exceeded");
-                        }
-                    });
+                    log.debug().attr("topic", topic.getName()).log("Quota not exceeded");
                 }
-            }).whenComplete((unused, throwable) -> {
-                if (throwable != null) {
-                    log.error()
-                            .attr("topic", topic.getName())
-                            .exception(throwable)
-                            .log("Error when checkBacklogQuota() in monitorBacklogQuota");
-                }
-                backlogQuotaCheckDuration.observe(
-                        MILLISECONDS.toSeconds(System.currentTimeMillis() - startTimeMillis));
             });
         });
     }

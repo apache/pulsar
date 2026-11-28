@@ -90,6 +90,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -116,6 +117,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private static final long MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS = 1000;
 
     private final PulsarService pulsar;
+    private final PulsarClient client;
     private final ServiceConfiguration config;
     private final Schema<ServiceUnitStateData> schema;
     private final Map<String, CompletableFuture<String>> getOwnerRequests;
@@ -199,7 +201,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     @VisibleForTesting
     public ServiceUnitStateChannelImpl(PulsarService pulsar) {
+        this(pulsar, null);
+    }
+
+    public ServiceUnitStateChannelImpl(PulsarService pulsar, PulsarClient client) {
         this.pulsar = pulsar;
+        this.client = client;
         this.config = pulsar.getConfig();
         this.brokerId = pulsar.getBrokerId();
         this.schema = Schema.JSON(ServiceUnitStateData.class);
@@ -353,7 +360,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             pulsar.getConfiguration().getDefaultNumberOfSystemNamespaceBundles());
 
             tableview = createServiceUnitStateTableView();
-            tableview.start(pulsar, this::handleEvent, this::handleExisting, this::handleInvalidate);
+            tableview.start(pulsar, client, this::handleEvent, this::handleExisting, this::handleInvalidate);
 
             if (debug) {
                 log.info("Successfully started the channel tableview.");

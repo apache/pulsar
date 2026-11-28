@@ -21,10 +21,10 @@ package org.apache.pulsar.functions.worker;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.Meter;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.metrics.core.datapoints.DistributionDataPoint;
 import io.prometheus.metrics.core.datapoints.GaugeDataPoint;
 import io.prometheus.metrics.core.metrics.Gauge;
+import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.core.metrics.Summary;
 import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
 import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
@@ -126,11 +126,13 @@ public class WorkerStatsManager implements AutoCloseable {
     metricsLabels = new String[]{workerConfig.getPulsarFunctionsCluster()};
     this.openTelemetryWorkerStats = new OpenTelemetryWorkerStats(meter);
 
+    // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
     statWorkerStartupTime = Summary.builder()
       .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + START_UP_TIME)
       .help("Worker service startup time in milliseconds.")
       .labelNames(metricsLabelNames)
       .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
+      .withoutExemplars()
       .register(registry);
     statWorkerStartupTimeChild = statWorkerStartupTime.labelValues(metricsLabels);
 
@@ -138,6 +140,7 @@ public class WorkerStatsManager implements AutoCloseable {
       .name(PULSAR_FUNCTION_WORKER_METRICS_PREFIX + INSTANCE_COUNT)
       .help("Number of instances run by this worker.")
       .labelNames(metricsLabelNames)
+      .withoutExemplars()
       .register(registry);
     statNumInstancesChild = statNumInstances.labelValues(metricsLabels);
 
@@ -170,22 +173,17 @@ public class WorkerStatsManager implements AutoCloseable {
     drainTotalExecutionTimeChild = drainTotalExecutionTime.labelValues(metricsLabels);
 
     if (runAsStandalone) {
-      // 1.x JvmMetrics does not export these two names, so they stay on the simpleclient default registry.
-      io.prometheus.client.Gauge.build("jvm_memory_direct_bytes_used", "-").create()
-          .setChild(new io.prometheus.client.Gauge.Child() {
-            @Override
-            public double get() {
-              return getJvmDirectMemoryUsed();
-            }
-          }).register(CollectorRegistry.defaultRegistry);
+      GaugeWithCallback.builder()
+          .name("jvm_memory_direct_bytes_used")
+          .help("-")
+          .callback(callback -> callback.call(getJvmDirectMemoryUsed()))
+          .register();
 
-      io.prometheus.client.Gauge.build("jvm_memory_direct_bytes_max", "-").create()
-          .setChild(new io.prometheus.client.Gauge.Child() {
-            @Override
-            public double get() {
-              return DirectMemoryUtils.jvmMaxDirectMemory();
-            }
-          }).register(CollectorRegistry.defaultRegistry);
+      GaugeWithCallback.builder()
+          .name("jvm_memory_direct_bytes_max")
+          .help("-")
+          .callback(callback -> callback.call(DirectMemoryUtils.jvmMaxDirectMemory()))
+          .register();
     }
   }
 
@@ -199,6 +197,7 @@ public class WorkerStatsManager implements AutoCloseable {
       .quantile(0.9, 0.01)
       .quantile(1, 0.01)
       .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
+      .withoutExemplars()
       .register(registry);
   }
 

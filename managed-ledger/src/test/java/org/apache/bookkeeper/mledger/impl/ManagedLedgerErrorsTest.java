@@ -22,7 +22,11 @@ import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultCo
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -48,8 +52,11 @@ import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
+import org.apache.bookkeeper.client.api.CreateBuilder;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.client.api.WriteHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -64,9 +71,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -715,6 +724,92 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         ledger.addEntryFailedDueToConcurrentlyModified(fencedLedger, BKException.Code.LedgerFencedException);
 
         assertEquals(ledger.getState(), ManagedLedgerImpl.State.Closed);
+    }
+
+    @Test
+    public void rolloverCreationFailureKeepsFencedManagedLedgerFenced() throws Exception {
+        PulsarMockBookKeeper bookKeeper = spy(bkc);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl rolloverFactory = new ManagedLedgerFactoryImpl(metadataStore, bookKeeper);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) rolloverFactory.open("rollover-create-failure",
+                defaultConfig().setMaxEntriesPerLedger(2));
+
+        CompletableFuture<WriteHandle> creation = new CompletableFuture<>();
+        CompletableFuture<Void> creationDispatched = new CompletableFuture<>();
+        CreateBuilder builder = mock(CreateBuilder.class, RETURNS_SELF);
+        doAnswer(invocation -> {
+            // Signal after the ledger thread finishes attaching the create callback to the future.
+            ledger.getExecutor().execute(() -> creationDispatched.complete(null));
+            return creation;
+        }).when(builder).execute();
+        doReturn(builder).when(bookKeeper).newCreateLedgerOp();
+
+        BKException createFailure = BKException.create(BKException.Code.UnexpectedConditionException);
+        try {
+            ledger.addEntry(new byte[] {1});
+            ledger.addEntry(new byte[] {2});
+            creationDispatched.get(5, TimeUnit.SECONDS);
+            assertEquals(ledger.getState(), ManagedLedgerImpl.State.CreatingLedger);
+
+            ledger.setFenced();
+            creation.completeExceptionally(createFailure);
+            assertEquals(ledger.getState(), ManagedLedgerImpl.State.Fenced);
+            expectThrows(ManagedLedgerFencedException.class, ledger::close);
+        } finally {
+            creation.completeExceptionally(createFailure);
+        }
+    }
+
+    @DataProvider
+    public Object[][] rolloverMetadataFailureStates() {
+        return new Object[][] {{ManagedLedgerImpl.State.Fenced}, {ManagedLedgerImpl.State.Closed}};
+    }
+
+    @Test(dataProvider = "rolloverMetadataFailureStates")
+    public void rolloverMetadataFailureKeepsManagedLedgerUnavailable(ManagedLedgerImpl.State terminalState)
+            throws Exception {
+        FaultInjectionMetadataStore rolloverStore = spy(metadataStore);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl rolloverFactory = new ManagedLedgerFactoryImpl(rolloverStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) rolloverFactory.open("rollover-metadata-failure",
+                defaultConfig().setMaxEntriesPerLedger(2).setRetentionTime(1, TimeUnit.DAYS)
+                        .setRetentionSizeInMB(-1));
+        long initialLedgerId = ledger.getCurrentLedger().getId();
+
+        CompletableFuture<Void> writeStarted = new CompletableFuture<>();
+        CompletableFuture<Stat> write = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            writeStarted.complete(null);
+            return write;
+        }).doCallRealMethod().when(rolloverStore).put(eq("/managed-ledgers/" + ledger.getName()),
+                any(byte[].class), any());
+
+        MetadataStoreException writeFailure = new MetadataStoreException("rollover update failed");
+        try {
+            ledger.addEntry(new byte[] {1});
+            ledger.addEntry(new byte[] {2});
+            writeStarted.get(5, TimeUnit.SECONDS);
+            assertEquals(ledger.getState(), ManagedLedgerImpl.State.CreatingLedger);
+            assertEquals(bkc.getLedgers().size(), 2);
+
+            if (terminalState == ManagedLedgerImpl.State.Fenced) {
+                ledger.setFenced();
+            } else {
+                ledger.close();
+            }
+            assertEquals(ledger.getState(), terminalState);
+
+            write.completeExceptionally(writeFailure);
+            // MetaStore queues operationFailed on this ordered executor. Wait for that callback to finish.
+            CompletableFuture<Void> failureHandled = new CompletableFuture<>();
+            rolloverFactory.scheduledExecutor.executeOrdered(ledger.getName(), () -> failureHandled.complete(null));
+            failureHandled.get(5, TimeUnit.SECONDS);
+            assertEquals(ledger.getState(), terminalState);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertEquals(bkc.getLedgers(), Set.of(initialLedgerId)));
+        } finally {
+            write.completeExceptionally(writeFailure);
+        }
     }
 
     @Test

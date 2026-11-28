@@ -290,6 +290,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         .log("Receive message from sub consumer");
             // Stop to process the remaining message after the consumer is closed.
             if (getState() == State.Closed) {
+                // The application never gets these messages, so release them here if they are pooled
+                messages.forEach(Message::release);
                 return;
             }
             // Process the message, add to the queue and trigger listener or async callback

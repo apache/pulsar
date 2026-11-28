@@ -97,9 +97,11 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
                     observableDoubleMeasurement.record(heapMemoryLimiter.getAcquiredPermits());
                 });
 
+        // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
         this.heapMemoryLimitBytes = register(Gauge.builder()
                 .name(prometheusPrefix + "topic_list_heap_memory_limit_bytes")
                 .help("Configured heap memory limit")
+                .withoutExemplars()
                 .build());
         this.heapMemoryLimitBytes.set(maxHeapMemory);
         this.otelHeapMemoryLimitGauge = openTelemetryMeter.gaugeBuilder("topic.list.heap.memory.limit")
@@ -123,6 +125,7 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
         this.directMemoryLimitBytes = register(Gauge.builder()
                 .name(prometheusPrefix + "topic_list_direct_memory_limit_bytes")
                 .help("Configured direct memory limit")
+                .withoutExemplars()
                 .build());
         this.directMemoryLimitBytes.set(maxDirectMemory);
         this.otelDirectMemoryLimitGauge = openTelemetryMeter.gaugeBuilder("topic.list.direct.memory.limit")
@@ -147,6 +150,7 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
         this.heapQueueMaxSize = register(Gauge.builder()
                 .name(prometheusPrefix + "topic_list_heap_queue_max_size")
                 .help("Maximum heap memory limiter queue size")
+                .withoutExemplars()
                 .build());
         this.heapQueueMaxSize.set(maxHeapQueueSize);
         LongGauge otelHeapQueueMaxSize = openTelemetryMeter
@@ -173,6 +177,7 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
         this.directQueueMaxSize = register(Gauge.builder()
                 .name(prometheusPrefix + "topic_list_direct_queue_max_size")
                 .help("Maximum direct memory limiter queue size")
+                .withoutExemplars()
                 .build());
         this.directQueueMaxSize.set(maxDirectQueueSize);
         LongGauge otelDirectQueueMaxSize = openTelemetryMeter
@@ -200,6 +205,7 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
         this.heapTimeoutTotal = register(Counter.builder()
                 .name(prometheusPrefix + "topic_list_heap_timeout")
                 .help("Total heap memory permit timeouts")
+                .withoutExemplars()
                 .build());
         this.otelHeapTimeoutTotal = openTelemetryMeter.counterBuilder("topic.list.heap.timeout.total")
                 .setDescription("Total heap memory permit timeouts")
@@ -209,6 +215,7 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
         this.directTimeoutTotal = register(Counter.builder()
                 .name(prometheusPrefix + "topic_list_direct_timeout")
                 .help("Total direct memory permit timeouts")
+                .withoutExemplars()
                 .build());
         this.otelDirectTimeoutTotal = openTelemetryMeter.counterBuilder("topic.list.direct.timeout.total")
                 .setDescription("Total direct memory permit timeouts")
@@ -225,6 +232,7 @@ public class TopicListMemoryLimiter extends AsyncDualMemoryLimiterImpl {
                 .quantile(0.99, 0.01)
                 .quantile(1, 0.01)
                 .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
+                .withoutExemplars()
                 .build();
     }
 

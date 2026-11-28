@@ -126,7 +126,7 @@ import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings("checkstyle:javadoctype")
 public class ManagedCursorImpl implements ManagedCursor {
-    private static final Comparator<Entry> ENTRY_COMPARATOR = (e1, e2) -> {
+    static final Comparator<Entry> ENTRY_COMPARATOR = (e1, e2) -> {
         if (e1.getLedgerId() != e2.getLedgerId()) {
             return e1.getLedgerId() < e2.getLedgerId() ? -1 : 1;
         }
@@ -569,12 +569,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             newProperties = Map.copyOf(updateFunction.apply(currentProperties));
         } catch (Exception e) {
             updateCursorPropertiesResult.completeExceptionally(e);
-            return updateCursorPropertiesResult;
-        }
-        if (newProperties.equals(currentProperties)) {
-            // Nothing changed: skip the version-bumping write, which could collide with the
-            // concurrent writer the update function just chose not to fight.
-            updateCursorPropertiesResult.complete(null);
             return updateCursorPropertiesResult;
         }
 
@@ -5014,11 +5008,11 @@ public class ManagedCursorImpl implements ManagedCursor {
             Range<Position> range = individualDeletedMessages.rangeContaining(position.getLedgerId(),
                     position.getEntryId());
             if (range != null) {
-                Position nextPosition = range.upperEndpoint().getNext();
+                Position nextPosition = ledger.getNextValidPosition(range.upperEndpoint());
                 return (nextPosition != null && nextPosition.compareTo(position) > 0)
                         ? nextPosition : position.getNext();
             }
-            return position.getNext();
+            return ledger.getNextValidPosition(position);
         } finally {
             lock.readLock().unlock();
         }

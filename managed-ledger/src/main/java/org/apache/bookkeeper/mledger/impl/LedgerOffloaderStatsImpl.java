@@ -85,19 +85,20 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         String[] labels = exposeTopicLevelMetrics
                 ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL} : new String[]{NAMESPACE_LABEL};
 
+        // Nothing exports exemplars, so the metrics skip the sampling that 1.x metrics do by default.
         this.offloadError = owned(Counter.builder().name("brk_ledgeroffloader_offload_error").help("-")
-                .labelNames(labels).register());
+                .labelNames(labels).withoutExemplars().register());
         this.offloadRate = owned(Gauge.builder().name("brk_ledgeroffloader_offload_rate").help("-")
-                .labelNames(labels).register());
+                .labelNames(labels).withoutExemplars().register());
 
         this.readOffloadError = owned(Counter.builder().name("brk_ledgeroffloader_read_offload_error").help("-")
-                .labelNames(labels).register());
+                .labelNames(labels).withoutExemplars().register());
         this.readOffloadRate = owned(Gauge.builder().name("brk_ledgeroffloader_read_offload_rate").help("-")
-                .labelNames(labels).register());
+                .labelNames(labels).withoutExemplars().register());
         this.readOffloadBytes = owned(Counter.builder().name("brk_ledgeroffloader_read_bytes").help("-")
-                .labelNames(labels).register());
+                .labelNames(labels).withoutExemplars().register());
         this.writeStorageError = owned(Counter.builder().name("brk_ledgeroffloader_write_storage_error").help("-")
-                .labelNames(labels).register());
+                .labelNames(labels).withoutExemplars().register());
 
         this.readOffloadIndexLatency = latencySummary("brk_ledgeroffloader_read_offload_index_latency", labels);
         this.readOffloadDataLatency = latencySummary("brk_ledgeroffloader_read_offload_data_latency", labels);
@@ -106,7 +107,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         String[] deleteOpsLabels = exposeTopicLevelMetrics
                 ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL, STATUS} : new String[]{NAMESPACE_LABEL, STATUS};
         this.deleteOffloadOps = owned(Counter.builder().name("brk_ledgeroffloader_delete_offload_ops").help("-")
-                .labelNames(deleteOpsLabels).register());
+                .labelNames(deleteOpsLabels).withoutExemplars().register());
     }
 
     private Summary latencySummary(String name, String[] labels) {
@@ -117,6 +118,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
                 .quantile(0.99, 0.01)
                 .quantile(1, 0.01)
                 .maxAgeSeconds(QUANTILE_WINDOW_SECONDS)
+                .withoutExemplars()
                 .register());
     }
 

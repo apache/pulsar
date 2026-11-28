@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
@@ -68,6 +70,21 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
         ManagedLedger shadowML = factory.open(name, config);
         assertTrue(shadowML instanceof ShadowManagedLedgerImpl);
         return (ShadowManagedLedgerImpl) shadowML;
+    }
+
+    @Test
+    public void testMigrationDoesNotUpdateShadowLedgerProperties() throws Exception {
+        factory.open("source_migration");
+        String shadowName = "shadow_migration";
+        ShadowManagedLedgerImpl shadowLedger = openShadowManagedLedger(shadowName, "source_migration");
+        var originalInfo = factory.getManagedLedgerInfo(shadowName);
+
+        assertThatThrownBy(() -> shadowLedger.asyncMigrate().get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(ManagedLedgerException.class);
+        assertFalse(shadowLedger.isMigrated());
+        assertEquals(shadowLedger.getProperties(), originalInfo.properties);
+        assertEquals(factory.getManagedLedgerInfo(shadowName).version, originalInfo.version);
     }
 
     @Test

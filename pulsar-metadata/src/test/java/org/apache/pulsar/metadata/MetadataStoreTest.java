@@ -46,6 +46,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
@@ -88,6 +89,22 @@ import org.testng.annotations.Test;
 
 @CustomLog
 public class MetadataStoreTest extends BaseMetadataStoreTest {
+
+    @Test(dataProvider = "impl")
+    public void testDeleteIfExistsPreservesVersionConflict(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        try (MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build())) {
+            String path = newKey();
+            Stat stat = store.put(path, new byte[0], Optional.of(-1L)).get(5, TimeUnit.SECONDS);
+
+            assertThat(store.deleteIfExists(path, Optional.of(stat.getVersion() + 1)))
+                    .as("a version conflict preserves the metadata exception type")
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableOfType(ExecutionException.class)
+                    .havingCause().isInstanceOf(BadVersionException.class);
+        }
+    }
 
     @Test(dataProvider = "impl")
     public void emptyStoreTest(String provider, Supplier<String> urlSupplier) throws Exception {
