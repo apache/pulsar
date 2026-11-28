@@ -151,6 +151,15 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
 
         static final AtomicBoolean FAIL_CREATE = new AtomicBoolean(true);
         static final AtomicBoolean FAIL_CLOSE = new AtomicBoolean(false);
+        static final java.util.concurrent.atomic.AtomicInteger PRODUCER_CLOSE_INVOCATIONS =
+                new java.util.concurrent.atomic.AtomicInteger();
+        static final java.util.concurrent.atomic.AtomicInteger CONSUMER_CLOSE_INVOCATIONS =
+                new java.util.concurrent.atomic.AtomicInteger();
+
+        static void resetCloseInvocations() {
+            PRODUCER_CLOSE_INVOCATIONS.set(0);
+            CONSUMER_CLOSE_INVOCATIONS.set(0);
+        }
 
         @Override
         public void producerCreated(org.apache.pulsar.broker.service.ServerCnx cnx,
@@ -165,6 +174,7 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
         public void producerClosed(org.apache.pulsar.broker.service.ServerCnx cnx,
                                    org.apache.pulsar.broker.service.Producer producer,
                                    Map<String, String> metadata) {
+            PRODUCER_CLOSE_INVOCATIONS.incrementAndGet();
             if (FAIL_CLOSE.get()) {
                 throw new RuntimeException("fail producer close");
             }
@@ -183,6 +193,7 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
         public void consumerClosed(org.apache.pulsar.broker.service.ServerCnx cnx,
                                    org.apache.pulsar.broker.service.Consumer consumer,
                                    Map<String, String> metadata) {
+            CONSUMER_CLOSE_INVOCATIONS.incrementAndGet();
             if (FAIL_CLOSE.get()) {
                 throw new RuntimeException("fail consumer close");
             }

@@ -909,9 +909,9 @@ public class Producer {
     }
 
     /**
-     * Records that {@code ServerCnx} is about to invoke the broker {@code producerCreated} chain for this entity.
-     * Used with {@link #wasBrokerInterceptorCreateAttempted()} only for early/late close gating in {@code ServerCnx},
-     * not for per-interceptor create/close pairing ({@link #markBrokerInterceptorCreatedNotified(int)}).
+     * Records that {@code ServerCnx} invoked the broker {@code producerCreated} chain for this entity (including when
+     * the listener threw). Distinguishes close-before-create from failed-create; pairing uses
+     * {@link #markBrokerInterceptorCreatedNotified(int)} only.
      */
     public void markBrokerInterceptorCreateAttempted() {
         brokerInterceptorCreateAttempted.set(true);

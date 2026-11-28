@@ -5046,7 +5046,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     consumer.markBrokerInterceptorCreatedNotified(0);
                 }
             } catch (Throwable t) {
-                log.error().exception(t).log("Exception occur when intercept consumer created.");
+                if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                    log.error().exception(t).log("Exception occur when intercept consumer created.");
+                }
             }
         } finally {
             consumer.endBrokerInterceptorCreate(this);
@@ -5080,13 +5082,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     producer.markBrokerInterceptorCreatedNotified(0);
                 }
             } catch (Throwable t) {
-                log.error().exception(t).log("Exception occur when intercept producer created.");
+                if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                    log.error().exception(t).log("Exception occur when intercept producer created.");
+                }
             }
         } finally {
             producer.endBrokerInterceptorCreate(this);
         }
     }
 
+    /**
+     * Delivers {@code consumerClosed} on the connection event loop when {@code consumerCreated} succeeded for at least
+     * one listener ({@link Consumer#hasBrokerInterceptorCreateNotifications()}). Lone plugins use index {@code 0};
+     * {@link BrokerInterceptors} pairs close per successful index inside the composite.
+     */
     @Override
     public void notifyConsumerClosed(Consumer consumer) {
         if (brokerInterceptor == null) {
@@ -5096,10 +5105,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             consumer.noteBrokerInterceptorClosePendingDuringCreate();
             return;
         }
-        if (!consumer.hasBrokerInterceptorCreateNotifications()
-                && !consumer.wasBrokerInterceptorCreateAttempted()) {
-            consumer.noteBrokerInterceptorClosePendingDuringCreate();
-            consumer.markBrokerInterceptorClosedBeforeCreate();
+        if (!consumer.hasBrokerInterceptorCreateNotifications()) {
+            if (!consumer.wasBrokerInterceptorCreateAttempted()) {
+                consumer.noteBrokerInterceptorClosePendingDuringCreate();
+                consumer.markBrokerInterceptorClosedBeforeCreate();
+            }
             return;
         }
         if (!consumer.markBrokerInterceptorClosedNotified()) {
@@ -5109,7 +5119,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         try {
             brokerInterceptor.consumerClosed(this, consumer, metadata);
         } catch (Throwable t) {
-            log.error().exception(t).log("Exception occur when intercept consumer closed.");
+            if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                log.error().exception(t).log("Exception occur when intercept consumer closed.");
+            }
         }
     }
 
@@ -5118,6 +5130,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         safelyRemoveProducer(producer);
     }
 
+    /**
+     * Delivers {@code producerClosed} on the connection event loop when {@code producerCreated} succeeded for at least
+     * one listener ({@link Producer#hasBrokerInterceptorCreateNotifications()}). Lone plugins use index {@code 0};
+     * {@link BrokerInterceptors} pairs close per successful index inside the composite.
+     */
     @Override
     public void notifyProducerClosed(Producer producer) {
         if (brokerInterceptor == null) {
@@ -5127,10 +5144,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             producer.noteBrokerInterceptorClosePendingDuringCreate();
             return;
         }
-        if (!producer.hasBrokerInterceptorCreateNotifications()
-                && !producer.wasBrokerInterceptorCreateAttempted()) {
-            producer.noteBrokerInterceptorClosePendingDuringCreate();
-            producer.markBrokerInterceptorClosedBeforeCreate();
+        if (!producer.hasBrokerInterceptorCreateNotifications()) {
+            if (!producer.wasBrokerInterceptorCreateAttempted()) {
+                producer.noteBrokerInterceptorClosePendingDuringCreate();
+                producer.markBrokerInterceptorClosedBeforeCreate();
+            }
             return;
         }
         if (!producer.markBrokerInterceptorClosedNotified()) {
@@ -5140,7 +5158,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         try {
             brokerInterceptor.producerClosed(this, producer, metadata);
         } catch (Throwable t) {
-            log.error().exception(t).log("Exception occur when intercept producer closed.");
+            if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                log.error().exception(t).log("Exception occur when intercept producer closed.");
+            }
         }
     }
 
