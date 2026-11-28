@@ -295,6 +295,138 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
     }
 
     @Test(timeOut = 30000)
+    public void queuedCompactionResetPersistsPropertyUpdatesBeforeSubmission() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("queued-compaction-reset-properties",
+                defaultConfig().setThrottleMarkDelete(0));
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("__compaction");
+        cursor.setInactive();
+        Position committed = ledger.addEntry(new byte[] {0});
+        ledger.addEntry(new byte[] {1});
+        cursor.markDelete(committed, Map.of("CompactedTopicLedger", 11L, "removed", 1L));
+
+        CompletableFuture<Void> readStarted = new CompletableFuture<>();
+        CompletableFuture<Void> releaseRead = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            readStarted.complete(null);
+            return releaseRead.thenApply(ignored -> entries);
+        });
+        try {
+            CompletableFuture<Void> read = ManagedLedgerUtils.readEntries(cursor, 1, PositionFactory.LATEST)
+                    .thenAccept(entries -> entries.forEach(Entry::release));
+            readStarted.get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> reset = resetCursor(cursor, committed);
+            ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
+            synchronized (cursor.pendingMarkDeleteOps) {
+                assertThat(cursor.pendingMarkDeleteOps).hasSize(1);
+            }
+            assertThat(cursor.putProperty("added", 2L)).isTrue();
+            assertThat(cursor.removeProperty("removed")).isTrue();
+            releaseRead.complete(null);
+            CompletableFuture.allOf(read, reset).get(5, TimeUnit.SECONDS);
+
+            Map<String, Long> expected = Map.of("CompactedTopicLedger", 11L, "added", 2L);
+            assertThat(cursor.getProperties()).isEqualTo(expected);
+            ManagedCursorImpl recovered = new ManagedCursorImpl(bkc, ledger, cursor.getName());
+            try {
+                recoverCursor(recovered);
+                assertThat(recovered.getMarkDeletedPosition()).isEqualTo(committed);
+                assertThat(recovered.getProperties()).isEqualTo(expected);
+            } finally {
+                recovered.closeReadOnlyCursorLedger();
+            }
+        } finally {
+            releaseRead.complete(null);
+            bkc.setReadHandleInterceptor(null);
+        }
+    }
+
+    @DataProvider
+    public Object[][] retryCompactionReset() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "retryCompactionReset", timeOut = 30000)
+    public void failedCompactionAckAndResetKeepPreviousCheckpointOnRecovery(boolean retryReset) throws Exception {
+        String ledgerName = "failed-compaction-ack-and-reset";
+        String cursorName = "__compaction";
+        ManagedLedgerConfig config = defaultConfig().setThrottleMarkDelete(0);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(cursorName);
+        cursor.setInactive();
+        Position committed = ledger.addEntry(new byte[] {0});
+        ledger.addEntry(new byte[] {1});
+        Position next = ledger.addEntry(new byte[] {2});
+        cursor.markDelete(committed, Map.of("CompactedTopicLedger", 11L, "removed", 1L, "previous", 2L));
+        Map<String, Long> replacement = Map.of("CompactedTopicLedger", 22L, "removed", 3L, "provisional", 4L);
+
+        CompletableFuture<Void> readStarted = new CompletableFuture<>();
+        CompletableFuture<Void> releaseRead = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            readStarted.complete(null);
+            return releaseRead.thenApply(ignored -> entries);
+        });
+        CompletableFuture<Void> read = ManagedLedgerUtils.readEntries(cursor, 1, PositionFactory.LATEST)
+                .thenAccept(entries -> entries.forEach(Entry::release));
+        CompletableFuture<Void> failCheckpoint = bkc.addEntryWriteGate(cursor.getCursorLedger());
+        BKException failure = BKException.create(BKException.Code.WriteException);
+        try {
+            readStarted.get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> ack = ManagedLedgerUtils.markDelete(cursor, next, replacement);
+            assertThat(ack).isNotDone();
+            CompletableFuture<Void> reset = resetCursor(cursor, committed);
+            ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
+            assertThat(reset).isNotDone();
+            releaseRead.complete(null);
+            read.get(5, TimeUnit.SECONDS);
+            await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(cursor.getProperties()).isEqualTo(replacement));
+            assertThat(cursor.putProperty("added", 5L)).isTrue();
+            assertThat(cursor.removeProperty("removed")).isTrue();
+            Position readPosition = cursor.getReadPosition();
+
+            String cursorPath = "/managed-ledgers/" + ledgerName + "/" + cursorName;
+            metadataStore.failConditional(new MetadataStoreException("reset checkpoint failed"),
+                    (op, path) -> op == OperationType.PUT && path.equals(cursorPath));
+            failCheckpoint.completeExceptionally(failure);
+            assertThatThrownBy(() -> reset.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(InvalidCursorPositionException.class);
+            assertThatThrownBy(() -> ack.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(ManagedLedgerException.class);
+
+            Map<String, Long> expected = Map.of("CompactedTopicLedger", 11L, "previous", 2L, "added", 5L);
+            assertThat(cursor.getProperties()).isEqualTo(expected);
+            assertThat(cursor.getReadPosition()).isEqualTo(readPosition);
+            assertThat(cursor.getNumberOfEntriesInBacklog(false)).isEqualTo(2);
+            if (retryReset) {
+                // Rollover advances a cursor at the last entry of a closed ledger to the next ledger. A failed
+                // compaction must leave both unacknowledged entries visible to rollover and to the next seek.
+                config.setMaxEntriesPerLedger(3);
+                ledger.rollCurrentLedgerIfFull();
+                Position afterRollover = ledger.addEntry(new byte[] {3});
+                assertThat(afterRollover.getLedgerId()).isGreaterThan(next.getLedgerId());
+                ledger.maybeUpdateCursorBeforeTrimmingConsumedLedger().get(5, TimeUnit.SECONDS);
+                assertThat(cursor.getMarkDeletedPosition()).isEqualTo(committed);
+                resetCursor(cursor, committed).get(5, TimeUnit.SECONDS);
+                assertThat(cursor.getMarkDeletedPosition()).isEqualTo(committed);
+            } else {
+                cursor.close();
+            }
+            ManagedCursorImpl recovered = new ManagedCursorImpl(bkc, ledger, cursorName);
+            try {
+                recoverCursor(recovered);
+                assertThat(recovered.getMarkDeletedPosition()).isEqualTo(committed);
+                assertThat(recovered.getProperties()).isEqualTo(expected);
+            } finally {
+                recovered.closeReadOnlyCursorLedger();
+            }
+        } finally {
+            releaseRead.complete(null);
+            failCheckpoint.completeExceptionally(failure);
+            bkc.setReadHandleInterceptor(null);
+        }
+    }
+
+    @Test(timeOut = 30000)
     public void failedResetReopensAckAdmission() throws Exception {
         String ledgerName = "failed-reset-ack";
         String cursorName = "sub";

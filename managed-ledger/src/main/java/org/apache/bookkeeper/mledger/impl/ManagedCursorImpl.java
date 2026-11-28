@@ -71,6 +71,7 @@ import java.util.function.Function;
 import java.util.function.IntFunction;
 import java.util.function.LongUnaryOperator;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import java.util.stream.LongStream;
 import lombok.Getter;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -321,6 +322,17 @@ public class ManagedCursorImpl implements ManagedCursor {
             this.alignAcknowledgeStatusAfterPersisted = alignAcknowledgeStatusAfterPersisted;
         }
 
+        MarkDeleteEntry withUpdatedProperties(UnaryOperator<Map<String, Long>> update) {
+            Map<String, Long> updated = update.apply(properties);
+            if (updated == properties) {
+                return this;
+            }
+            MarkDeleteEntry copy = new MarkDeleteEntry(newPosition, updated, callback, ctx,
+                    resetsCursor ? alignAcknowledgeStatusAfterPersisted : null);
+            copy.callbackGroup = callbackGroup;
+            return copy;
+        }
+
         public void triggerComplete() {
             dispatchCallbacks(null);
         }
@@ -368,6 +380,24 @@ public class ManagedCursorImpl implements ManagedCursor {
             } else {
                 callback.markDeleteFailed(exception, ctx);
             }
+        }
+    }
+
+    // A compaction ACK can supply a new compacted-ledger ID to a queued reset or to the last group of ACKs
+    // drained during close. The compactor can delete that ledger when the shared checkpoint write fails.
+    private final class PendingCompactionCheckpoint extends MarkDeleteEntry {
+        final MarkDeleteEntry previous;
+
+        PendingCompactionCheckpoint(Position position, Map<String, Long> properties, MarkDeleteEntry previous) {
+            super(position, properties, null, null);
+            this.previous = previous;
+        }
+
+        @Override
+        MarkDeleteEntry withUpdatedProperties(UnaryOperator<Map<String, Long>> update) {
+            // Explicit puts and removals during the write must survive either storage outcome.
+            return new PendingCompactionCheckpoint(newPosition, update.apply(properties),
+                    previous.withUpdatedProperties(update));
         }
     }
 
@@ -440,6 +470,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     protected static final AtomicReferenceFieldUpdater<ManagedCursorImpl, State> STATE_UPDATER =
         AtomicReferenceFieldUpdater.newUpdater(ManagedCursorImpl.class, State.class, "state");
     protected volatile State state = State.Uninitialized;
+    // Close can be requested under the managed-ledger monitor, before it can take pendingMarkDeleteOps.
+    private volatile boolean closeRequested;
 
     protected final ManagedCursorMXBean mbean;
 
@@ -679,43 +711,28 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public boolean putProperty(String key, Long value) {
-        if (lastMarkDeleteEntry != null) {
-            LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
-                Map<String, Long> properties = last.properties;
-                Map<String, Long> newProperties = properties == null ? new HashMap<>() : new HashMap<>(properties);
-                newProperties.put(key, value);
-
-                MarkDeleteEntry newLastMarkDeleteEntry = new MarkDeleteEntry(last.newPosition, newProperties,
-                        last.callback, last.ctx);
-                newLastMarkDeleteEntry.callbackGroup = last.callbackGroup;
-
-                return newLastMarkDeleteEntry;
-            });
-            return true;
-        }
-        return false;
+        return updateMarkDeleteProperties(properties -> {
+            Map<String, Long> updated = properties == null ? new HashMap<>() : new HashMap<>(properties);
+            updated.put(key, value);
+            return updated;
+        });
     }
 
     @Override
     public boolean removeProperty(String key) {
-        if (lastMarkDeleteEntry != null) {
-            LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last -> {
-                Map<String, Long> properties = last.properties;
-                if (properties != null && properties.containsKey(key)) {
-                    Map<String, Long> newProperties = new HashMap<>(properties);
-                    newProperties.remove(key);
+        return updateMarkDeleteProperties(properties -> {
+            if (properties == null || !properties.containsKey(key)) {
+                return properties;
+            }
+            Map<String, Long> updated = new HashMap<>(properties);
+            updated.remove(key);
+            return updated;
+        });
+    }
 
-                    MarkDeleteEntry newLastMarkDeleteEntry = new MarkDeleteEntry(last.newPosition, newProperties,
-                            last.callback, last.ctx);
-                    newLastMarkDeleteEntry.callbackGroup = last.callbackGroup;
-
-                    return newLastMarkDeleteEntry;
-                }
-                return last;
-            });
-            return true;
-        }
-        return false;
+    private boolean updateMarkDeleteProperties(UnaryOperator<Map<String, Long>> update) {
+        return LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this,
+                last -> last == null ? null : last.withUpdatedProperties(update)) != null;
     }
 
     /**
@@ -1427,7 +1444,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public boolean isClosed() {
-        return state.isClosed();
+        return closeRequested || state.isClosed();
     }
 
     @Override
@@ -1851,6 +1868,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         private final ResetAckStateSnapshot snapshot;
         // Guarded by pendingMarkDeleteOps. Close can cancel a queued reset but must wait for a submitted one.
         private boolean submitted;
+        // An earlier queued compaction ACK supplies its own properties. Otherwise the seek inherits them at submission.
+        private boolean inheritCompactionProperties;
 
         private ResetOperation(Position position, AsyncCallbacks.ResetCursorCallback callback,
                 ResetAckStateSnapshot snapshot) {
@@ -1968,13 +1987,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
 
-        final Position newMarkDeletePosition;
-        if (isCompactionCursor()) {
-            newMarkDeletePosition = markDeletePosition;
-        } else {
-            newMarkDeletePosition = ledger.getPreviousPosition(newReadPosition);
-        }
-
         MarkDeleteCallback resetPersistenceCallback = new MarkDeleteCallback() {
             @Override
             public void markDeleteComplete(Object ctx) {
@@ -2002,7 +2014,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         persistentMarkDeletePosition = null;
         inProgressMarkDeletePersistPosition = null;
         try {
-            internalAsyncMarkDelete(newMarkDeletePosition, isCompactionCursor() ? null : Collections.emptyMap(),
+            boolean compaction = isCompactionCursor();
+            Position newMarkDeletePosition = compaction ? markDeletePosition
+                    : ledger.getPreviousPosition(newReadPosition);
+            internalAsyncMarkDelete(newMarkDeletePosition, compaction ? null : Collections.emptyMap(),
                     resetPersistenceCallback, null,
                     () -> alignAcknowledgmentsAfterReset(newReadPosition, newMarkDeletePosition, snapshot));
         } catch (RuntimeException e) {
@@ -2018,10 +2033,10 @@ public class ManagedCursorImpl implements ManagedCursor {
             activeReset = null;
         }
         State current = state;
-        if (current.isClosed()) {
+        if (closeRequested || current.isClosed()) {
             CursorAlreadyClosedException closed = new CursorAlreadyClosedException("Cursor was already closed");
             reset.settled.completeExceptionally(closed);
-            if (failure != null || (current != State.Closing && current != State.Closed)) {
+            if (failure != null || (current.isClosed() && current != State.Closing && current != State.Closed)) {
                 failure = closed;
             }
         }
@@ -3000,11 +3015,19 @@ public class ManagedCursorImpl implements ManagedCursor {
         synchronized (pendingMarkDeleteOps) {
             // use given properties or when missing, use the properties from the previous field value
             MarkDeleteEntry last = pendingMarkDeleteOps.peekLast();
+            if (alignAcknowledgeStatusAfterPersisted != null && isCompactionCursor() && activeReset != null) {
+                // A queued ACK at the seek's horizon owns the replacement compacted-ledger properties.
+                activeReset.inheritCompactionProperties = last == null || last.newPosition.compareTo(newPosition) < 0;
+            }
             Map<String, Long> propertiesToUse =
                     properties != null ? properties : (last != null ? last.properties : getProperties());
             MarkDeleteEntry mdEntry = new MarkDeleteEntry(newPosition, propertiesToUse, callback, ctx,
                     alignAcknowledgeStatusAfterPersisted);
 
+            if (mdEntry.resetsCursor && closeRequested) {
+                mdEntry.dispatchFailure(new CursorAlreadyClosedException("Cursor was already closed"));
+                return;
+            }
             // The state might have changed while we were waiting on the queue mutex
             switch (state) {
             case Closing, Closed, Deleting, Deleted, DeletingFailed:
@@ -3050,9 +3073,13 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     // Called with pendingMarkDeleteOps held.
-    void internalMarkDelete(final MarkDeleteEntry mdEntry) {
+    void internalMarkDelete(final MarkDeleteEntry entry) {
         // A subclass can wrap the alignment callback. The queue still identifies the active reset.
-        ResetOperation reset = mdEntry.resetsCursor ? activeReset : null;
+        ResetOperation reset = entry.resetsCursor ? activeReset : null;
+        boolean inheritCompactionProperties = reset != null && reset.inheritCompactionProperties;
+        // A put or remove can change the current checkpoint while the seek is queued behind a read or ledger switch.
+        MarkDeleteEntry mdEntry = inheritCompactionProperties
+                ? entry.withUpdatedProperties(ignored -> getProperties()) : entry;
         State submissionState = state;
         if (reset != null) {
             if (submissionState.isClosed()) {
@@ -3098,11 +3125,15 @@ public class ManagedCursorImpl implements ManagedCursor {
         // ledger is postponed to when the counter goes to 0.
         PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.incrementAndGet(this);
 
-        if (reset == null) {
+        // Close can remove a queued reset before the switch drains the ACKs that preceded it.
+        boolean compactionCheckpoint = (reset != null || (closeRequested && mdEntry.callbackGroup != null))
+                && !inheritCompactionProperties && isCompactionCursor();
+        if (compactionCheckpoint) {
+            LAST_MARK_DELETE_ENTRY_UPDATER.updateAndGet(this, last ->
+                    last != null && last.newPosition.compareTo(mdEntry.newPosition) <= 0
+                            ? new PendingCompactionCheckpoint(mdEntry.newPosition, mdEntry.properties, last) : last);
+        } else if (reset == null) {
             updateLastMarkDeleteEntry(mdEntry);
-        } else if (isCompactionCursor()) {
-            // A compaction reset keeps the mark-delete position and may inherit properties from a queued ACK.
-            updateLastMarkDeleteEntry(new MarkDeleteEntry(mdEntry.newPosition, mdEntry.properties, null, null));
         }
 
         VoidCallback cb = new VoidCallback() {
@@ -3130,6 +3161,10 @@ public class ManagedCursorImpl implements ManagedCursor {
                     operationFailed(new CursorAlreadyClosedException("Cursor was already closed"));
                     return;
                 }
+                if (compactionCheckpoint && reset == null) {
+                    // A reset commits its properties during alignment. A close-drained ACK group commits here.
+                    finishPendingCompactionCheckpoint(true);
+                }
 
                 ledger.onCursorMarkDeletePositionUpdated(ManagedCursorImpl.this, mdEntry.newPosition);
 
@@ -3142,6 +3177,9 @@ public class ManagedCursorImpl implements ManagedCursor {
             public void operationFailed(ManagedLedgerException exception) {
                 INPROGRESS_MARKDELETE_PERSIST_POSITION_UPDATER.compareAndSet(ManagedCursorImpl.this,
                         mdEntry.newPosition, null);
+                if (compactionCheckpoint) {
+                    finishPendingCompactionCheckpoint(false);
+                }
                 isDirty = true;
                 log.warn()
                         .attr("position", mdEntry.newPosition)
@@ -3178,6 +3216,31 @@ public class ManagedCursorImpl implements ManagedCursor {
             cb.operationFailed(getManagedLedgerException(e));
         } finally {
             submittingMarkDelete = wasSubmitting;
+        }
+    }
+
+    private void finishPendingCompactionCheckpoint(boolean persisted) {
+        MarkDeleteEntry previous = LAST_MARK_DELETE_ENTRY_UPDATER.getAndUpdate(this, last -> {
+            if (last instanceof PendingCompactionCheckpoint pending) {
+                return persisted ? new MarkDeleteEntry(pending.newPosition, pending.properties, null, null)
+                        : pending.previous;
+            }
+            return last;
+        });
+        if (!persisted && previous instanceof PendingCompactionCheckpoint pending
+                && pending.previous.newPosition.compareTo(pending.newPosition) < 0) {
+            // ACK admission already moved the live horizon. A later seek or ledger rollover must not persist it
+            // with the old compacted ledger. Reads that finished independently keep their progress.
+            lock.writeLock().lock();
+            try {
+                if (markDeletePosition.equals(pending.newPosition)) {
+                    MSG_CONSUMED_COUNTER_UPDATER.addAndGet(this, -getNumberOfEntries(
+                            Range.openClosed(pending.previous.newPosition, pending.newPosition)));
+                    markDeletePosition = pending.previous.newPosition;
+                }
+            } finally {
+                lock.writeLock().unlock();
+            }
         }
     }
 
@@ -3941,7 +4004,9 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void asyncClose(final AsyncCallbacks.CloseCallback callback, final Object ctx) {
-        // ManagedLedger can call close under its monitor. Acquire the cursor queue on the executor.
+        // Fence new reads and ACKs before returning. The executor can wait for earlier ACK admission
+        // without acquiring the cursor queue under the managed-ledger monitor.
+        closeRequested = true;
         dispatchCursorCallback(() -> beginClose(callback, ctx));
     }
 
@@ -4246,6 +4311,10 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     private void flushPendingMarkDeletes() {
         State current = state;
+        if (closeRequested && activeReset != null) {
+            // beginClose will settle the queued reset. A ledger switch may drain the ACKs that preceded it first.
+            pendingMarkDeleteOps.removeIf(entry -> entry.resetsCursor);
+        }
         // Closing can still drain ordinary ACKs queued behind an active ledger switch.
         if ((!current.isClosed() || current == State.Closing) && !pendingMarkDeleteOps.isEmpty()) {
             internalFlushPendingMarkDeletes();
@@ -4637,7 +4706,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (ledger.getFactory().isMetadataServiceAvailable()
                 && (lh.getLastAddConfirmed() >= maximumLedgerRolloverEntries
                 || lastLedgerSwitchTimestamp < (now - maximumLedgerRolloverTimeMs))
-                && !state.isClosed()) {
+                && !isClosed()) {
             // It's safe to modify the timestamp since this method will be only called from a callback, implying that
             // calls will be serialized on one single thread
             lastLedgerSwitchTimestamp = now;
@@ -4866,7 +4935,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     void readOperationCompleted() {
         if (PENDING_READ_OPS_UPDATER.decrementAndGet(this) == 0) {
             synchronized (pendingMarkDeleteOps) {
-                if (state == State.Open) {
+                if (state == State.Open && !closeRequested) {
                     // Flush the pending writes only if the state is open.
                     flushPendingMarkDeletes();
                 } else if (PENDING_MARK_DELETED_SUBMITTED_COUNT_UPDATER.get(this) != 0) {
