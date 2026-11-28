@@ -1719,7 +1719,7 @@ public class BrokerService implements Closeable {
 
     public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete) {
         topicEventsDispatcher.notify(topic, TopicEvent.DELETE, EventStage.BEFORE);
-        CompletableFuture<Void> result =  deleteTopicInternal(topic, forceDelete);
+        CompletableFuture<Void> result =  deleteTopicInternal(topic, forceDelete, null);
         topicEventsDispatcher.notifyOnCompletion(result, topic, TopicEvent.DELETE);
         return result;
     }
@@ -1728,7 +1728,15 @@ public class BrokerService implements Closeable {
         private final CompletableFuture<Void> deletion = new CompletableFuture<>();
     }
 
-    private CompletableFuture<Void> deleteTopicInternal(String topic, boolean forceDelete) {
+    /**
+     * @param errorUnlessOwner the error of a delete that retries after the topic's close, see
+     *                         {@link #deleteAfterClose}, and null for any other delete. A delete of an unloaded
+     *                         topic that {@link #deleteUnloadedTopicMetadataIfOwner} does not allow fails with this
+     *                         error, or with a {@link ServiceUnitNotReadyException} if it is null. Any other failure
+     *                         of that method fails the delete with its own error.
+     */
+    private CompletableFuture<Void> deleteTopicInternal(String topic, boolean forceDelete,
+                                                        Throwable errorUnlessOwner) {
         CompletableFuture<Optional<Topic>> cachedFuture = topics.get(topic);
         if (cachedFuture instanceof TopicDeletionFuture deletionFuture) {
             return deletionFuture.deletion;
@@ -1737,11 +1745,11 @@ public class BrokerService implements Closeable {
             // The managed ledger can be initialized before its broker Topic. Deleting metadata in that gap
             // would fence the ledger while initialization can still publish the deleted Topic into the cache.
             return cachedFuture.handle((ignored, error) -> null)
-                    .thenCompose(ignored -> deleteTopicInternal(topic, forceDelete));
+                    .thenCompose(ignored -> deleteTopicInternal(topic, forceDelete, errorUnlessOwner));
         }
         if (cachedFuture != null && cachedFuture.isCompletedExceptionally()) {
             if (topics.get(topic) != cachedFuture) {
-                return deleteTopicInternal(topic, forceDelete);
+                return deleteTopicInternal(topic, forceDelete, errorUnlessOwner);
             }
             // A timeout completes the public future before initialization and its managed-ledger cleanup finish.
             // Only the loader may remove this entry, otherwise a replacement can reuse the ledger it will close.
@@ -1751,11 +1759,11 @@ public class BrokerService implements Closeable {
         Optional<Topic> optTopic = cachedFuture == null ? Optional.empty() : extractTopic(cachedFuture);
         if (cachedFuture != null && optTopic.isEmpty()) {
             topics.remove(topic, cachedFuture);
-            return deleteTopicInternal(topic, forceDelete);
+            return deleteTopicInternal(topic, forceDelete, errorUnlessOwner);
         }
         if (topics.get(topic) != cachedFuture) {
             // Loading or ownership may have installed a newer generation while the previous future completed.
-            return deleteTopicInternal(topic, forceDelete);
+            return deleteTopicInternal(topic, forceDelete, errorUnlessOwner);
         }
 
         if (optTopic.isPresent()) {
@@ -1795,9 +1803,10 @@ public class BrokerService implements Closeable {
         // never publishes a Topic; the existing load and delete events continue to drive segment-owner observers.
         TopicDeletionFuture deletionFuture = new TopicDeletionFuture();
         if (topics.putIfAbsent(topic, deletionFuture) != null) {
-            return deleteTopicInternal(topic, forceDelete);
+            return deleteTopicInternal(topic, forceDelete, errorUnlessOwner);
         }
-        FutureUtil.supplySafely(() -> deleteUnloadedTopicMetadata(topic)).whenComplete((ignored, error) -> {
+        FutureUtil.supplySafely(() -> deleteUnloadedTopicMetadataIfOwner(topic, errorUnlessOwner))
+                .whenComplete((ignored, error) -> {
             topics.remove(topic, deletionFuture);
             // A concurrent create must retry rather than treat an empty Optional as successful creation.
             deletionFuture.completeExceptionally(new ServiceUnitNotReadyException(
@@ -1814,6 +1823,7 @@ public class BrokerService implements Closeable {
     /**
      * A topic stays fenced in the cache while it is being closed (by an unload, say) or deleted, and fails a deletion
      * meanwhile. Wait for that close or deletion then, and delete whatever it left, as if this deletion came after it.
+     * A close that gave up the topic's bundle fails the deletion instead, as the fenced topic did.
      */
     private CompletableFuture<Void> deleteAfterClose(String topic, boolean forceDelete,
                                                      CompletableFuture<Optional<Topic>> cachedFuture, Topic loaded,
@@ -1829,9 +1839,56 @@ public class BrokerService implements Closeable {
             }
             return persistentTopic.getCloseFuture().handle((ignored, closeError) -> null)
                     .thenCompose(ignored -> topics.get(topic) != cachedFuture
-                            ? deleteTopicInternal(topic, forceDelete)
+                            ? deleteTopicInternal(topic, forceDelete, error)
                             // A failed close, or one handing the topic over to another broker, keeps it cached.
                             : CompletableFuture.failedFuture(error));
+        });
+    }
+
+    /**
+     * Deletes an unloaded topic's metadata if this broker owns the topic's bundle. The broker may have given the
+     * bundle up since the delete was accepted, and another broker may serve the topic by then. The caller holds the
+     * topic's reservation in the cache, which a bundle unload that starts from now on waits for, up to
+     * {@code namespaceBundleUnloadingTimeoutMs}. A bundle unload that started earlier made the ownership check fail
+     * before it looked at the cache.
+     *
+     * <p>The broker's own heartbeat namespace counts as owned. Lookups assign a heartbeat namespace to the broker that
+     * it is named after, so no other broker serves it, and the broker deletes its heartbeat topic at shutdown, after
+     * it released its bundles.
+     *
+     * @param errorUnlessOwner the error of a delete that retries after the topic's close, see
+     *                         {@link #deleteAfterClose}, and null for any other delete
+     */
+    private CompletableFuture<Void> deleteUnloadedTopicMetadataIfOwner(String topic, Throwable errorUnlessOwner) {
+        TopicName topicName = TopicName.get(topic);
+        // The same test as the lookups use, not the namespace's name: only a namespace that they assign to this
+        // broker alone is safe to delete from without owning the bundle.
+        String heartbeatBroker = NamespaceService.checkHeartbeatNamespace(topicName);
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        CompletableFuture<Boolean> ownsBundle;
+        if (heartbeatBroker != null && heartbeatBroker.equals(pulsar.getBrokerId())) {
+            ownsBundle = CompletableFuture.completedFuture(true);
+        } else {
+            // On the modular load manager, the first check of a topic whose managed ledger was fenced validates the
+            // bundle's lock, drops the topic's readmission marker and answers false, so that a pending load starts
+            // over. Checking once more is then the plain bundle check. The reservation keeps the topic from being
+            // loaded, and so from being fenced again, in between. The extensible load manager has no such marker.
+            // On the extensible load manager, an owner lookup that reads the bundle as Owned and then, on its second
+            // read, as Releasing waits for the bundle's next state. The release publishes that state only after its
+            // close, which waits for this reservation, so the lookup gives up after
+            // loadBalancerInFlightServiceUnitStateWaitingTimeInMillis and the delete fails.
+            boolean checkAgainIfNotOwned = !ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar);
+            ownsBundle = namespaceService.checkTopicOwnership(topicName)
+                    .thenCompose(owned -> owned || !checkAgainIfNotOwned ? CompletableFuture.completedFuture(owned)
+                            : namespaceService.checkTopicOwnership(topicName));
+        }
+        return ownsBundle.thenCompose(owned -> {
+            if (owned) {
+                return deleteUnloadedTopicMetadata(topic);
+            }
+            return CompletableFuture.failedFuture(errorUnlessOwner != null ? errorUnlessOwner
+                    : new ServiceUnitNotReadyException(
+                            "This broker does not own the topic " + topic + ". Please redo the lookup."));
         });
     }
 
