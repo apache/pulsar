@@ -614,7 +614,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
     public static void checkAndApplyReachedEndOfTopicOrTopicMigration(PersistentTopic topic, List<Consumer> consumers) {
         if (topic.isMigrated()) {
             topic.getMigratedClusterUrlAsync()
-                    .thenAccept(clusterUrl -> consumers.forEach(c -> c.topicMigrated(clusterUrl)))
+                    .thenAccept(clusterUrl -> notifyConsumersSafely(topic, consumers, "topicMigrated",
+                            consumer -> consumer.topicMigrated(clusterUrl)))
                     .whenComplete((ignored, error) -> {
                         if (error != null) {
                             log.warn().attr("topic", topic.getName())
@@ -623,8 +624,29 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                         }
                     });
         } else {
-            consumers.forEach(Consumer::reachedEndOfTopic);
+            notifyConsumersSafely(topic, consumers, "reachedEndOfTopic", Consumer::reachedEndOfTopic);
         }
+    }
+
+    /**
+     * Logs a consumer's notification failure and continues notifying the remaining consumers.
+     * The callback type is qualified to distinguish it from the broker Consumer.
+     */
+    private static void notifyConsumersSafely(PersistentTopic topic, List<Consumer> consumers,
+                                             String notification, java.util.function.Consumer<Consumer> notify) {
+        consumers.forEach(consumer -> {
+            try {
+                notify.accept(consumer);
+            } catch (Throwable e) {
+                Throwable cause = FutureUtil.unwrapCompletionException(e);
+                log.warn().attr("topic", topic.getName())
+                        .attr("notification", notification)
+                        .attr("consumerId", consumer.consumerId())
+                        .attr("consumerName", consumer.consumerName())
+                        .exception(cause)
+                        .log("Failed to notify consumer");
+            }
+        });
     }
 
     @Override

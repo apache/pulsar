@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
@@ -206,6 +207,11 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
         @Override
         public CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name) {
             return delegate.getManagedLedgerPropertiesAsync(name);
+        }
+
+        @Override
+        public CompletableFuture<Map<String, String>> getCursorPropertiesAsync(String ledgerName, String cursorName) {
+            return delegate.getCursorPropertiesAsync(ledgerName, cursorName);
         }
 
         @Override
@@ -745,6 +751,12 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
         @Override
         public CompletableFuture<Void> removeCursorProperty(String key) {
             return delegate.removeCursorProperty(key);
+        }
+
+        @Override
+        public CompletableFuture<Void> updateCursorProperties(
+                Function<Map<String, String>, Map<String, String>> updateFunction) {
+            return delegate.updateCursorProperties(updateFunction);
         }
 
         @Override

@@ -48,9 +48,9 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -104,7 +104,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoun
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
-import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
@@ -330,6 +329,8 @@ public class BrokerService implements Closeable {
     private final SingleThreadNonConcurrentFixedRateScheduler messageExpiryMonitor;
     private final SingleThreadNonConcurrentFixedRateScheduler compactionMonitor;
     private final SingleThreadNonConcurrentFixedRateScheduler consumedLedgersMonitor;
+    @Getter(AccessLevel.NONE)
+    private final ConsumedLedgersCheckScheduler consumedLedgersCheckScheduler;
     private SingleThreadNonConcurrentFixedRateScheduler deduplicationSnapshotMonitor;
     /** PIP-483: periodic sweep that writes per-segment load records for auto split/merge. */
     private SingleThreadNonConcurrentFixedRateScheduler segmentLoadReporterMonitor;
@@ -456,6 +457,7 @@ public class BrokerService implements Closeable {
         this.compactionMonitor = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-compaction-monitor");
         this.consumedLedgersMonitor =
                 new SingleThreadNonConcurrentFixedRateScheduler("pulsar-consumed-ledgers-monitor");
+        this.consumedLedgersCheckScheduler = new ConsumedLedgersCheckScheduler(topics);
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-backlog-quota-checker");
         this.subscriptionBacklogAgeChecker =
@@ -467,7 +469,7 @@ public class BrokerService implements Closeable {
                 new Semaphore(pulsar.getConfiguration().getMaxConcurrentLookupRequest(), false));
         // Initialize topic list memory limiter
         this.maxTopicListInFlightLimiter = new TopicListMemoryLimiter(
-                CollectorRegistry.defaultRegistry, "pulsar_broker_", pulsar.getOpenTelemetry().getMeter(),
+                PrometheusRegistry.defaultRegistry, "pulsar_broker_", pulsar.getOpenTelemetry().getMeter(),
                 pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
                 pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizePermitsAcquireQueueSize(),
                 pulsar.getConfiguration().getMaxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis(),
@@ -959,8 +961,7 @@ public class BrokerService implements Closeable {
     protected void startConsumedLedgersMonitor() {
         int interval = pulsar().getConfiguration().getRetentionCheckIntervalInSeconds();
         if (interval > 0) {
-            consumedLedgersMonitor.scheduleAtFixedRateNonConcurrently(this::checkConsumedLedgers,
-                    interval, interval, TimeUnit.SECONDS);
+            consumedLedgersCheckScheduler.start(getConsumedLedgersMonitor(), Duration.ofSeconds(interval));
         }
     }
 
@@ -1041,6 +1042,7 @@ public class BrokerService implements Closeable {
     public CompletableFuture<Void> closeAsync() {
         try {
             log.info("Shutting down Pulsar Broker service");
+            consumedLedgersCheckScheduler.close();
 
             // shutdown executor for ledger deletion
             if (ledgerDeletionExecutorProvider != null) {
@@ -1137,6 +1139,8 @@ public class BrokerService implements Closeable {
                                 scalableTopicMetrics.close();
                                 pendingTopicLoadOperationsCounter.close();
                                 pendingLookupOperationsCounter.close();
+                                pendingTopicLoadOperationsLimitCounter.close();
+                                pendingLookupOperationsLimitCounter.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                     if (fallbackDelayedDeliveryTrackerFactory != null) {
@@ -1611,8 +1615,10 @@ public class BrokerService implements Closeable {
                     systemTopicLoadFuture.thenRun(() -> {
                         final var inserted = new MutableBoolean(false);
                         final var cachedFuture = topics.computeIfAbsent(topicName.toString(), ___ -> {
+                            context.setOwnershipChecker(pulsar.getNamespaceService()
+                                    .newTopicOwnershipChecker(topicName));
                             inserted.setTrue();
-                            return loadOrCreatePersistentTopic(context);
+                            return topicFuture;
                         });
                         if (inserted.isFalse()) {
                             // This case should happen rarely when the same topic is loaded concurrently because we
@@ -1631,6 +1637,8 @@ public class BrokerService implements Closeable {
                             });
                         } else {
                             onTopicCacheEntryAdded(topicName.toString(), cachedFuture);
+                            // Validation can enter the namespace lock. Start it after releasing the topics map lock.
+                            loadOrCreatePersistentTopic(context);
                         }
                     }).exceptionally(e -> {
                         log.warn().attr("topic", topicName).log("Topic creation encountered an exception"
@@ -2372,8 +2380,11 @@ public class BrokerService implements Closeable {
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(TopicLoadingContext context) {
         final var topic = context.getTopicName().toString();
         final var topicFuture = context.getTopicFuture();
+        if (context.getOwnershipChecker() == null) {
+            context.setOwnershipChecker(pulsar.getNamespaceService().newTopicOwnershipChecker(context.getTopicName()));
+        }
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic))
+        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(context))
                 .thenRun(() -> {
                     final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
@@ -2464,7 +2475,7 @@ public class BrokerService implements Closeable {
         final var topic = topicName.toString();
         final var topicFuture = context.getTopicFuture();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic))
+        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(context))
                 .thenRun(() -> createPersistentTopic0(context))
                 .exceptionally(e -> {
                     failTopicFuture(topic, topicFuture, e);
@@ -2589,7 +2600,7 @@ public class BrokerService implements Closeable {
             // Check the ownership again right before opening the managed ledger: the steps above can wait for the
             // metadata store, and a broker that stopped serving the bundle meanwhile, such as one that another broker
             // took the bundle over from, must not open, and so recover, the new owner's ledger.
-            context.trace(TopicLoadingTracePoints.OWNERSHIP_BEFORE_OPEN_ML, checkTopicNsOwnership(topic))
+            context.trace(TopicLoadingTracePoints.OWNERSHIP_BEFORE_OPEN_ML, checkTopicNsOwnership(context))
                     .thenRun(() -> {
                 if (topicFuture.isDone()) {
                     // The load has timed out: opening, and so recovering, the managed ledger now would only be
@@ -3046,6 +3057,23 @@ public class BrokerService implements Closeable {
         }
     }
 
+    /** Install the reload gate before the fenced topic can remove its cache entry. */
+    public void requireFreshOwnershipBeforeTopicReadmission(PersistentTopic failedTopic) {
+        try {
+            topics.computeIfPresent(failedTopic.getName(), (topic, future) -> {
+                if (future.isDone() && !future.isCompletedExceptionally()
+                        && future.join().orElse(null) == failedTopic) {
+                    pulsar.getNamespaceService().requireFreshOwnershipBeforeReadmission(TopicName.get(topic));
+                }
+                return future;
+            });
+        } catch (RuntimeException e) {
+            // The caller must still close the fenced topic. Without the gate, a reload uses the cached ownership.
+            log.warn().attr("topic", failedTopic.getName()).exception(e)
+                    .log("Failed to require fresh namespace ownership before reloading the fenced topic");
+        }
+    }
+
     private void onTopicCacheEntryAdded(String name, CompletableFuture<Optional<Topic>> future) {
         SegmentOwnerState ownerState = segmentOwnerState;
         if (ownerState != null) {
@@ -3154,19 +3182,6 @@ public class BrokerService implements Closeable {
             });
     }
 
-    private void checkConsumedLedgers() {
-        forEachTopic((t) -> {
-            if (t instanceof PersistentTopic) {
-                Optional.ofNullable(((PersistentTopic) t).getManagedLedger()).ifPresent(
-                        managedLedger -> {
-                            managedLedger.trimConsumedLedgersInBackground(Futures.NULL_PROMISE);
-                            managedLedger.rolloverCursorsInBackground();
-                        }
-                );
-            }
-        });
-    }
-
     public void checkMessageDeduplicationInfo() {
         forEachTopic(Topic::checkMessageDeduplicationInfo);
     }
@@ -3197,31 +3212,34 @@ public class BrokerService implements Closeable {
 
     public void monitorBacklogQuota() {
         long startTimeMillis = System.currentTimeMillis();
-        forEachPersistentTopic(topic -> {
-            topic.updateOldPositionInfo().thenAccept(__ -> {
-                if (topic.isSizeBacklogExceeded()) {
+        forEachPersistentTopic(topic -> checkBacklogQuota(topic).whenComplete((unused, throwable) -> {
+            if (throwable != null) {
+                log.error()
+                        .attr("topic", topic.getName())
+                        .exception(throwable)
+                        .log("Error when checkBacklogQuota() in monitorBacklogQuota");
+            }
+            backlogQuotaCheckDuration.observe(
+                    MILLISECONDS.toSeconds(System.currentTimeMillis() - startTimeMillis));
+        }));
+    }
+
+    @VisibleForTesting
+    CompletableFuture<Void> checkBacklogQuota(PersistentTopic topic) {
+        return FutureUtil.supplySafely(topic::updateOldPositionInfo).thenCompose(__ -> {
+            if (topic.isSizeBacklogExceeded()) {
+                getBacklogQuotaManager().handleExceededBacklogQuota(topic,
+                        BacklogQuota.BacklogQuotaType.destination_storage, false);
+                return CompletableFuture.completedFuture(null);
+            }
+            return topic.checkTimeBacklogExceeded(false).thenAccept(isExceeded -> {
+                if (isExceeded) {
                     getBacklogQuotaManager().handleExceededBacklogQuota(topic,
-                            BacklogQuota.BacklogQuotaType.destination_storage, false);
+                            BacklogQuota.BacklogQuotaType.message_age,
+                            pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
                 } else {
-                    topic.checkTimeBacklogExceeded(false).thenAccept(isExceeded -> {
-                        if (isExceeded) {
-                            getBacklogQuotaManager().handleExceededBacklogQuota(topic,
-                                    BacklogQuota.BacklogQuotaType.message_age,
-                                    pulsar.getConfiguration().isPreciseTimeBasedBacklogQuotaCheck());
-                        } else {
-                            log.debug().attr("topic", topic.getName()).log("Quota not exceeded");
-                        }
-                    });
+                    log.debug().attr("topic", topic.getName()).log("Quota not exceeded");
                 }
-            }).whenComplete((unused, throwable) -> {
-                if (throwable != null) {
-                    log.error()
-                            .attr("topic", topic.getName())
-                            .exception(throwable)
-                            .log("Error when checkBacklogQuota() in monitorBacklogQuota");
-                }
-                backlogQuotaCheckDuration.observe(
-                        MILLISECONDS.toSeconds(System.currentTimeMillis() - startTimeMillis));
             });
         });
     }
@@ -3271,6 +3289,17 @@ public class BrokerService implements Closeable {
                         return FutureUtil.failedFuture(new ServiceUnitNotReadyException(msg));
                     }
                 }));
+    }
+
+    private CompletableFuture<Void> checkTopicNsOwnership(TopicLoadingContext context) {
+        return FutureUtil.supplySafely(context.getOwnershipChecker()).thenCompose(owned -> {
+            if (owned && !context.isClosed() && !context.getTopicFuture().isCompletedExceptionally()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return FutureUtil.failedFuture(new ServiceUnitNotReadyException(
+                    "Namespace ownership changed while loading topic " + context.getTopicName()
+                            + ". Please redo the lookup."));
+        });
     }
 
     public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
@@ -4461,7 +4490,8 @@ public class BrokerService implements Closeable {
         TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
         final String topic = topicLoadingContext.getTopicName().toString();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        topicLoadingContext.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic)).thenRun(() -> {
+        topicLoadingContext.trace(TopicLoadingTracePoints.OWNERSHIP,
+                checkTopicNsOwnership(topicLoadingContext)).thenRun(() -> {
             CompletableFuture<Optional<Topic>> pendingFuture = topicLoadingContext.getTopicFuture();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
@@ -4482,6 +4512,11 @@ public class BrokerService implements Closeable {
             inactivityMonitor.schedule(this::createPendingLoadTopic, 100, MILLISECONDS);
             return null;
         });
+    }
+
+    @VisibleForTesting
+    int getPendingTopicLoadCount() {
+        return pendingTopicLoadingQueue.size();
     }
 
     /**

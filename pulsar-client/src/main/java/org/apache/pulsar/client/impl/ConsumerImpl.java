@@ -64,6 +64,7 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -3006,6 +3007,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 .build();
 
         if (!seekStatus.compareAndSet(SeekStatus.NOT_STARTED, SeekStatus.IN_PROGRESS)) {
+            seek.release();
             final String message = String.format(
                     "[%s][%s] attempting to seek operation that is already in progress (seek by %s)",
                     topic, subscription, seekBy);
@@ -3067,6 +3069,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             long nextDelay = Math.min(backoff.next().toMillis(), remainingTime.get());
             if (nextDelay <= 0) {
+                seek.release();
                 failSeek(
                         new PulsarClientException.TimeoutException(
                                 String.format("The subscription %s of the topic %s could not seek "
@@ -3074,13 +3077,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return;
             }
 
-            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
-                log.warn().attr("handler", getHandlerName())
-                        .attr("nextDelay", nextDelay)
-                        .log("Could not get connection while seek -- Will try again in ms");
-                remainingTime.addAndGet(-nextDelay);
-                seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, remainingTime);
-            }, nextDelay, TimeUnit.MILLISECONDS);
+            try {
+                ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
+                    log.warn().attr("handler", getHandlerName())
+                            .attr("nextDelay", nextDelay)
+                            .log("Could not get connection while seek -- Will try again in ms");
+                    remainingTime.addAndGet(-nextDelay);
+                    seekAsyncInternal(requestId, seek, seekId, seekTimestamp, seekBy, backoff, remainingTime);
+                }, nextDelay, TimeUnit.MILLISECONDS);
+            } catch (RejectedExecutionException e) {
+                seek.release();
+                failSeek(new PulsarClientException(
+                        String.format("Seek retry for subscription %s of topic %s was rejected",
+                                subscription, topicName.toString()), e));
+            }
         }
     }
 

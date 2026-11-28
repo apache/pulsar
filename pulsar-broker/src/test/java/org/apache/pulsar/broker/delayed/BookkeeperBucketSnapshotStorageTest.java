@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -31,10 +32,13 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.delayed.bucket.BookkeeperBucketSnapshotStorage;
+import org.apache.pulsar.broker.delayed.bucket.BucketNotExistException;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
@@ -266,5 +270,23 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
             entryCount.incrementAndGet();
         });
         assertEquals(entryCount.get(), 2);
+    }
+
+    @Test
+    public void testMissingLedgerOnMetadataServerIsTreatedAsAlreadyDeleted() {
+        // The metadata-store BK driver reports -25 for a ledger whose metadata is gone; like -7,
+        // there is nothing left to clean up.
+        pulsarTestContext.getMockBookKeeper().failNow(BKException.Code.NoSuchLedgerExistsOnMetadataServerException);
+        assertThat(bucketSnapshotStorage.deleteBucketSnapshot(42L)).succeedsWithin(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void testOpenLedgerMapsMissingOnMetadataServerToBucketNotExist() {
+        // Recovery must see -25 like -7, so a stale property self-heals.
+        pulsarTestContext.getMockBookKeeper().failNow(BKException.Code.NoSuchLedgerExistsOnMetadataServerException);
+        assertThat(bucketSnapshotStorage.getBucketSnapshotMetadata(42L))
+                .failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(BucketNotExistException.class);
     }
 }

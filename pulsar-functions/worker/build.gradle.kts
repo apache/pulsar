@@ -82,6 +82,7 @@ dependencies {
     implementation(libs.simpleclient)
     implementation(libs.prometheus.metrics.instrumentation.jvm)
     implementation(libs.simpleclient.common)
+    implementation(libs.prometheus.metrics.core)
     implementation(libs.prometheus.metrics.model)
     implementation(libs.prometheus.metrics.exposition.textformats)
 

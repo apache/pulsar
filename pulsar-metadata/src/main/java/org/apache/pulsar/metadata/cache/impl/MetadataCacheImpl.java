@@ -48,6 +48,7 @@ import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
@@ -172,7 +173,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             }
         }, executor.chooseThread(path)).whenComplete((result, e) -> {
             if (e != null) {
-                future.completeExceptionally(e.getCause());
+                future.completeExceptionally(FutureUtil.unwrapCompletionException(e));
             } else {
                 future.complete(result);
             }
@@ -321,11 +322,14 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
             .whenComplete((__, ex) -> {
                 if (ex == null) {
                     future.complete(null);
-                } else if (ex.getCause() instanceof BadVersionException) {
-                    // Use already exists exception to provide more self-explanatory error message
-                    future.completeExceptionally(new AlreadyExistsException(ex.getCause()));
                 } else {
-                    future.completeExceptionally(ex.getCause());
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof BadVersionException) {
+                        // Use already exists exception to provide more self-explanatory error message
+                        future.completeExceptionally(new AlreadyExistsException(cause));
+                    } else {
+                        future.completeExceptionally(cause);
+                    }
                 }
             });
         return future;
@@ -423,14 +427,15 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     private void execute(Supplier<CompletableFuture<T>> op, String key, CompletableFuture<T> result, Backoff backoff) {
         op.get().thenAccept(result::complete).exceptionally((ex) -> {
-            if (ex.getCause() instanceof BadVersionException) {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (cause instanceof BadVersionException) {
                 // if resource is updated by other than metadata-cache then metadata-cache will get bad-version
                 // exception. so, try to invalidate the cache and try one more time.
                 objCache.synchronous().invalidate(key);
                 long elapsed = Duration.between(backoff.getFirstBackoffTime(), Instant.now()).toMillis();
                 if (backoff.isMandatoryStopMade()) {
                     if (Instant.EPOCH.equals(backoff.getFirstBackoffTime())) {
-                        result.completeExceptionally(ex.getCause());
+                        result.completeExceptionally(cause);
                     } else {
                         result.completeExceptionally(new TimeoutException(
                                 String.format("Timeout to update key %s. Elapsed time: %d ms", key, elapsed)));
@@ -444,7 +449,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                 schedulerExecutor.schedule(() -> execute(op, key, result, backoff), nextMs, TimeUnit.MILLISECONDS);
                 return null;
             }
-            result.completeExceptionally(ex.getCause());
+            result.completeExceptionally(cause);
             return null;
         });
     }

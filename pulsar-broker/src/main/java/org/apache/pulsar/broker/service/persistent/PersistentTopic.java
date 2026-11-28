@@ -95,6 +95,7 @@ import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerBacklogSizeEstimator;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
@@ -587,7 +588,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private void createPersistentSubscriptions() {
         for (ManagedCursor cursor : ledger.getCursors()) {
                 if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)
-                        || cursor.getName().startsWith(replicatorPrefix)) {
+                        || AbstractReplicator.isReplicatorCursor(replicatorPrefix, cursor.getName())) {
                     // This is not a regular subscription, we are going to
                     // ignore it for now and let the message dedup logic to take care of it
                 } else {
@@ -858,6 +859,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         if (exception instanceof ManagedLedgerFencedException) {
+            brokerService.requireFreshOwnershipBeforeTopicReadmission(this);
             if (exception instanceof ManagedLedgerFencedByAnotherWriterException
                     && brokerService.getTopicReference(topic).orElse(null) == this
                     && ownershipTakeoverReported.compareAndSet(false, true)) {
@@ -1058,7 +1060,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         new UnsupportedVersionException("Consumer doesn't support batch-message"));
             }
 
-            if (subscriptionName.startsWith(replicatorPrefix)
+            if (AbstractReplicator.isReplicatorCursor(replicatorPrefix, subscriptionName)
                     || subscriptionName.equals(DEDUPLICATION_CURSOR_NAME)) {
                 log.warn()
                         .attr("subscription", subscriptionName)
@@ -1194,6 +1196,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             .log("Failed to create compaction subscription");
                 } else if (ex.getCause() instanceof ManagedLedgerFencedException) {
                     // If the topic has been fenced, we cannot continue using it. We need to close and reopen
+                    brokerService.requireFreshOwnershipBeforeTopicReadmission(this);
                     log.warn()
                             .attr("subscription", subscriptionName)
                             .exceptionMessage(ex)
@@ -1304,6 +1307,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         .exceptionMessage(exception)
                         .log("Failed to create subscription for");
                 decrementUsageCount();
+                if (exception instanceof ManagedLedgerFencedException) {
+                    brokerService.requireFreshOwnershipBeforeTopicReadmission(PersistentTopic.this);
+                }
                 subscriptionFuture.completeExceptionally(new PersistenceException(exception));
                 if (exception instanceof ManagedLedgerFencedException) {
                     // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
@@ -2671,18 +2677,47 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @VisibleForTesting
     void checkMessageExpiryWithoutSharedPosition(int messageTtlInSeconds) {
-        subscriptions.forEach((__, sub) -> {
+        subscriptions.forEach((subscriptionName, sub) -> {
             // TTL must not advance non-durable reader cursors past unread retained messages.
             if (sub.getCursor().isDurable() && !isCompactionSubscription(sub.getName())
                     && (additionalSystemCursorNames.isEmpty()
                     || !additionalSystemCursorNames.contains(sub.getName()))) {
-                sub.expireMessagesAsync(messageTtlInSeconds);
+                FutureUtil.supplySafely(() -> sub.expireMessagesAsync(messageTtlInSeconds))
+                        .whenComplete((ignored, error) -> {
+                            if (error != null) {
+                                log.warn()
+                                        .attr("subscription", subscriptionName)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
+                                        .exception(error)
+                                        .log("Failed to start message expiry check");
+                            }
+                        });
             }
         });
-        replicators.forEach((__, replicator)
-                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
-        shadowReplicators.forEach((__, replicator)
-                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
+        replicators.forEach((remoteCluster, replicator)
+                -> FutureUtil.supplySafely(
+                        () -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds))
+                        .whenComplete((ignored, error) -> {
+                            if (error != null) {
+                                log.warn()
+                                        .attr("remoteCluster", remoteCluster)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
+                                        .exception(error)
+                                        .log("Failed to start message expiry check");
+                            }
+                        }));
+        shadowReplicators.forEach((shadowTopic, replicator)
+                -> FutureUtil.supplySafely(
+                        () -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds))
+                        .whenComplete((ignored, error) -> {
+                            if (error != null) {
+                                log.warn()
+                                        .attr("shadowTopic", shadowTopic)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
+                                        .exception(error)
+                                        .log("Failed to start message expiry check");
+                            }
+                        }));
     }
 
     private void checkMessageExpiryWithSharedPosition(ManagedLedgerImpl ml, int messageTtlInSeconds) {
@@ -2699,7 +2734,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Find the target position.
         long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTtlInSeconds);
         CompletableFuture<Position> positionToMarkDelete = new CompletableFuture<>();
-        finder.findMessages(expiredMessageTimestamp, new AsyncCallbacks.FindEntryCallback() {
+        // The expiry only moves mark-delete positions forward, so the find does not read the entries up to the
+        // oldest mark-delete position of the cursors that it moves. The cursor container orders only the durable
+        // cursors, and a shadow replicator has a non-durable cursor.
+        Position searchAfter = cursorWithOldestPosition.getPosition();
+        for (Replicator shadowReplicator : shadowReplicators.values()) {
+            Position shadowMarkDelete =
+                    ((PersistentReplicator) shadowReplicator).getCursor().getMarkDeletedPosition();
+            if (shadowMarkDelete.compareTo(searchAfter) < 0) {
+                searchAfter = shadowMarkDelete;
+            }
+        }
+        finder.findMessages(expiredMessageTimestamp, searchAfter, new AsyncCallbacks.FindEntryCallback() {
             @Override
             public void findEntryComplete(Position position, Object ctx) {
                 positionToMarkDelete.complete(position);
@@ -3294,7 +3340,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         topicStatsStream.writePair("msgThroughputIn", topicStatsHelper.aggMsgThroughputIn);
         topicStatsStream.writePair("msgThroughputOut", topicStatsHelper.aggMsgThroughputOut);
         topicStatsStream.writePair("storageSize", ledger.getTotalSize());
-        topicStatsStream.writePair("backlogSize", ledger.getEstimatedBacklogSize());
+        long backlogSize = ledger.getEstimatedBacklogSize();
+        topicStatsStream.writePair("backlogSize", backlogSize);
         topicStatsStream.writePair("pendingAddEntriesCount", ledger.getPendingAddEntriesCount());
         topicStatsStream.writePair("filteredEntriesCount", getFilteredEntriesCount());
 
@@ -3302,7 +3349,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         nsStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
         nsStats.msgThroughputIn += topicStatsHelper.aggMsgThroughputIn;
         nsStats.msgThroughputOut += topicStatsHelper.aggMsgThroughputOut;
-        nsStats.storageSize += ledger.getEstimatedBacklogSize();
+        nsStats.storageSize += backlogSize;
 
         bundleStats.msgRateIn += topicStatsHelper.aggMsgRateIn;
         bundleStats.msgRateOut += topicStatsHelper.aggMsgRateOut;
@@ -3479,10 +3526,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     compactionRecord.getLastCompactionDurationTimeInMills();
         });
 
-        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
-        subscriptions.forEach((name, subscription) -> {
-            subscriptionFutures.put(name, subscription.getStatsAsync(getStatsOptions));
-        });
+        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures =
+                getSubscriptionStats(getStatsOptions);
 
         return lastPublishTimeFuture.thenCompose(ignore ->
             FutureUtil.waitForAll(subscriptionFutures.values()).thenCompose(ignore2 -> {
@@ -3529,6 +3574,46 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return CompletableFuture.completedFuture(stats);
             }
         }));
+    }
+
+    private record SubscriptionBacklogPosition(String name, PersistentSubscription subscription, Position position) {
+    }
+
+    private Map<String, CompletableFuture<SubscriptionStatsImpl>> getSubscriptionStats(
+            GetStatsOptions getStatsOptions) {
+        Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
+        ManagedLedger backlogLedger = getStatsOptions.isSubscriptionBacklogSize() && subscriptions.size() > 1
+                ? getManagedLedger() : null;
+        if (backlogLedger == null || backlogLedger.getClass() != ManagedLedgerImpl.class) {
+            // Custom ledgers may return different estimates for equal positions.
+            subscriptions.forEach((name, subscription) ->
+                    subscriptionFutures.put(name, subscription.getStatsAsync(getStatsOptions)));
+            return subscriptionFutures;
+        }
+        // Keep using the captured subscription instances if a name is removed or replaced during sampling.
+        List<SubscriptionBacklogPosition> capturedSubscriptions = new ArrayList<>(subscriptions.size());
+        List<Position> positions = new ArrayList<>(subscriptions.size());
+        for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
+            PersistentSubscription subscription = entry.getValue();
+            // Preserve public overrides before capturing cursor positions for the batch.
+            if (subscription.getClass() != PersistentSubscription.class) {
+                subscriptionFutures.put(entry.getKey(), subscription.getStatsAsync(getStatsOptions));
+                continue;
+            }
+            Position position = subscription.getCursor().getMarkDeletedPosition();
+            if (position == null) {
+                subscriptionFutures.put(entry.getKey(), subscription.getStatsAsync(getStatsOptions));
+                continue;
+            }
+            capturedSubscriptions.add(new SubscriptionBacklogPosition(entry.getKey(), subscription, position));
+            positions.add(position);
+        }
+        Map<Position, Long> backlogSizes = ManagedLedgerBacklogSizeEstimator.estimate(backlogLedger, positions);
+        for (SubscriptionBacklogPosition captured : capturedSubscriptions) {
+            subscriptionFutures.put(captured.name(), captured.subscription()
+                    .getStatsAsync(getStatsOptions, backlogSizes.get(captured.position())));
+        }
+        return subscriptionFutures;
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {

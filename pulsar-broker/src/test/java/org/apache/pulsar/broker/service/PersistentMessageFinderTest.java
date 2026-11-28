@@ -52,6 +52,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -379,6 +380,61 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    void testFindMessagesAfterPositionDoesNotReadEarlierEntries() throws Exception {
+        String name = "testFindMessagesAfterPositionDoesNotReadEarlierEntries";
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2);
+        ManagedLedger ledger = factory.open(name, config);
+        // A durable cursor keeps the ledgers from being trimmed in the background
+        ManagedCursor cursor = ledger.openCursor(name);
+        List<Position> positions = new ArrayList<>();
+        List<Long> timestampsAfterEntries = addEntriesSpacedInTime(ledger, 5, positions);
+        // Read the entries from the ledgers rather than from the broker entry cache
+        ledger.close();
+        ledger = factory.open(name, config);
+        cursor = ledger.openCursor(name);
+
+        List<Position> readPositions = new CopyOnWriteArrayList<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+                readPositions.add(PositionFactory.create(ledgerId, entryId));
+            }
+            return CompletableFuture.completedFuture(entries);
+        });
+        // A negative clock skew disables the search range from the ledger close times, so that only the position
+        // limits the entries that the find reads
+        int noSearchRange = -1;
+        try {
+            Position searchAfter = positions.get(2);
+            assertThat(findPositionAfter(cursor, timestampsAfterEntries.get(4), searchAfter, noSearchRange).get())
+                    .as("last entry published before the timestamp").isEqualTo(positions.get(4));
+            assertThat(readPositions).as("entries read when an entry after the position matches")
+                    .isNotEmpty().allSatisfy(read -> assertThat(read).isGreaterThan(searchAfter));
+
+            readPositions.clear();
+            assertThat(findPositionAfter(cursor, timestampsAfterEntries.get(1), searchAfter, noSearchRange).get())
+                    .as("only entries up to the position were published before the timestamp").isNull();
+            assertThat(readPositions).as("entries read when no entry after the position matches")
+                    .allSatisfy(read -> assertThat(read).isGreaterThan(searchAfter));
+
+            readPositions.clear();
+            assertThat(findPositionAfter(cursor, timestampsAfterEntries.get(4), positions.get(4), noSearchRange).get())
+                    .as("no entry after the last entry").isNull();
+            assertThat(readPositions).as("entries read when the position is the last entry").isEmpty();
+
+            // With a clock skew of 0, the search range ends at the second ledger, which closed after the timestamp
+            readPositions.clear();
+            assertThat(findPositionAfter(cursor, timestampsAfterEntries.get(1), positions.get(3), 0).get())
+                    .as("the search range ends at the position").isNull();
+            assertThat(readPositions).as("entries read when the search range ends at the position").isEmpty();
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+        }
+
+        cursor.close();
+        ledger.close();
+    }
+
+    @Test
     void testPersistentMessageFinderMetricsWhenNotFoundForExpiry() throws Exception {
         String name = "testPersistentMessageFinderMetricsWhenNotFoundForExpiry";
         ManagedLedger ledger = factory.open(name, new ManagedLedgerConfig());
@@ -501,9 +557,20 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
     private static CompletableFuture<Position> findPosition(ManagedCursor cursor, long timestamp,
                                                             OpenTelemetryMessageFinderStats stats,
                                                             FindReason reason) {
-        PersistentMessageFinder messageFinder = new PersistentMessageFinder("topicname", cursor, 0, stats, reason);
+        return findPosition(new PersistentMessageFinder("topicname", cursor, 0, stats, reason), timestamp, null);
+    }
+
+    private static CompletableFuture<Position> findPositionAfter(ManagedCursor cursor, long timestamp,
+                                                                 Position searchAfter,
+                                                                 int ledgerCloseTimestampMaxClockSkewMillis) {
+        return findPosition(new PersistentMessageFinder("topicname", cursor, ledgerCloseTimestampMaxClockSkewMillis),
+                timestamp, searchAfter);
+    }
+
+    private static CompletableFuture<Position> findPosition(PersistentMessageFinder messageFinder, long timestamp,
+                                                            Position searchAfter) {
         CompletableFuture<Position> future = new CompletableFuture<>();
-        messageFinder.findMessages(timestamp, new AsyncCallbacks.FindEntryCallback() {
+        messageFinder.findMessages(timestamp, searchAfter, new AsyncCallbacks.FindEntryCallback() {
             @Override
             public void findEntryComplete(Position position, Object ctx) {
                 future.complete(position);
@@ -764,7 +831,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertEquals(lastLedgerInfo.getEntries(), 0);
         assertEquals(ledgers.size(), totalEntries / entriesPerLedger + 1);
 
-        // this will make sure that all entries should be deleted
+        // This will make sure that all entries should be deleted, and move markDeletePosition to nextLedgerId:-1.
         Thread.sleep(TimeUnit.SECONDS.toMillis(ttlSeconds));
 
         bkc.deleteLedger(ledgers.get(0).getLedgerId());
@@ -777,9 +844,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertTrue(monitor.expireMessages(ttlSeconds));
         Awaitility.await().untilAsserted(() -> {
             Position markDeletePosition = c1.getMarkDeletedPosition();
-            // The markDeletePosition points to the last entry of the previous ledger in lastLedgerInfo.
-            assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId() - 1);
-            assertEquals(markDeletePosition.getEntryId(), entriesPerLedger - 1);
+            // The markDeletePosition already moved to nextLedgerId:-1
+            assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId());
+            assertEquals(markDeletePosition.getEntryId(), -1);
         });
 
         c1.close();
@@ -820,7 +887,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertEquals(lastLedgerInfo.getEntries(), 0);
         assertEquals(ledgers.size(), totalEntries / entriesPerLedger + 1);
 
-        // this will make sure that all entries should be deleted
+        // This will make sure that all entries should be deleted, and move markDeletePosition to nextLedgerId:-1.
         Thread.sleep(TimeUnit.SECONDS.toMillis(ttlSeconds));
 
         bkc.deleteLedger(ledgers.get(0).getLedgerId());
@@ -833,9 +900,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertTrue(monitor.expireMessagesAsync(ttlSeconds).get());
         Awaitility.await().untilAsserted(() -> {
             Position markDeletePosition = c1.getMarkDeletedPosition();
-            // The markDeletePosition points to the last entry of the previous ledger in lastLedgerInfo.
-            assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId() - 1);
-            assertEquals(markDeletePosition.getEntryId(), entriesPerLedger - 1);
+            // The markDeletePosition already moved to nextLedgerId:-1
+            assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId());
+            assertEquals(markDeletePosition.getEntryId(), -1);
         });
 
         c1.close();

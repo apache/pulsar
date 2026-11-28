@@ -325,7 +325,7 @@ The Apache Software License, Version 2.0
      - jackson-datatype-jsr310-2.21.8.jar
      - jackson-module-parameter-names-2.21.8.jar
  * Caffeine -- caffeine-3.3.0.jar
- * Conscrypt -- conscrypt-openjdk-uber-2.7.0.jar
+ * Conscrypt -- conscrypt-openjdk-uber-2.8.0.jar
  * Gson
     - gson-2.15.0.jar
  * Guava
@@ -334,7 +334,7 @@ The Apache Software License, Version 2.0
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-3.1.jar
  * Netty Reactive Streams -- netty-reactive-streams-2.0.20.jar
- * Swagger -- swagger-annotations-jakarta-2.2.55.jar
+ * Swagger -- swagger-annotations-jakarta-2.2.56.jar
  * DataSketches
     - datasketches-java-7.0.1.jar
     - datasketches-memory-4.1.0.jar
@@ -377,11 +377,13 @@ The Apache Software License, Version 2.0
     - netty-resolver-dns-native-macos-4.2.21.Final-osx-aarch_64.jar
     - netty-resolver-dns-native-macos-4.2.21.Final-osx-x86_64.jar
  * Prometheus client
-    - simpleclient-0.16.0.jar
-    - simpleclient_log4j2-0.16.0.jar
-    - simpleclient_tracer_common-0.16.0.jar
-    - simpleclient_tracer_otel-0.16.0.jar
-    - simpleclient_tracer_otel_agent-0.16.0.jar
+    - prometheus-metrics-config-1.8.0.jar
+    - prometheus-metrics-core-1.8.0.jar
+    - prometheus-metrics-model-1.8.0.jar
+    - prometheus-metrics-tracer-common-1.8.0.jar
+    - prometheus-metrics-tracer-initializer-1.8.0.jar
+    - prometheus-metrics-tracer-otel-1.8.0.jar
+    - prometheus-metrics-tracer-otel-agent-1.8.0.jar
  * Log4J
     - log4j-api-2.26.1.jar
     - log4j-core-2.26.1.jar
@@ -407,18 +409,18 @@ The Apache Software License, Version 2.0
  * AsyncHttpClient
     - async-http-client-3.0.14.jar
  * Jetty
-    - jetty-alpn-client-12.1.14.jar
-    - jetty-client-12.1.14.jar
-    - jetty-compression-common-12.1.14.jar
-    - jetty-compression-gzip-12.1.14.jar
-    - jetty-http-12.1.14.jar
-    - jetty-io-12.1.14.jar
-    - jetty-util-12.1.14.jar
-    - jetty-websocket-core-client-12.1.14.jar
-    - jetty-websocket-core-common-12.1.14.jar
-    - jetty-websocket-jetty-api-12.1.14.jar
-    - jetty-websocket-jetty-client-12.1.14.jar
-    - jetty-websocket-jetty-common-12.1.14.jar
+    - jetty-alpn-client-12.1.15.jar
+    - jetty-client-12.1.15.jar
+    - jetty-compression-common-12.1.15.jar
+    - jetty-compression-gzip-12.1.15.jar
+    - jetty-http-12.1.15.jar
+    - jetty-io-12.1.15.jar
+    - jetty-util-12.1.15.jar
+    - jetty-websocket-core-client-12.1.15.jar
+    - jetty-websocket-core-common-12.1.15.jar
+    - jetty-websocket-jetty-api-12.1.15.jar
+    - jetty-websocket-jetty-client-12.1.15.jar
+    - jetty-websocket-jetty-common-12.1.15.jar
  * SnakeYaml -- snakeyaml-2.7.jar
  * Google Error Prone Annotations - error_prone_annotations-2.50.0.jar
  * Javassist -- javassist-3.32.0-GA.jar
@@ -427,7 +429,7 @@ The Apache Software License, Version 2.0
     - avro-protobuf-1.12.2.jar
  * RE2j -- re2j-1.8.jar
  * Spotify completable-futures -- completable-futures-0.3.6.jar
- * RoaringBitmap -- RoaringBitmap-1.6.29.jar
+ * RoaringBitmap -- RoaringBitmap-1.6.30.jar
  * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-client-fastutil-minimized)
  * JSpecify -- jspecify-1.0.1.jar
  * JetBrains Annotations -- annotations-26.1.0.jar
