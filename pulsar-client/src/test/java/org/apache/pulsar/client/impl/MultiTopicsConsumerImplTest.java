@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createDelayedCompletedFuture;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createExceptionFuture;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createPulsarClientMockWithMockedClientCnx;
+import static org.apache.pulsar.client.impl.ClientTestFixtures.mockClientCnx;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -48,6 +49,7 @@ import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -62,9 +64,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import java.util.stream.Stream;
 import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatchReceivePolicy;
@@ -79,6 +84,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
@@ -232,6 +238,9 @@ public class MultiTopicsConsumerImplTest {
         CompletableFuture<Consumer<byte[]>> subscription = new CompletableFuture<>();
         MultiTopicsConsumerImpl<byte[]> parent = MultiTopicsConsumerImpl.createPartitionedConsumer(
                 client, conf, executorProvider, subscription, 2, schema, null);
+        // Child creation is deferred to the pinned executor: wait for publication
+        // before reading the child, or the map lookup returns null.
+        parent.internalPinnedExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
         Timeout timeout = parent.getPartitionsAutoUpdateTimeout();
         ConsumerImpl<byte[]> failedChild = parent.consumers.get(failedPartition);
         assertTrue(failedChild.subscribeFuture().isCompletedExceptionally());
@@ -367,6 +376,9 @@ public class MultiTopicsConsumerImplTest {
         verify(clientMock, times(1)).getPartitionsForTopic(topic, false);
         assertEquals(scheduled.size(), 3);
         healthyLookup.complete(List.of(partition));
+        // The refresh admission now runs on the pinned executor (subscribeIncreasedTopicPartitions),
+        // so drain it before asserting on the update future.
+        impl.internalPinnedExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
         assertTrue(impl.partitionsAutoUpdateFuture.isDone());
 
         // A failed child schedules one short delay, and further ticks cannot overlap it.
@@ -388,6 +400,8 @@ public class MultiTopicsConsumerImplTest {
         assertEquals(scheduled.size(), 7);
         impl.setState(HandlerState.State.Closed);
         failedLookup.complete(List.of(partition));
+        // Same async admission as above: drain the pinned executor before asserting.
+        impl.internalPinnedExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS);
         assertTrue(impl.partitionsAutoUpdateFuture.isDone());
     }
 
@@ -636,6 +650,716 @@ public class MultiTopicsConsumerImplTest {
         assertTrue(impl.getUnAckedMessageTracker().remove(otherTopicMessageId));
         verify(partitionConsumer0).closeAsync();
         verify(partitionConsumer1).closeAsync();
+    }
+
+    @Test
+    public void testNewPartitionConsumerInheritsParentEpochAfterRedeliver() {
+        String topicName = "persistent://public/default/epoch-inherit-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        // The mocked connection reports protocol version 0 by default, which makes the child
+        // redeliver bail out before bumping its epoch. Report a modern broker instead.
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Collections.singletonList(topicPartition0)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+
+        // Redeliver once: the parent epoch moves 0 -> 1 and the existing child follows.
+        impl.redeliverUnacknowledgedMessages();
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(impl.consumers.get(topicPartition0).getConsumerEpoch(), 1));
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+
+        // The new partition must start from the parent's current epoch, otherwise the parent
+        // drops its messages as stale: it checks incoming messages against its own epoch.
+        // On master this fails, the new child starts at epoch 0 while the parent is at 1.
+        assertTrue(impl.consumers.containsKey(topicPartition1));
+        assertEquals(impl.consumers.get(topicPartition1).getConsumerEpoch(), 1);
+    }
+
+    @Test(timeOut = 20000)
+    public void testNewPartitionConsumerEpochSurvivesOverlappingRedeliver() throws Exception {
+        String topicName = "persistent://public/default/epoch-overlap-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        // The mocked connection reports protocol version 0 by default, which makes the child
+        // redeliver bail out before bumping its epoch. Report a modern broker instead.
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Collections.singletonList(topicPartition0)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+
+        // Occupy the pinned executor, then trigger growth: the creation task queues behind the
+        // occupier, so the redeliver below is guaranteed to run before the child is created.
+        // Calling onTopicsExtended on this thread queues the creation synchronously (the mocked
+        // metadata future is already complete), so no sleep or thread race is involved.
+        CountDownLatch occupierRunning = new CountDownLatch(1);
+        CountDownLatch releaseOccupier = new CountDownLatch(1);
+        impl.internalPinnedExecutor.execute(() -> {
+            occupierRunning.countDown();
+            try {
+                releaseOccupier.await(15, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(occupierRunning.await(15, TimeUnit.SECONDS));
+
+        // The second refresh must see the new partition: the stub above still returns only
+        // partition 0, so re-stub it before triggering growth.
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        CompletableFuture<Void> growth = listener.onTopicsExtended(Collections.singleton(topicName));
+
+        // Redeliver while creation is still queued: the parent moves 0 -> 1 and the fan-out queues
+        // behind the creation task. The child must end at the parent epoch, not one ahead of it.
+        impl.redeliverUnacknowledgedMessages();
+
+        releaseOccupier.countDown();
+        growth.get(15, TimeUnit.SECONDS);
+        // Let the creation task and the redelivery fan-out drain.
+        impl.internalPinnedExecutor.submit(() -> { }).get(15, TimeUnit.SECONDS);
+
+        assertTrue(impl.consumers.containsKey(topicPartition1));
+        assertEquals(impl.consumers.get(topicPartition1).getConsumerEpoch(), impl.getConsumerEpoch());
+    }
+
+    @Test(timeOut = 20000)
+    public void testNewPartitionConsumerEpochSurvivesTwoQueuedRedeliveries() throws Exception {
+        String topicName = "persistent://public/default/epoch-two-fanouts-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        // The mocked connection reports protocol version 0 by default, which makes the child
+        // redeliver bail out before bumping its epoch. Report a modern broker instead.
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
+        impl.allTopicPartitionsNumber.set(0);
+
+        // Install a single metadata answer before the first child starts: the child's
+        // receive loop calls methods on the shared client mock, so re-stubbing after it
+        // starts can fail inside Mockito before either redelivery is queued.
+        List<String> partitions = new ArrayList<>(Collections.singletonList(topicPartition0));
+        when(clientMock.getPartitionsForTopic(topicName, false))
+                .thenAnswer(invocation -> CompletableFuture.completedFuture(new ArrayList<>(partitions)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+
+        // The second refresh must see the new partition: grow the backing list instead of
+        // re-stubbing, so no Mockito stubbing happens while receives are running.
+        partitions.add(topicPartition1);
+
+        // Occupy the pinned executor, then queue redelivery A, partition creation and
+        // redelivery B in that order: both redeliveries bump the caller-side counter before
+        // any queued work runs. The child must end at the parent epoch, not one ahead of it.
+        CountDownLatch occupierRunning = new CountDownLatch(1);
+        CountDownLatch releaseOccupier = new CountDownLatch(1);
+        impl.internalPinnedExecutor.execute(() -> {
+            occupierRunning.countDown();
+            try {
+                releaseOccupier.await(15, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(occupierRunning.await(15, TimeUnit.SECONDS));
+
+        impl.redeliverUnacknowledgedMessages();
+        CompletableFuture<Void> growth = listener.onTopicsExtended(Collections.singleton(topicName));
+        impl.redeliverUnacknowledgedMessages();
+
+        releaseOccupier.countDown();
+        growth.get(15, TimeUnit.SECONDS);
+        // Let the creation task and both redelivery fan-outs drain.
+        impl.internalPinnedExecutor.submit(() -> { }).get(15, TimeUnit.SECONDS);
+
+        assertTrue(impl.consumers.containsKey(topicPartition1));
+        assertEquals(impl.consumers.get(topicPartition1).getConsumerEpoch(), impl.getConsumerEpoch());
+    }
+
+    @Test(timeOut = 20000)
+    public void testQueuedChildCreationSkippedOnParentClose() throws Exception {
+        String topicName = "persistent://public/default/epoch-close-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Collections.singletonList(topicPartition0)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        // Occupy the pinned executor, then trigger growth: the creation task is queued but has
+        // not started when the parent closes, so it must fail instead of subscribing a child
+        // the close never sees.
+        CountDownLatch occupierRunning = new CountDownLatch(1);
+        CountDownLatch releaseOccupier = new CountDownLatch(1);
+        impl.internalPinnedExecutor.execute(() -> {
+            occupierRunning.countDown();
+            try {
+                releaseOccupier.await(15, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(occupierRunning.await(15, TimeUnit.SECONDS));
+
+        CompletableFuture<Void> growth = listener.onTopicsExtended(Collections.singleton(topicName));
+        CompletableFuture<Void> closeFuture = impl.closeAsync();
+
+        releaseOccupier.countDown();
+        // The refresh logs the creation failure and completes normally, so the growth future
+        // settles without throwing: wait for it and the close, then assert no child was
+        // created or published.
+        growth.get(15, TimeUnit.SECONDS);
+        closeFuture.get(15, TimeUnit.SECONDS);
+        assertFalse(impl.consumers.containsKey(topicPartition1));
+    }
+
+    @Test(timeOut = 20000)
+    public void testQueuedChildCreationSkippedAfterUnsubscribe() throws Exception {
+        String topicName = "persistent://public/default/epoch-unsubscribe-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Collections.singletonList(topicPartition0)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        // Occupy the pinned executor, then trigger growth and unsubscribe while it is
+        // occupied: the creation task is queued ahead of the unsubscribe task, so it
+        // publishes the child first and the unsubscribe snapshot must include it instead
+        // of leaving an orphan behind or cleaning it up twice.
+        CountDownLatch occupierRunning = new CountDownLatch(1);
+        CountDownLatch releaseOccupier = new CountDownLatch(1);
+        impl.internalPinnedExecutor.execute(() -> {
+            occupierRunning.countDown();
+            try {
+                releaseOccupier.await(15, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(occupierRunning.await(15, TimeUnit.SECONDS));
+
+        CompletableFuture<Void> growth = listener.onTopicsExtended(Collections.singleton(topicName));
+        CompletableFuture<Void> unsubscribeFuture = impl.unsubscribeAsync(topicName);
+
+        releaseOccupier.countDown();
+        // The creation ran before the unsubscribe snapshot, so the child was published
+        // and then unsubscribed by it; the refresh completes normally. Wait for both,
+        // then assert no child remains and the reservation was released.
+        unsubscribeFuture.get(15, TimeUnit.SECONDS);
+        growth.get(15, TimeUnit.SECONDS);
+        assertFalse(impl.consumers.containsKey(topicPartition0));
+        assertFalse(impl.consumers.containsKey(topicPartition1));
+        assertFalse(impl.partitionedTopics.containsKey(topicName));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 0);
+    }
+
+    @Test(timeOut = 30000)
+    public void testPartitionRefreshDoesNotReviveUnsubscribedTopic() throws Exception {
+        String topicName = "persistent://public/default/refresh-unsubscribe-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+        String topicPartition2 = topicName + "-partition-2";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicName, 0);
+        impl.topicsForPartitionUpdate.add(topicName);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                Arrays.asList(topicPartition0, topicPartition1)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+        assertTrue(impl.consumers.containsKey(topicPartition0));
+        assertTrue(impl.consumers.containsKey(topicPartition1));
+
+        // Hold the next lookup's metadata processing on a latch: the refresh stalls
+        // after passing its eligibility check, while the unsubscribe below runs to
+        // completion and clears its marker.
+        CompletableFuture<List<String>> lookupFuture = new CompletableFuture<>();
+        when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(lookupFuture);
+
+        CountDownLatch callbackStalled = new CountDownLatch(1);
+        CountDownLatch releaseCallback = new CountDownLatch(1);
+        AtomicBoolean firstStream = new AtomicBoolean(true);
+        List<String> blockingPartitions = new AbstractList<String>() {
+            private final List<String> delegate = List.of(topicPartition0, topicPartition1, topicPartition2);
+
+            @Override
+            public String get(int index) {
+                return delegate.get(index);
+            }
+
+            @Override
+            public int size() {
+                return delegate.size();
+            }
+
+            @Override
+            public Stream<String> stream() {
+                if (firstStream.getAndSet(false)) {
+                    callbackStalled.countDown();
+                    try {
+                        releaseCallback.await(15, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                return delegate.stream();
+            }
+        };
+
+        CompletableFuture<Void> growth = listener.onTopicsExtended(Collections.singleton(topicName));
+        CompletableFuture.runAsync(() -> lookupFuture.complete(blockingPartitions));
+        assertTrue(callbackStalled.await(15, TimeUnit.SECONDS));
+
+        // The unsubscribe runs while the refresh is stalled: the topic leaves the
+        // maps and the marker is cleared.
+        CompletableFuture<Void> unsubscribeFuture = impl.unsubscribeAsync(topicName);
+
+        // The unsubscribe must report success BEFORE the stalled refresh resumes:
+        // only then does the refresh face a cleaned-up topic (marker cleared, maps
+        // removed). Waiting for it only after the release lets the cleanup remove
+        // the revived entry and masks the bug. On the fixed code the unsubscribe
+        // cannot complete while the refresh is stalled: the refresh admission runs
+        // on the pinned executor and the unsubscribe snapshot is queued behind it,
+        // so the wait below times out and we release the refresh, whose admission
+        // is then serialized after the unsubscribe cleanup.
+        try {
+            unsubscribeFuture.get(2, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            // Expected on the fixed code: the unsubscribe is queued behind the
+            // stalled refresh admission on the pinned executor.
+        }
+        // Let the stalled refresh resume: it must not recreate the topic entry or
+        // publish a child for the unsubscribed topic.
+        releaseCallback.countDown();
+        unsubscribeFuture.get(15, TimeUnit.SECONDS);
+        growth.get(15, TimeUnit.SECONDS);
+        assertFalse(impl.consumers.containsKey(topicPartition2));
+        assertFalse(impl.partitionedTopics.containsKey(topicName));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 0);
+    }
+
+    @Test(timeOut = 30000)
+    public void testWholeConsumerUnsubscribeWaitsForInitialChildPublication() throws Exception {
+        String topicA = "persistent://public/default/unsubscribe-waits-topic";
+        String partitionA0 = topicA + "-partition-0";
+        String topicB = "persistent://public/default/unsubscribe-waits-new-topic";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        impl.partitionedTopics.put(topicA, 0);
+        impl.topicsForPartitionUpdate.add(topicA);
+        impl.allTopicPartitionsNumber.set(0);
+
+        when(clientMock.getPartitionsForTopic(topicA, false)).thenReturn(CompletableFuture.completedFuture(
+                Collections.singletonList(partitionA0)));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicA)).join();
+        assertTrue(impl.consumers.containsKey(partitionA0));
+
+        // Stall the new topic's connection: its creation task passes the pre-check
+        // and then blocks inside the child constructor, before publication.
+        CountDownLatch creationStalled = new CountDownLatch(1);
+        CountDownLatch releaseCreation = new CountDownLatch(1);
+        AtomicBoolean firstConnection = new AtomicBoolean(true);
+        when(clientMock.getConnection(eq(topicB), anyInt())).thenAnswer(invocation -> {
+            if (firstConnection.getAndSet(false)) {
+                creationStalled.countDown();
+                try {
+                    releaseCreation.await(15, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            return CompletableFuture.completedFuture(Pair.of(clientCnxMock, false));
+        });
+
+        CompletableFuture<Void> subscribeB = impl.subscribeAsync(topicB, PartitionedTopicMetadata.NON_PARTITIONED);
+        assertTrue(creationStalled.await(15, TimeUnit.SECONDS));
+
+        // Whole-consumer unsubscribe while the new child is still being constructed:
+        // the snapshot must wait for the publication and cover the new child.
+        CompletableFuture<Void> unsubscribeFuture = impl.unsubscribeAsync(false);
+        releaseCreation.countDown();
+
+        subscribeB.get(15, TimeUnit.SECONDS);
+        unsubscribeFuture.get(15, TimeUnit.SECONDS);
+        ConsumerImpl<byte[]> newChild = impl.consumers.get(topicB);
+        assertTrue(newChild != null);
+        assertEquals(newChild.getState(), HandlerState.State.Closed);
+    }
+
+    @Test(timeOut = 30000)
+    public void testQueuedChildCreationFailsOnExecutorShutdownNow() throws Exception {
+        String topicName = "persistent://public/default/epoch-shutdown-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+        consumerConfData.setAutoUpdatePartitions(true);
+        consumerConfData.setAutoUpdatePartitionsIntervalSeconds(60);
+
+        // Use a real ExecutorProvider for the internal executor: its shutdownNow() runs a
+        // queued CleanupTask on the calling thread once the executor terminates, which is the
+        // production path. The shared plain internalExecutor cannot do that: its shutdownNow()
+        // just discards the queued creation task.
+        ExecutorProvider internalProvider = new ExecutorProvider(1, "test-internal-shutdown");
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider,
+                internalProvider.getExecutor(), clientCnxMock);
+        when(clientMock.getPartitionedTopicMetadata(any(), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        try {
+            impl.partitionedTopics.put(topicName, 0);
+            impl.topicsForPartitionUpdate.add(topicName);
+            impl.allTopicPartitionsNumber.set(0);
+
+            when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                    Collections.singletonList(topicPartition0)));
+
+            PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+            listener.onTopicsExtended(Collections.singleton(topicName)).join();
+            assertTrue(impl.consumers.containsKey(topicPartition0));
+
+            when(clientMock.getPartitionsForTopic(topicName, false)).thenReturn(CompletableFuture.completedFuture(
+                    Arrays.asList(topicPartition0, topicPartition1)));
+
+            // Occupy the pinned executor, then trigger growth: the creation task is queued but has
+            // not started when the parent closes.
+            CountDownLatch occupierRunning = new CountDownLatch(1);
+            CountDownLatch releaseOccupier = new CountDownLatch(1);
+            impl.internalPinnedExecutor.execute(() -> {
+                occupierRunning.countDown();
+                try {
+                    releaseOccupier.await(15, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            assertTrue(occupierRunning.await(15, TimeUnit.SECONDS));
+
+            CompletableFuture<Void> growth = listener.onTopicsExtended(Collections.singleton(topicName));
+            impl.closeAsync();
+
+            // Shut the internal provider down while the creation task is still queued: shutdownNow()
+            // discards it from the queue, then runs it as a CleanupTask on the shutdown thread once
+            // the executor terminates, where the pre-check fails the creation future. Without the
+            // CleanupTask the future would never complete and the growth below would hang.
+            // The parent close future is intentionally not joined here: its finalization step is
+            // a plain task queued behind the creation task, so shutdownNow() discards it too.
+            Thread shutdownThread = new Thread(() -> internalProvider.shutdownNow(), "test-shutdown");
+            shutdownThread.start();
+            releaseOccupier.countDown();
+            shutdownThread.join(15_000);
+            assertFalse(shutdownThread.isAlive());
+
+            // The refresh logs the creation failure and completes normally, so the growth future
+            // settles without throwing: wait for it, then assert no child was created or published.
+            growth.get(15, TimeUnit.SECONDS);
+            assertFalse(impl.consumers.containsKey(topicPartition1));
+        } finally {
+            internalProvider.shutdownNow();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testQueuedChildCreationFailsOnClientShutdown() throws Exception {
+        String topicName = "persistent://public/default/epoch-client-shutdown-topic";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        // Occupy the pinned executor, then subscribe: the creation task is queued but has
+        // not started when the client starts shutting down.
+        CountDownLatch occupierRunning = new CountDownLatch(1);
+        CountDownLatch releaseOccupier = new CountDownLatch(1);
+        impl.internalPinnedExecutor.execute(() -> {
+            occupierRunning.countDown();
+            try {
+                releaseOccupier.await(15, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(occupierRunning.await(15, TimeUnit.SECONDS));
+
+        CompletableFuture<Void> subscription = impl.subscribeAsync(topicName, 0);
+
+        // The client starts shutting down while the parent is still open and creation is queued:
+        // it stops the external executor before draining the internal cleanup tasks.
+        when(clientMock.isClosed()).thenReturn(true);
+        executorProvider.shutdownNow();
+
+        releaseOccupier.countDown();
+        // The creation pre-check fails the futures, and the error handler settles the outward
+        // future even though the external executor is stopped: the subscription must fail
+        // instead of hanging, and no child may be published.
+        ExecutionException thrown = expectThrows(ExecutionException.class,
+                () -> subscription.get(15, TimeUnit.SECONDS));
+        Throwable cause = thrown.getCause();
+        while (cause instanceof CompletionException && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        assertTrue(cause instanceof PulsarClientException.AlreadyClosedException);
+        assertFalse(impl.consumers.containsKey(topicName));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 0);
+    }
+
+    @Test(timeOut = 30000)
+    public void testSubscribeErrorCleanupSurvivesExternalExecutorShutdownNow() throws Exception {
+        String topicName = "persistent://public/default/epoch-external-shutdown-topic";
+
+        ConsumerConfigurationData<byte[]> consumerConfData = new ConsumerConfigurationData<>();
+        consumerConfData.setSubscriptionName("subscriptionName");
+
+        ClientCnx clientCnxMock = mockClientCnx();
+        when(clientCnxMock.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
+        PulsarClientImpl clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor,
+                clientCnxMock);
+        Schema<byte[]> schema = Schema.BYTES;
+
+        MultiTopicsConsumerImpl<byte[]> impl = new MultiTopicsConsumerImpl<>(
+                clientMock, consumerConfData, executorProvider,
+                new CompletableFuture<>(), schema, null, true);
+
+        // Hold the external executor's only worker: the error cleanup dispatched after the
+        // failed creation is accepted and queued behind it, instead of being rejected.
+        CountDownLatch externalWorkerRunning = new CountDownLatch(1);
+        CountDownLatch releaseExternalWorker = new CountDownLatch(1);
+        executorProvider.getExecutor().execute(() -> {
+            externalWorkerRunning.countDown();
+            try {
+                releaseExternalWorker.await(15, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(externalWorkerRunning.await(15, TimeUnit.SECONDS));
+
+        // Occupy the pinned executor, then subscribe: the creation task is queued but has
+        // not started when the client starts shutting down.
+        CountDownLatch occupierRunning = new CountDownLatch(1);
+        CountDownLatch releaseOccupier = new CountDownLatch(1);
+        impl.internalPinnedExecutor.execute(() -> {
+            occupierRunning.countDown();
+            try {
+                releaseOccupier.await(15, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertTrue(occupierRunning.await(15, TimeUnit.SECONDS));
+
+        CompletableFuture<Void> subscription = impl.subscribeAsync(topicName, 0);
+
+        // The client starts shutting down while the parent is still open and creation is queued.
+        when(clientMock.isClosed()).thenReturn(true);
+
+        // Let the creation task run: its pre-check fails the futures, and the error handler
+        // dispatches the cleanup to the external executor, where it queues behind the held
+        // worker. The marker runs after the creation task on the pinned executor, so by the
+        // time it completes the dispatch has happened.
+        releaseOccupier.countDown();
+        impl.internalPinnedExecutor.submit(() -> { }).get(15, TimeUnit.SECONDS);
+
+        // Shut the external provider down while the cleanup is still queued: shutdownNow()
+        // interrupts the held worker, then runs the discarded cleanup as a CleanupTask on
+        // the shutdown thread once the executor terminates. Without the CleanupTask the
+        // outward subscribe future would never complete and the get below would hang.
+        executorProvider.shutdownNow();
+
+        // The cleanup completes the outward future exceptionally even though the external
+        // executor is gone: the subscription must fail instead of hanging, and no child
+        // may be published.
+        ExecutionException thrown = expectThrows(ExecutionException.class,
+                () -> subscription.get(15, TimeUnit.SECONDS));
+        Throwable cause = thrown.getCause();
+        while (cause instanceof CompletionException && cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        assertTrue(cause instanceof PulsarClientException.AlreadyClosedException);
+        assertFalse(impl.consumers.containsKey(topicName));
+        assertEquals(impl.allTopicPartitionsNumber.get(), 0);
     }
 
     @DataProvider
