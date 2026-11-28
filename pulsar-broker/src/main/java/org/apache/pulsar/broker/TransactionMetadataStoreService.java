@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -52,9 +53,12 @@ import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.RequestTimeoutException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.impl.LookupTopicResult;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -88,6 +92,8 @@ public class TransactionMetadataStoreService {
     private final ExecutorService internalPinnedExecutor;
 
     private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
+    private static final long COORDINATOR_RECOVERY_RETRY_DELAY_MS = 2000L;
+    private static final int COORDINATOR_RECOVERY_MAX_ATTEMPTS = 5;
 
     public TransactionMetadataStoreService(TransactionMetadataStoreProvider transactionMetadataStoreProvider,
                                            PulsarService pulsarService, TransactionBufferClient tbClient,
@@ -104,6 +110,90 @@ public class TransactionMetadataStoreService {
         ThreadFactory threadFactory =
                 new ExecutorProvider.ExtendedThreadFactory("transaction-coordinator-thread-factory");
         this.internalPinnedExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
+    }
+
+    /**
+     * Recovers the transaction coordinators assigned to this broker once the broker is ready.
+     * <p>
+     * A coordinator is otherwise opened only by {@link #handleTcClientConnect(TransactionCoordinatorID)}, so after
+     * a broker restart no coordinator is loaded until a transaction client connects. The transaction buffer of a
+     * partition recovers the open transactions of its coordinator from the partition's own ledger and holds back
+     * every message after the first entry of an open transaction. If the client that opened the transaction
+     * crashed, those partitions deliver nothing until the coordinator times the transaction out, and that cannot
+     * happen while the coordinator is not loaded. Looking the coordinator assignments up at startup therefore
+     * restores both the coordinators and their timeout trackers without waiting for a client.
+     */
+    public void start() {
+        pulsarService.runWhenReadyForIncomingRequests(this::recoverAssignedTransactionCoordinators);
+    }
+
+    private void recoverAssignedTransactionCoordinators() {
+        pulsarService.getBrokerService()
+                .fetchPartitionedTopicMetadataAsync(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)
+                .thenAccept(metadata -> {
+                    for (int i = 0; i < metadata.partitions; i++) {
+                        recoverTransactionCoordinator(TransactionCoordinatorID.get(i), 0);
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.warn().exception(ex).log("Failed to recover transaction coordinators");
+                    return null;
+                });
+    }
+
+    /**
+     * Looks up the coordinator assignment and, if this broker owns it, loads the coordinator's store.
+     *
+     * @param tcId the coordinator to recover
+     * @param attempt the zero-based recovery attempt
+     */
+    private void recoverTransactionCoordinator(TransactionCoordinatorID tcId, int attempt) {
+        if (!pulsarService.isRunning()) {
+            return;
+        }
+        final TopicName assignTopic =
+                SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) tcId.getId());
+        lookupTransactionCoordinator(assignTopic)
+                .thenCompose(__ -> pulsarService.getNamespaceService().isServiceUnitOwnedAsync(assignTopic))
+                .thenCompose(owned -> {
+                    if (!owned) {
+                        // The lookup may have made another broker the owner. Check again after the assignment
+                        // has settled so that a concurrent lookup cannot leave the coordinator without a store.
+                        if (attempt == 0) {
+                            scheduleTransactionCoordinatorRecovery(tcId, attempt + 1);
+                        }
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return handleTcClientConnect(tcId);
+                })
+                .exceptionallyCompose(ex -> {
+                    if (attempt + 1 < COORDINATOR_RECOVERY_MAX_ATTEMPTS) {
+                        log.debug().attr("tcId", tcId).attr("attempt", attempt).exception(ex)
+                                .log("Failed to recover transaction coordinator, retrying");
+                        scheduleTransactionCoordinatorRecovery(tcId, attempt + 1);
+                    } else {
+                        log.warn().attr("tcId", tcId).exception(ex)
+                                .log("Failed to recover transaction coordinator");
+                    }
+                    return CompletableFuture.completedFuture(null);
+                });
+    }
+
+    private void scheduleTransactionCoordinatorRecovery(TransactionCoordinatorID tcId, int attempt) {
+        try {
+            pulsarService.getExecutor().schedule(() -> recoverTransactionCoordinator(tcId, attempt),
+                    COORDINATOR_RECOVERY_RETRY_DELAY_MS, TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException e) {
+            log.debug().attr("tcId", tcId).log("Transaction coordinator recovery task rejected");
+        }
+    }
+
+    private CompletableFuture<LookupTopicResult> lookupTransactionCoordinator(TopicName assignTopic) {
+        try {
+            return ((PulsarClientImpl) pulsarService.getClient()).getLookup().getBroker(assignTopic);
+        } catch (PulsarServerException e) {
+            return FutureUtil.failedFuture(e);
+        }
     }
 
     public CompletableFuture<Void> handleTcClientConnect(TransactionCoordinatorID tcId) {
