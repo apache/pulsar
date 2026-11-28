@@ -23,16 +23,21 @@ import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
@@ -45,6 +50,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
@@ -127,6 +133,317 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher2.getNumberOfDelayedMessages(), 1000));
         Assert.assertEquals(bucketKeys, bucketKeys2);
     }
+
+    @Test
+    public void testResetCursorClearsDelayedMessages() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testResetClearsDelayed");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(1, TimeUnit.HOURS)
+                    .send();
+        }
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic)
+                .get().getSubscription("sub").getDispatcher();
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 100));
+        List<String> bucketKeys =
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties()
+                        .keySet().stream().filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+        assertFalse(bucketKeys.isEmpty());
+
+        consumer.close();
+
+        admin.topics().resetCursor(topic, "sub", MessageId.earliest);
+
+        assertEquals(dispatcher.getNumberOfDelayedMessages(), 0,
+                "The delayed delivery tracker should be cleared by the cursor reset");
+        List<String> bucketKeysAfterReset =
+                ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getCursor().getCursorProperties()
+                        .keySet().stream().filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+        assertTrue(bucketKeysAfterReset.isEmpty(),
+                "The bucket cursor properties should be removed by the cursor reset");
+    }
+
+    @Test
+    public void testResetCursorWithoutDispatcherCleansResidualBucketSnapshots() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testResetNoDispatcher");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(1, TimeUnit.HOURS)
+                    .send();
+        }
+
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription("sub");
+        Dispatcher dispatcher = subscription.getDispatcher();
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 100));
+        List<String> bucketKeys = subscription.getCursor().getCursorProperties().keySet().stream()
+                .filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+        assertFalse(bucketKeys.isEmpty());
+
+        consumer.close();
+        admin.topics().unload(topic);
+
+        admin.topics().resetCursor(topic, "sub", MessageId.earliest);
+
+        PersistentSubscription reloadedSubscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription("sub");
+        assertNull(reloadedSubscription.getDispatcher(),
+                "No consumer has connected since the topic was reloaded");
+        List<String> bucketKeysAfterReset = reloadedSubscription.getCursor().getCursorProperties()
+                .keySet().stream().filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+        assertTrue(bucketKeysAfterReset.isEmpty(),
+                "A reset without a dispatcher should still remove the residual bucket cursor properties");
+    }
+
+
+    @Test
+    public void testResetCursorSucceedsWhenSnapshotCleanupFails() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testResetCleanupFails");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(1, TimeUnit.HOURS)
+                    .send();
+        }
+
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription("sub");
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(subscription.getDispatcher().getNumberOfDelayedMessages(), 100));
+        List<String> bucketKeys = subscription.getCursor().getCursorProperties().keySet().stream()
+                .filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+        assertFalse(bucketKeys.isEmpty());
+
+        consumer.close();
+        admin.topics().unload(topic);
+        // Reload the topic before injecting failures, so the managed-ledger open cannot consume
+        // one of the programmed failure slots.
+        admin.topics().getStats(topic);
+
+        // The delayed state is a derived cache: a cleanup failure must not make the reset itself
+        // fail. The two failure slots cover the close of the cached snapshot ledger handle and the
+        // first snapshot delete; a failed delete aborts the sequenced cleanup, so the first reset
+        // settles with the cleanup failed and the WARN-and-continue path engaged.
+        pulsarTestContext.getMockBookKeeper().failAfter(0, BKException.Code.LedgerFencedException);
+        pulsarTestContext.getMockBookKeeper().failAfter(1, BKException.Code.LedgerFencedException);
+
+        admin.topics().resetCursor(topic, "sub", MessageId.earliest);
+
+        // The subscription is not fenced after the failed cleanup: a retry succeeds, and a new
+        // consumer can subscribe again.
+        admin.topics().resetCursor(topic, "sub", MessageId.earliest);
+
+        @Cleanup
+        Consumer<String> reconnectedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+    }
+
+    @Test(timeOut = 60_000)
+    public void testResetCursorRedeliversDelayedMessagesAfterReset() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testResetRedelivers");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .deliverAfter(10, TimeUnit.SECONDS)
+                    .send();
+        }
+
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic)
+                .get().getSubscription("sub").getDispatcher();
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 100));
+
+        consumer.close();
+
+        admin.topics().resetCursor(topic, "sub", MessageId.earliest);
+
+        // After the reset to the earliest position, a reconnecting consumer must receive every
+        // delayed message again, exactly once: the tracker is re-derived from the replayed
+        // metadata, not from the pre-reset bucket snapshots.
+        @Cleanup
+        Consumer<String> reconnectedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        Set<String> receivedMessages = new HashSet<>();
+        for (int i = 0; i < 100; i++) {
+            Message<String> message = reconnectedConsumer.receive(30, TimeUnit.SECONDS);
+            assertNotNull(message, "Timed out after receiving " + receivedMessages.size() + " messages");
+            receivedMessages.add(message.getValue());
+        }
+        assertEquals(receivedMessages.size(), 100,
+                "Every delayed message should be redelivered exactly once after the reset");
+    }
+
+    @Test(timeOut = 60_000)
+    public void testForwardResetSkipsDelayedMessagesAfterReset() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testResetForwardSkip");
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage()
+                    .value("msg-" + i)
+                    .deliverAfter(3, TimeUnit.SECONDS)
+                    .send();
+        }
+
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription("sub");
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(subscription.getDispatcher().getNumberOfDelayedMessages(), 100));
+        assertFalse(subscription.getCursor().getCursorProperties().keySet().stream()
+                .filter(key -> key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList().isEmpty());
+
+        consumer.close();
+
+        admin.topics().resetCursor(topic, "sub", MessageId.latest);
+
+        @Cleanup
+        Consumer<String> reconnectedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        // The delayed messages were already due by the time the reconnected consumer attached. A
+        // stale tracker or pre-reset bucket snapshot would deliver them; a clean reset must not.
+        Message<String> skipped = reconnectedConsumer.receive(8, TimeUnit.SECONDS);
+        assertNull(skipped, "Forward reset must not deliver messages it skipped");
+
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(subscription.getDispatcher().getNumberOfDelayedMessages(), 0));
+        assertTrue(subscription.getCursor().getCursorProperties().keySet().stream()
+                .filter(key -> key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList().isEmpty(),
+                "Forward reset should remove the pre-reset bucket cursor properties");
+    }
+
+    @Test
+    public void testResetCleansResidualSnapshotsAfterSubscriptionTypeSwitch() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testResetTypeSwitch");
+
+        @Cleanup
+        Consumer<String> sharedConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .create();
+
+        for (int i = 0; i < 100; i++) {
+            producer.newMessage()
+                    .value("msg")
+                    .deliverAfter(1, TimeUnit.HOURS)
+                    .send();
+        }
+
+        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription("sub");
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(subscription.getDispatcher().getNumberOfDelayedMessages(), 100));
+        assertFalse(subscription.getCursor().getCursorProperties().keySet().stream()
+                .filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList().isEmpty());
+
+        // Switch the subscription to Exclusive once the Shared consumers are gone. The replacement
+        // single-active dispatcher has no bucket tracker, so its delayed-state clear is a no-op.
+        sharedConsumer.close();
+        @Cleanup
+        Consumer<String> exclusiveConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+        exclusiveConsumer.close();
+
+        admin.topics().resetCursor(topic, "sub", MessageId.earliest);
+
+        PersistentSubscription resetSubscription = (PersistentSubscription) pulsar.getBrokerService()
+                .getTopicReference(topic).get().getSubscription("sub");
+        List<String> bucketKeysAfterReset = resetSubscription.getCursor().getCursorProperties()
+                .keySet().stream().filter(x -> x.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX)).toList();
+        assertTrue(bucketKeysAfterReset.isEmpty(),
+                "A reset on a subscription whose dispatcher does not own the bucket snapshots"
+                        + " should still remove the residual bucket cursor properties");
+    }
+
+
+
 
     @Test
     public void testIncrementPartitionsDoesNotCopyBucketDelayedDeliveryState() throws Exception {
