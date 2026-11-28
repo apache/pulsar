@@ -2174,6 +2174,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
         int skippedMessages = 0;
+        boolean entryAcked = false;
         try {
             for (int i = 0; i < batchSize; ++i) {
                 final MessageImpl<T> message;
@@ -2185,8 +2186,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 } catch (IllegalStateException e) {
                     // The payload can't be read past a message that fails to deserialize, so the rest of the batch
                     // is discarded too
-                    discardCorruptedBatchTail(messageId, cnx, batchSize, i, ackBitSet, ackSetInMessageId,
-                            discardedBatchIndexes, e);
+                    entryAcked = discardCorruptedBatchTail(messageId, cnx, batchSize, i, ackBitSet,
+                            ackSetInMessageId, discardedBatchIndexes, e);
+                    if (entryAcked) {
+                        removeEntryFromAckTracking(batchMessage);
+                    }
                     break;
                 }
                 if (message == null) {
@@ -2225,7 +2229,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     executeNotifyCallback(message);
                 }
             }
-            if (possibleToDeadLetter != null) {
+            if (possibleToDeadLetter != null && !entryAcked) {
                 // Publish the complete batch before an application callback can acknowledge it or close the consumer.
                 boolean cached = cachePossibleDeadLetterMessages(batchMessage, possibleToDeadLetter, cnx);
                 if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
@@ -2336,6 +2340,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 trackUnAckedMsgIfNoListener(id, redeliveryCount);
             }
+        }
+    }
+
+    /**
+     * Stops tracking an entry once every message in it is acknowledged. The ack-timeout tracker and the possible
+     * dead letter topic messages must not keep an entry that has no unacknowledged message left. This is shared by
+     * the normal ack path and by the path that acks a whole entry after discarding its corrupted tail.
+     */
+    void removeEntryFromAckTracking(MessageId entryId) {
+        unAckedMessageTracker.remove(entryId);
+        if (possibleSendToDeadLetterTopicMessages != null) {
+            possibleSendToDeadLetterTopicMessages.remove(entryId);
         }
     }
 
@@ -2635,19 +2651,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * enabled) and the whole entry is acked by the normal ack path once the application acks the delivered messages.
      * When batch index ack is disabled, no ack is sent here; the discarded indexes are recorded so that a
      * transactional ack of a delivered message also acks them, since it builds its ack mask from the batch size.
+     *
+     * @return whether the whole entry was acked, that is, no message of the batch is left unacknowledged
      */
-    private void discardCorruptedBatchTail(MessageIdData messageId, ClientCnx currentCnx, int batchSize,
-                                           int failedIndex, BitSetRecyclable ackBitSet, BitSet ackSetInMessageId,
-                                           BitSet discardedBatchIndexes, Exception cause) {
+    private boolean discardCorruptedBatchTail(MessageIdData messageId, ClientCnx currentCnx, int batchSize,
+                                              int failedIndex, BitSetRecyclable ackBitSet, BitSet ackSetInMessageId,
+                                              BitSet discardedBatchIndexes, Exception cause) {
         log.error().attr("messageId", messageId)
                 .attr("batchSize", batchSize)
                 .attr("failedIndex", failedIndex)
                 .exception(cause)
                 .log("Discarding the corrupted messages of the batch from the failed index on");
         BitSetRecyclable pendingAckSet = null;
+        boolean entryAcked;
         int permits = 0;
         synchronized (ackSetInMessageId) {
             ackSetInMessageId.clear(failedIndex, batchSize);
+            entryAcked = ackSetInMessageId.isEmpty();
             for (int i = failedIndex; i < batchSize; i++) {
                 if (!isSingleMessageAcked(ackBitSet, i)) {
                     permits++;
@@ -2656,7 +2676,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     }
                 }
             }
-            if (!ackSetInMessageId.isEmpty()) {
+            if (!entryAcked) {
                 pendingAckSet = BitSetRecyclable.valueOf(ackSetInMessageId.toLongArray());
             }
         }
@@ -2675,6 +2695,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // The broker only charged permits for the indexes it delivered, the ones not acked in the incoming ack set
         increaseAvailablePermits(currentCnx, permits);
         stats.incrementNumReceiveFailed();
+        return entryAcked;
     }
 
     private void discardMessage(MessageIdData messageId, ClientCnx currentCnx, ValidationError validationError,

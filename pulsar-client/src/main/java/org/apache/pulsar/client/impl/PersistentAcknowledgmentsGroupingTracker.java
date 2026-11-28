@@ -217,10 +217,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             boolean groupedByCaller) {
         if (batchMessageId == null || MessageIdAdvUtils.acknowledge(batchMessageId, true)) {
             consumer.getStats().incrementNumAcksSent((batchMessageId != null) ? batchMessageId.getBatchSize() : 1);
-            consumer.getUnAckedMessageTracker().remove(msgId);
-            if (consumer.getPossibleSendToDeadLetterTopicMessages() != null) {
-                consumer.getPossibleSendToDeadLetterTopicMessages().remove(msgId);
-            }
+            consumer.removeEntryFromAckTracking(msgId);
             // List acknowledgments already hold the grouping lock and flush after processing the list.
             return groupedByCaller ? doIndividualAckAsync(msgId) : doIndividualAck(msgId, properties);
         } else if (batchIndexAckEnabled) {
