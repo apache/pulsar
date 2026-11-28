@@ -37,7 +37,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -116,8 +118,8 @@ public class Producer {
     private final String clientAddress; // IP address only, no port number included
     private final AtomicBoolean isDisconnecting = new AtomicBoolean(false);
 
-    /** Set after {@code BrokerInterceptor#producerCreated} returns successfully on the connection. */
-    private volatile boolean brokerInterceptorProducerCreatedNotified;
+    /** Interceptor indices (see {@code BrokerInterceptors}) that received a successful {@code producerCreated}. */
+    private final Set<Integer> brokerInterceptorCreateSuccessIndices = ConcurrentHashMap.newKeySet();
 
     private final AtomicBoolean brokerInterceptorClosedNotified = new AtomicBoolean(false);
 
@@ -847,12 +849,16 @@ public class Producer {
         isDisconnecting.set(false);
     }
 
-    public void markBrokerInterceptorProducerCreatedNotified() {
-        brokerInterceptorProducerCreatedNotified = true;
+    public void markBrokerInterceptorCreatedNotified(int interceptorIndex) {
+        brokerInterceptorCreateSuccessIndices.add(interceptorIndex);
     }
 
-    public boolean isBrokerInterceptorProducerCreatedNotified() {
-        return brokerInterceptorProducerCreatedNotified;
+    public boolean hasBrokerInterceptorCreateNotifications() {
+        return !brokerInterceptorCreateSuccessIndices.isEmpty();
+    }
+
+    public boolean wasBrokerInterceptorCreatedNotified(int interceptorIndex) {
+        return brokerInterceptorCreateSuccessIndices.contains(interceptorIndex);
     }
 
     public boolean markBrokerInterceptorClosedNotified() {

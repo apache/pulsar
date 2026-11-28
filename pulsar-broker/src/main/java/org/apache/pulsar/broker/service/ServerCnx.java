@@ -94,6 +94,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -2519,7 +2520,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 if (brokerInterceptor != null) {
                                     try {
                                         brokerInterceptor.consumerCreated(this, consumer, metadata);
-                                        consumer.markBrokerInterceptorConsumerCreatedNotified();
+                                        if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                                            consumer.markBrokerInterceptorCreatedNotified(0);
+                                        }
                                     } catch (Throwable t) {
                                         log.error()
                                                 .exception(t)
@@ -3083,7 +3086,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     if (brokerInterceptor != null) {
                         try {
                             brokerInterceptor.producerCreated(this, producer, metadata);
-                            producer.markBrokerInterceptorProducerCreatedNotified();
+                            if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                                producer.markBrokerInterceptorCreatedNotified(0);
+                            }
                         } catch (Throwable t) {
                             log.error().exception(t).log("Exception occur when intercept producer created.");
                         }
@@ -3166,7 +3171,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 if (brokerInterceptor != null) {
                     try {
                         brokerInterceptor.producerCreated(this, producer, metadata);
-                        producer.markBrokerInterceptorProducerCreatedNotified();
+                        if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                            producer.markBrokerInterceptorCreatedNotified(0);
+                        }
                     } catch (Throwable t) {
                         log.error().exception(t).log("Exception occur when intercept producer created.");
                     }
@@ -5030,7 +5037,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void notifyConsumerClosed(Consumer consumer) {
-        if (brokerInterceptor == null || !consumer.isBrokerInterceptorConsumerCreatedNotified()
+        if (brokerInterceptor == null || !consumer.hasBrokerInterceptorCreateNotifications()
                 || !consumer.markBrokerInterceptorClosedNotified()) {
             return;
         }
@@ -5051,7 +5058,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void notifyProducerClosed(Producer producer) {
-        if (brokerInterceptor == null || !producer.isBrokerInterceptorProducerCreatedNotified()
+        if (brokerInterceptor == null || !producer.hasBrokerInterceptorCreateNotifications()
                 || !producer.markBrokerInterceptorClosedNotified()) {
             return;
         }

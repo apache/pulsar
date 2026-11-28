@@ -36,7 +36,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -188,8 +190,8 @@ public class Consumer {
     private static final AtomicReferenceFieldUpdater<Consumer, Attributes> OPEN_TELEMETRY_ATTRIBUTES_FIELD_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(Consumer.class, Attributes.class, "openTelemetryAttributes");
 
-    /** Set after {@code BrokerInterceptor#consumerCreated} returns successfully on the connection. */
-    private volatile boolean brokerInterceptorConsumerCreatedNotified;
+    /** Interceptor indices (see {@code BrokerInterceptors}) that received a successful {@code consumerCreated}. */
+    private final Set<Integer> brokerInterceptorCreateSuccessIndices = ConcurrentHashMap.newKeySet();
 
     private boolean cleanupStarted;
 
@@ -540,12 +542,16 @@ public class Consumer {
         }
     }
 
-    public void markBrokerInterceptorConsumerCreatedNotified() {
-        brokerInterceptorConsumerCreatedNotified = true;
+    public void markBrokerInterceptorCreatedNotified(int interceptorIndex) {
+        brokerInterceptorCreateSuccessIndices.add(interceptorIndex);
     }
 
-    public boolean isBrokerInterceptorConsumerCreatedNotified() {
-        return brokerInterceptorConsumerCreatedNotified;
+    public boolean hasBrokerInterceptorCreateNotifications() {
+        return !brokerInterceptorCreateSuccessIndices.isEmpty();
+    }
+
+    public boolean wasBrokerInterceptorCreatedNotified(int interceptorIndex) {
+        return brokerInterceptorCreateSuccessIndices.contains(interceptorIndex);
     }
 
     public boolean markBrokerInterceptorClosedNotified() {
