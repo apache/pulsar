@@ -74,6 +74,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessagePayload;
+import org.apache.pulsar.client.api.MessagePayloadProcessor;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -1748,6 +1749,33 @@ public class ConsumerImplTest {
 
         // Verify the flow command was sent
         verify(ctx, times(1)).writeAndFlush(any(ByteBuf.class), any(ChannelPromise.class));
+    }
+
+    @Test
+    public void testZeroQueueConsumerWithPayloadProcessorReleasesRejectedBatch() {
+        consumerConf.setReceiverQueueSize(0);
+        consumerConf.setPayloadProcessor(MessagePayloadProcessor.DEFAULT);
+        createConsumer(consumerConf, PERSISTENT_TOPIC);
+        assertThat(consumer)
+                .as("a consumer with receiverQueueSize 0 should be a zero queue consumer")
+                .isInstanceOf(ZeroQueueConsumerImpl.class);
+
+        MessageMetadata md = new MessageMetadata()
+                .setProducerName("p").setSequenceId(0).setPublishTime(System.currentTimeMillis())
+                .setNumMessagesInBatch(2);
+        // The consumer rejects the batch without parsing it, so an empty payload is enough.
+        ByteBuf headersAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, md,
+                Unpooled.EMPTY_BUFFER);
+        try {
+            consumer.messageReceived(chunkCommand(1L), headersAndPayload, ClientTestFixtures.mockClientCnx());
+        } finally {
+            // The connection handler releases the frame after messageReceived returns.
+            headersAndPayload.release();
+        }
+
+        assertThat(headersAndPayload.refCnt())
+                .as("the zero queue consumer should release the batch it rejects")
+                .isZero();
     }
 
 }
