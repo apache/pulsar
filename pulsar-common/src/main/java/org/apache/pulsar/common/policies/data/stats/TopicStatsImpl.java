@@ -115,7 +115,12 @@ public class TopicStatsImpl implements TopicStats {
      */
     public String oldestBacklogMessageSubscriptionName;
 
-    /** The number of times the publishing rate limit was triggered. */
+    /**
+     * Total number of times the publishing rate limit was triggered.
+     * <p>
+     * Cumulative for as long as the topic stays loaded on this broker.
+     * </p>
+     */
     public long publishRateLimitedTimes;
 
     /** Get the publish time of the earliest message over all the backlogs. */
