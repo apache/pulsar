@@ -40,6 +40,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -196,6 +197,8 @@ public class Consumer {
     private boolean cleanupStarted;
 
     private final AtomicBoolean brokerInterceptorClosedNotified = new AtomicBoolean(false);
+    private final AtomicInteger brokerInterceptorCreateInProgress = new AtomicInteger();
+    private final AtomicBoolean brokerInterceptorClosePendingDuringCreate = new AtomicBoolean();
 
     @Getter
     @Setter
@@ -556,6 +559,26 @@ public class Consumer {
 
     public boolean markBrokerInterceptorClosedNotified() {
         return brokerInterceptorClosedNotified.compareAndSet(false, true);
+    }
+
+    public void beginBrokerInterceptorCreate() {
+        brokerInterceptorCreateInProgress.incrementAndGet();
+    }
+
+    public void endBrokerInterceptorCreate(TransportCnx transportCnx) {
+        if (brokerInterceptorCreateInProgress.decrementAndGet() != 0) {
+            return;
+        }
+        if (brokerInterceptorClosePendingDuringCreate.getAndSet(false)
+                && hasBrokerInterceptorCreateNotifications()) {
+            transportCnx.notifyConsumerClosed(this);
+        }
+    }
+
+    public void noteBrokerInterceptorClosePendingDuringCreate() {
+        if (brokerInterceptorCreateInProgress.get() > 0) {
+            brokerInterceptorClosePendingDuringCreate.set(true);
+        }
     }
 
     public void disconnect() {

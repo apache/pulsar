@@ -42,6 +42,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
@@ -122,6 +123,8 @@ public class Producer {
     private final Set<Integer> brokerInterceptorCreateSuccessIndices = ConcurrentHashMap.newKeySet();
 
     private final AtomicBoolean brokerInterceptorClosedNotified = new AtomicBoolean(false);
+    private final AtomicInteger brokerInterceptorCreateInProgress = new AtomicInteger();
+    private final AtomicBoolean brokerInterceptorClosePendingDuringCreate = new AtomicBoolean();
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
@@ -863,6 +866,26 @@ public class Producer {
 
     public boolean markBrokerInterceptorClosedNotified() {
         return brokerInterceptorClosedNotified.compareAndSet(false, true);
+    }
+
+    public void beginBrokerInterceptorCreate() {
+        brokerInterceptorCreateInProgress.incrementAndGet();
+    }
+
+    public void endBrokerInterceptorCreate(TransportCnx transportCnx) {
+        if (brokerInterceptorCreateInProgress.decrementAndGet() != 0) {
+            return;
+        }
+        if (brokerInterceptorClosePendingDuringCreate.getAndSet(false)
+                && hasBrokerInterceptorCreateNotifications()) {
+            transportCnx.notifyProducerClosed(this);
+        }
+    }
+
+    public void noteBrokerInterceptorClosePendingDuringCreate() {
+        if (brokerInterceptorCreateInProgress.get() > 0) {
+            brokerInterceptorClosePendingDuringCreate.set(true);
+        }
     }
 
     public CompletableFuture<Void> disconnect() {
