@@ -21,20 +21,24 @@ package org.apache.pulsar.common.compression;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.util.Base64;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class CommandsTest {
@@ -91,6 +95,104 @@ public class CommandsTest {
         int computedChecksum = Crc32cIntChecksum.computeChecksum(byteBuf);
         byteBuf.release();
         return computedChecksum;
+    }
+
+    @DataProvider
+    public Object[][] checksumTypes() {
+        return new Object[][] {{ChecksumType.None}, {ChecksumType.Crc32c}};
+    }
+
+    @Test(dataProvider = "checksumTypes")
+    public void testSerializeMetadataAndPayloadPreservesSourceIndices(ChecksumType checksumType) {
+        ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {9, 8, 7, 6, 5, 4});
+        payload.readerIndex(1);
+        payload.writerIndex(5);
+        int readerIndex = payload.readerIndex();
+        int writerIndex = payload.writerIndex();
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("producer")
+                .setSequenceId(1)
+                .setPublishTime(System.currentTimeMillis());
+
+        ByteBuf serialized = serializeMetadataAndPayload(checksumType, metadata, payload);
+
+        assertEquals(payload.readerIndex(), readerIndex, "serialization must not consume the source payload");
+        assertEquals(payload.writerIndex(), writerIndex, "serialization must not change the source capacity");
+        assertEquals(serialized.readableBytes(), metadata.getSerializedSize() + 4 + (writerIndex - readerIndex)
+                + (ChecksumType.Crc32c.equals(checksumType) ? 6 : 0));
+        assertEquals(serialized.getByte(serialized.writerIndex() - (writerIndex - readerIndex) + 1), (byte) 7);
+        ReferenceCountUtil.safeRelease(serialized);
+        payload.release();
+    }
+
+    @Test(dataProvider = "checksumTypes")
+    public void testNewSendEncoderPreservesSourceIndices(ChecksumType checksumType) {
+        ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {9, 8, 7, 6, 5, 4});
+        payload.readerIndex(1);
+        payload.writerIndex(5);
+        int readerIndex = payload.readerIndex();
+        int writerIndex = payload.writerIndex();
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("producer")
+                .setSequenceId(1)
+                .setPublishTime(System.currentTimeMillis());
+
+        ByteBufPair serialized = Commands.newSend(1, 1, 1, checksumType, metadata, payload);
+        payload.retain();
+        EmbeddedChannel channel = new EmbeddedChannel(ByteBufPair.getEncoder(false));
+        assertTrue(channel.writeOutbound(serialized));
+        channel.finishAndReleaseAll();
+
+        assertEquals(payload.readerIndex(), readerIndex,
+                "serialization and encoding must not consume the source payload");
+        assertEquals(payload.writerIndex(), writerIndex,
+                "serialization and encoding must not change the source capacity");
+        assertEquals(payload.refCnt(), 1, "encoding must release only the pair's payload reference");
+        payload.release();
+    }
+
+    @Test(dataProvider = "checksumTypes")
+    public void testSerializeMetadataAndPayloadEncoderPreservesSourceIndices(ChecksumType checksumType) {
+        ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {9, 8, 7, 6, 5, 4});
+        payload.readerIndex(1);
+        payload.writerIndex(5);
+        int readerIndex = payload.readerIndex();
+        int writerIndex = payload.writerIndex();
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("producer")
+                .setSequenceId(1)
+                .setPublishTime(System.currentTimeMillis());
+
+        ByteBuf metadataAndPayload = serializeMetadataAndPayload(checksumType, metadata, payload);
+        EmbeddedChannel channel = new EmbeddedChannel(ByteBufPair.getEncoder(false));
+        assertTrue(channel.writeOutbound(ByteBufPair.get(Unpooled.buffer().writeZero(1), metadataAndPayload)));
+        channel.finishAndReleaseAll();
+        assertEquals(payload.readerIndex(), readerIndex,
+                "encoding must not consume the source payload");
+        assertEquals(payload.writerIndex(), writerIndex,
+                "encoding must not change the source capacity");
+        payload.release();
+    }
+
+    @Test
+    public void testSerializeSingleMessageInBatchPreservesSourceIndices() {
+        ByteBuf payload = Unpooled.wrappedBuffer(new byte[] {9, 8, 7, 6, 5, 4});
+        payload.readerIndex(1);
+        payload.writerIndex(5);
+        int readerIndex = payload.readerIndex();
+        int writerIndex = payload.writerIndex();
+        SingleMessageMetadata metadata = new SingleMessageMetadata().setSequenceId(1);
+        ByteBuf batch = Unpooled.buffer();
+
+        ByteBuf serialized = Commands.serializeSingleMessageInBatchWithPayload(metadata, payload, batch);
+
+        assertSame(serialized, batch);
+        assertEquals(payload.readerIndex(), readerIndex, "serialization must not consume the source payload");
+        assertEquals(payload.writerIndex(), writerIndex, "serialization must not change the source capacity");
+        assertEquals(batch.readInt(), metadata.getSerializedSize());
+        assertEquals(batch.getByte(batch.writerIndex() - (writerIndex - readerIndex) + 1), (byte) 7);
+        ReferenceCountUtil.safeRelease(batch);
+        payload.release();
     }
 
     @Test

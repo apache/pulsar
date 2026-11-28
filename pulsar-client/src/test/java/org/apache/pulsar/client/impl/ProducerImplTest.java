@@ -73,6 +73,7 @@ import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -1188,6 +1189,93 @@ public class ProducerImplTest {
         assertEquals(producer.getState(), HandlerState.State.Failed);
         verify(keyTask).cancel(false);
         verify(client).cleanupProducer(producer);
+    }
+
+    /**
+     * Serializing a non-batched SEND must leave the retained interceptor payload readable for the acknowledgement
+     * callback. The callback runs before the retained reference is released.
+     */
+    @Test
+    public void testProducerInterceptorCanReadPayloadOnAcknowledgement() throws Exception {
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatchingEnabled(false);
+        conf.setProducerName("interceptor-test");
+        AtomicReference<byte[]> acknowledgedValue = new AtomicReference<>();
+        ProducerInterceptor interceptor = new ProducerInterceptor() {
+            @Override
+            public void close() {
+            }
+
+            @Override
+            public boolean eligible(Message<?> message) {
+                return true;
+            }
+
+            @Override
+            public Message<?> beforeSend(Producer<?> producer, Message<?> message) {
+                return message;
+            }
+
+            @Override
+            public void onSendAcknowledgement(Producer<?> producer, Message<?> message, MessageId msgId,
+                                              Throwable exception) {
+                acknowledgedValue.set((byte[]) message.getValue());
+            }
+        };
+        try (ResendAttemptClient client = new ResendAttemptClient()) {
+            ProducerImpl<byte[]> producer = constructProducer(client, conf, Schema.BYTES,
+                    new ProducerInterceptors(Collections.singletonList(interceptor)));
+            ConnectionHandler connectionHandler = producer.getConnectionHandler();
+            connectionHandler.setMaxMessageSize(1024 * 1024);
+            AtomicReference<OpSendMsg> captured = new AtomicReference<>();
+            AtomicReference<ByteBufPair> command = new AtomicReference<>();
+            doAnswer(invocation -> {
+                OpSendMsg op = invocation.getArgument(0);
+                captured.set(op);
+                command.set(op.cmd);
+                return null;
+            }).when(producer).processOpSendMsg(any());
+
+            producer.setState(ProducerImpl.State.Ready);
+            MessageImpl<byte[]> message = newMessage(new byte[] {1, 2, 3, 4});
+            message.getMessageBuilder().clearPublishTime();
+            message.getMessageBuilder().setSequenceId(0);
+            ByteBuf payload = message.getDataBuffer();
+            int readerIndex = payload.readerIndex();
+            int payloadWriterIndex = payload.writerIndex();
+            CompletableFuture<MessageId> result = producer.internalSendAsync(message);
+            assertThat(result).as("the valid send must not fail synchronously").isNotCompletedExceptionally();
+            assertThat(payload.refCnt()).as("the pending send must retain its payload reference").isEqualTo(2);
+
+            OpSendMsg op = captured.get();
+            assertNotNull(op, "the SEND operation must be built synchronously without batching");
+            assertEquals(payload.readerIndex(), readerIndex,
+                    "building the SEND command must not consume the interceptor payload");
+            assertEquals(payload.refCnt(), 2, "the callback must retain the interceptor payload");
+
+            EmbeddedChannel channel = new EmbeddedChannel(ByteBufPair.getEncoder(false));
+            try {
+                assertTrue(channel.writeOutbound(command.get().retain()));
+                channel.finishAndReleaseAll();
+                assertEquals(payload.readerIndex(), readerIndex,
+                        "writing the SEND command must not consume the interceptor payload");
+                assertEquals(payload.writerIndex(), payloadWriterIndex,
+                        "writing the SEND command must not change the interceptor payload capacity");
+            } finally {
+                channel.finishAndReleaseAll();
+            }
+
+            op.callback.sendComplete(null, null);
+
+            assertEquals(acknowledgedValue.get(), new byte[] {1, 2, 3, 4},
+                    "the acknowledgement interceptor must be able to decode the original value");
+            assertEquals(payload.refCnt(), 1,
+                    "the callback reference must be released after the interceptor");
+            op.cmd.release();
+            op.recycle();
+            ReferenceCountUtil.safeRelease(payload);
+            assertThat(result).isCompleted();
+        }
     }
 
     /** A client mock whose stubs satisfy the {@link ProducerImpl} constructor. */
