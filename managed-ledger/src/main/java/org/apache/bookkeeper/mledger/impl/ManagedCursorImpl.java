@@ -464,6 +464,19 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.ledgerForceRecovery = getConfig().isLedgerForceRecovery();
     }
 
+    private void adoptRefreshedCursorInfo(ManagedCursorInfo cursorInfo, Stat stat) {
+        synchronized (cursorPropertiesLock) {
+            Stat localStat = this.cursorLedgerStat;
+            // Don't go back from a version a concurrent write or refresh has moved past.
+            boolean notOlder = localStat == null
+                    || localStat.getCreationTimestamp() != stat.getCreationTimestamp()
+                    || localStat.getVersion() <= stat.getVersion();
+            if (notOlder) {
+                updateCursorLedgerStat(cursorInfo, stat);
+            }
+        }
+    }
+
     private void updateCursorLedgerStat(ManagedCursorInfo cursorInfo, Stat stat) {
         // The three fields describe one persisted cursor state: the properties are rebuilt from
         // the info so a version refresh cannot pair a fresh stat with stale properties. The stat
@@ -594,7 +607,47 @@ public class ManagedCursorImpl implements ManagedCursor {
                                 .attr("properties", newProperties)
                                 .exception(e)
                                 .log("Error while updating ledger cursor properties");
-                        updateCursorPropertiesResult.completeExceptionally(e);
+                        // Read first: the ownership may move between the check and the read.
+                        ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
+                            @Override
+                            public void operationComplete(ManagedCursorInfo current, Stat stat) {
+                                // The publication id identifies this attempt's own committed write.
+                                // MetaStoreImpl stamps one on every cursor-info write; a store that
+                                // stamps none cannot be recognized, and the call fails with the
+                                // original error.
+                                boolean ownWrite = !copy.getPublication().isEmpty()
+                                        && copy.getPublication().equals(current.getPublication());
+                                Runnable fail = () -> updateCursorPropertiesResult.completeExceptionally(e);
+                                if (ledger.mlOwnershipChecker == null) {
+                                    // Without a checker, adopt only this cursor's own write, never
+                                    // another writer's version.
+                                    if (ownWrite) {
+                                        adoptRefreshedCursorInfo(current, stat);
+                                        updateCursorPropertiesResult.complete(null);
+                                    } else {
+                                        fail.run();
+                                    }
+                                    return;
+                                }
+                                FutureUtil.supplySafely(ledger.mlOwnershipChecker).whenComplete((owned, error) -> {
+                                    if (error == null && Boolean.TRUE.equals(owned) && !state.isClosed()) {
+                                        adoptRefreshedCursorInfo(current, stat);
+                                        if (ownWrite) {
+                                            updateCursorPropertiesResult.complete(null);
+                                            return;
+                                        }
+                                    }
+                                    fail.run();
+                                });
+                            }
+
+                            @Override
+                            public void operationFailed(MetaStoreException readError) {
+                                // Best effort: the cache keeps the pre-write state and the caller
+                                // sees the original error.
+                                updateCursorPropertiesResult.completeExceptionally(e);
+                            }
+                        });
                     }
                 });
 
