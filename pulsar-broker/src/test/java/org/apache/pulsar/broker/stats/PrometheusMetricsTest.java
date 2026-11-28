@@ -1480,6 +1480,45 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(codes, Set.of("1xx", "2xx", "3xx", "4xx", "5xx"));
     }
 
+    @Test
+    public void testPublishLatencySummaryCountsPublishesAndKeepsItsQuantiles() throws Exception {
+        double publishesBefore = requiredSingleValue(parseMetrics(scrape()), "pulsar_broker_publish_latency_count");
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic("persistent://my-property/my-ns/publish-latency-summary").create();
+        producer.send("message".getBytes());
+
+        String metricsStr = scrape();
+        assertThat(metricsStr).contains("# TYPE pulsar_broker_publish_latency summary\n");
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        assertThat(requiredSingleValue(metrics, "pulsar_broker_publish_latency_count"))
+                .isGreaterThan(publishesBefore);
+        assertThat(requiredSingleValue(metrics, "pulsar_broker_publish_latency_sum")).isPositive();
+        assertThat(metrics.get("pulsar_broker_publish_latency"))
+                .allSatisfy(quantileSample -> assertThat(quantileSample.tags).containsEntry("cluster", "test"))
+                .extracting(quantileSample -> quantileSample.tags.get("quantile"))
+                .containsExactlyInAnyOrder("0.0", "0.5", "0.95", "0.99", "0.999", "0.9999", "1.0");
+    }
+
+    @Test
+    public void testBrokerServiceGaugesAndBacklogQuotaHistogramAreScraped() throws Exception {
+        String metricsStr = scrape();
+        assertThat(metricsStr)
+                .contains("# TYPE pulsar_broker_lookup_pending_requests gauge\n")
+                .contains("# TYPE pulsar_broker_topic_load_pending_requests gauge\n")
+                .contains("# TYPE pulsar_broker_throttled_connections gauge\n")
+                .contains("# TYPE pulsar_storage_backlog_quota_check_duration_seconds histogram\n");
+        Multimap<String, Metric> metrics = parseMetrics(metricsStr);
+        for (String family : List.of("pulsar_broker_lookup_pending_requests",
+                "pulsar_broker_topic_load_pending_requests", "pulsar_broker_throttled_connections",
+                "pulsar_storage_backlog_quota_check_duration_seconds_count")) {
+            assertThat(requiredSingleValue(metrics, family)).as(family).isNotNegative();
+        }
+        assertThat(metrics.get("pulsar_storage_backlog_quota_check_duration_seconds_bucket"))
+                .extracting(bucket -> bucket.tags.get("le"))
+                .containsExactlyInAnyOrder("5.0", "10.0", "30.0", "60.0", "300.0", "+Inf");
+    }
+
     /** Checks for duplicate type definitions for a metric in the Prometheus metrics output. If the Prometheus parser
      finds a TYPE definition for the same metric more than once, it errors out:
      https://github.com/prometheus/prometheus/blob/f04b1b5559a80a4fd1745cf891ce392a056460c9/vendor/github.com/

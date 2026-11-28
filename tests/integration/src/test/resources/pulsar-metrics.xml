@@ -23,6 +23,7 @@
   <test name="metrics-test-suite" preserve-order="true">
     <classes>
       <class name="org.apache.pulsar.tests.integration.metrics.OpenTelemetrySanityTest"/>
+      <class name="org.apache.pulsar.tests.integration.metrics.BrokerPendingRequestGaugesTest"/>
     </classes>
   </test>
 </suite>

@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import com.google.common.base.Joiner;
-import io.prometheus.client.Collector;
 import org.apache.bookkeeper.stats.Counter;
 import org.apache.bookkeeper.stats.Gauge;
 import org.apache.bookkeeper.stats.OpStatsLogger;
@@ -80,6 +79,6 @@ public class PrometheusStatsLogger implements StatsLogger {
 
     private String completeName(String name) {
         String completeName = scope.isEmpty() ? name : Joiner.on('_').join(scope, name);
-        return Collector.sanitizeMetricName(completeName);
+        return PrometheusMetricsProvider.sanitizeMetricName(completeName);
     }
 }

@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.stats.prometheus.metrics;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.client.Collector;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.concurrent.ConcurrentMap;
@@ -83,7 +82,7 @@ public class PrometheusMetricsProvider implements StatsProvider {
                 } else {
                     completeName = StringUtils.join(statsComponents, '_');
                 }
-                return Collector.sanitizeMetricName(completeName);
+                return sanitizeMetricName(completeName);
             }
         });
     }
@@ -122,6 +121,26 @@ public class PrometheusMetricsProvider implements StatsProvider {
     @Override
     public String getStatsName(String... statsComponents) {
         return cachingStatsProvider.getStatsName(statsComponents);
+    }
+
+    /**
+     * Keeps the ASCII letters, the colons and the digits other than a leading one, and replaces every other
+     * {@code char} with {@code _}, as simpleclient's {@code Collector.sanitizeMetricName} did. The client 1.x
+     * {@code PrometheusNaming.sanitizeMetricName} is not a replacement: it keeps any UTF-8 name and strips reserved
+     * suffixes such as {@code _total} instead. Neither is {@code PrometheusNaming.escapeName}: it writes one
+     * {@code _} for a character outside the Basic Multilingual Plane, which is two {@code char}s.
+     */
+    static String sanitizeMetricName(String name) {
+        char[] sanitized = name.toCharArray();
+        for (int i = 0; i < sanitized.length; i++) {
+            char c = sanitized[i];
+            boolean kept = c == ':' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                    || (c >= '0' && c <= '9' && i > 0);
+            if (!kept) {
+                sanitized[i] = '_';
+            }
+        }
+        return new String(sanitized);
     }
 
     @VisibleForTesting

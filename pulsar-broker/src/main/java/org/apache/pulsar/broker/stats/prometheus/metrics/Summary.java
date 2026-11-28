@@ -18,79 +18,64 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import io.prometheus.client.Collector;
-import io.prometheus.client.SimpleCollector;
-import io.prometheus.client.SummaryMetricFamily;
+import io.prometheus.metrics.model.registry.Collector;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.MetricFamilyDescriptor;
+import io.prometheus.metrics.model.snapshots.Quantile;
+import io.prometheus.metrics.model.snapshots.Quantiles;
+import io.prometheus.metrics.model.snapshots.SummarySnapshot;
+import io.prometheus.metrics.model.snapshots.SummarySnapshot.SummaryDataPointSnapshot;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-public class Summary extends SimpleCollector<Summary.Child> implements Collector.Describable {
+public class Summary implements Collector {
 
     private static final List<DataSketchesSummaryLogger> LOGGERS = new ArrayList<>();
 
-    public static class Builder extends SimpleCollector.Builder<Builder, Summary> {
+    public static class Builder {
+        private final String name;
+        private final String help;
         private final List<Double> quantiles = new ArrayList<>();
+
+        private Builder(String name, String help) {
+            this.name = name;
+            this.help = help;
+        }
 
         public Builder quantile(double quantile) {
             this.quantiles.add(quantile);
             return this;
         }
 
-        @Override
-        public Summary create() {
-            return new Summary(this);
-        }
-    }
-
-    public static class Child {
-        private final DataSketchesSummaryLogger logger;
-        private final List<Double> quantiles;
-
-        public Child(List<Double> quantiles) {
-            this.quantiles = quantiles;
-            this.logger = new DataSketchesSummaryLogger();
-            synchronized (LOGGERS) {
-                if (!quantiles.isEmpty()) {
-                    LOGGERS.add(logger);
-                }
-            }
-        }
-
-        public void observe(long eventLatency, TimeUnit unit) {
-            logger.registerEvent(eventLatency, unit);
+        public Summary register() {
+            Summary summary = new Summary(this);
+            PrometheusRegistry.defaultRegistry.register(summary);
+            return summary;
         }
     }
 
     public static Builder build(String name, String help) {
-        return build().name(name).help(help);
+        return new Builder(name, help);
     }
 
-    public static Builder build() {
-        return new Builder();
-    }
-
+    private final MetricFamilyDescriptor descriptor;
     private final List<Double> quantiles;
+    private final DataSketchesSummaryLogger logger = new DataSketchesSummaryLogger();
 
     private Summary(Builder builder) {
-        super(builder);
-        this.quantiles = builder.quantiles;
-        this.clear();
-    }
-
-    @Override
-    protected Child newChild() {
-        if (quantiles != null) {
-            return new Child(quantiles);
-        } else {
-            return new Child(Collections.emptyList());
+        this.descriptor = MetricFamilyDescriptor.summary(builder.name).help(builder.help).build();
+        this.quantiles = List.copyOf(builder.quantiles);
+        // Rejects a quantile outside [0, 1] and a duplicate here, where the summary is built. A scrape builds the
+        // same quantiles, and there the exception would fail the whole scrape.
+        Quantiles.of(quantiles.stream().map(quantile -> new Quantile(quantile, 0)).toList());
+        synchronized (LOGGERS) {
+            LOGGERS.add(logger);
         }
     }
 
     public void observe(long eventLatency, TimeUnit unit) {
-        noLabelsChild.observe(eventLatency, unit);
+        logger.registerEvent(eventLatency, unit);
     }
 
     public static void rotateLatencyCollection() {
@@ -102,29 +87,20 @@ public class Summary extends SimpleCollector<Summary.Child> implements Collector
     }
 
     @Override
-    public List<MetricFamilySamples> collect() {
-        List<MetricFamilySamples.Sample> samples = new ArrayList<MetricFamilySamples.Sample>();
-        for (Map.Entry<List<String>, Child> c : children.entrySet()) {
-            Child child = c.getValue();
-            List<String> labelNamesWithQuantile = new ArrayList<String>(labelNames);
-            labelNamesWithQuantile.add("quantile");
-            for (Double q : child.quantiles) {
-                List<String> labelValuesWithQuantile = new ArrayList<String>(c.getKey());
-                labelValuesWithQuantile.add(doubleToGoString(q));
-                samples.add(new MetricFamilySamples.Sample(fullname, labelNamesWithQuantile, labelValuesWithQuantile,
-                        child.logger.getQuantileValue(q)));
-            }
-            samples.add(new MetricFamilySamples.Sample(fullname + "_count", labelNames, c.getKey(),
-                    child.logger.getCount()));
-            samples.add(
-                    new MetricFamilySamples.Sample(fullname + "_sum", labelNames, c.getKey(), child.logger.getSum()));
+    public SummarySnapshot collect() {
+        List<Quantile> quantileValues = new ArrayList<>(quantiles.size());
+        for (double quantile : quantiles) {
+            quantileValues.add(new Quantile(quantile, logger.getQuantileValue(quantile)));
         }
-
-        return familySamplesList(Type.SUMMARY, samples);
+        return new SummarySnapshot(descriptor.getMetadata(), List.of(SummaryDataPointSnapshot.builder()
+                .count(logger.getCount())
+                .sum(logger.getSum())
+                .quantiles(Quantiles.of(quantileValues))
+                .build()));
     }
 
     @Override
-    public List<MetricFamilySamples> describe() {
-        return Collections.singletonList(new SummaryMetricFamily(fullname, help, labelNames));
+    public MetricFamilyDescriptor getMetricFamilyDescriptor() {
+        return descriptor;
     }
 }
