@@ -126,6 +126,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.AppliedTopicPolicies;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -3968,6 +3969,38 @@ public class PersistentTopicsBase extends AdminResource {
         }
         return getNamespacePoliciesAsync(topicName.getNamespaceObject())
                 .thenApply(policies -> policies.retention_policies);
+    }
+
+    protected CompletableFuture<TopicPolicies> internalGetTopicPolicies(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenApply(op -> op.orElseGet(() -> TopicPolicies.builder().isGlobal(isGlobal).build()));
+    }
+
+    /**
+     * Rejects the applied view for a system topic, which the broker loads with its own special cases, including the
+     * topics in the system service namespaces.
+     */
+    protected CompletableFuture<Void> validateAppliedTopicPoliciesSupported() {
+        if (pulsar().getBrokerService().isSystemTopic(topicName)) {
+            // A system topic ignores or overrides several levels, which the resolver does not mirror.
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "The applied policies are not available for a system topic"));
+        }
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Resolves the policies in effect, with the precedence a loaded topic uses: the local topic policies, the global
+     * topic policies, the namespace policies, then the broker configuration. It does not depend on the scope of the
+     * request.
+     */
+    protected CompletableFuture<AppliedTopicPolicies> internalGetAppliedTopicPolicies() {
+        return internalGetTopicPolicies(false)
+                .thenCombine(internalGetTopicPolicies(true), Pair::of)
+                .thenCombine(getNamespacePoliciesAsync(namespaceName), (topicPolicies, namespacePolicies) ->
+                        new TopicPolicyResolver(config(),
+                                pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota())
+                                .resolve(topicPolicies.getLeft(), topicPolicies.getRight(), namespacePolicies));
     }
 
     @SuppressWarnings("deprecation")

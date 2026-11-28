@@ -143,6 +143,17 @@ public abstract class CliCommand implements Callable<Integer> {
         }
     }
 
+    /**
+     * Pretty-prints the item as JSON and keeps the null values, which the default mapper omits.
+     */
+    <T> void prettyPrintIncludingNulls(T item) {
+        try {
+            commandSpec.commandLine().getOut().println(WRITER_INCLUDE_NULLS.writeValueAsString(item));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     <T> void plainPrint(T item) {
         try {
             commandSpec.commandLine().getOut().println(MAPPER.writeValueAsString(item));
@@ -153,6 +164,8 @@ public abstract class CliCommand implements Callable<Integer> {
 
     private static final ObjectMapper MAPPER = ObjectMapperFactory.create();
     private static final ObjectWriter WRITER = MAPPER.writerWithDefaultPrettyPrinter();
+    private static final ObjectWriter WRITER_INCLUDE_NULLS =
+            ObjectMapperFactory.getMapperWithIncludeAlways().getObjectMapper().writerWithDefaultPrettyPrinter();
 
     // Picocli entrypoint.
     @Override

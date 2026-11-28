@@ -50,6 +50,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -4808,5 +4809,298 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         try (Producer<?> producer = pulsarClient.newProducer().topic(testTopic).create()) {
             // No-op. Creating the producer initializes the events topic and partitions.
         }
+    }
+
+    @Test
+    public void testGetAllTopicPolicies() throws Exception {
+        // A topic without policies yields a map with nothing set, never null.
+        Map<String, Object> none = admin.topicPolicies().getTopicPolicies(testTopic);
+        assertNotNull(none);
+        assertNull(none.get("retentionPolicies"));
+        assertNull(none.get("messageTTLInSeconds"));
+        assertEquals(none.get("isGlobal"), Boolean.FALSE);
+        // Derived helper properties are not part of the response.
+        assertNull(none.get("retentionSet"));
+        assertNull(none.get("globalPolicies"));
+        assertEquals(admin.topicPolicies(true).getTopicPoliciesAsync(testTopic).get().get("isGlobal"), Boolean.TRUE);
+
+        admin.topicPolicies().setRetention(testTopic, new RetentionPolicies(60, 1024));
+        admin.topicPolicies().setMessageTTL(testTopic, 300);
+        admin.topicPolicies(true).setMaxConsumers(testTopic, 7);
+
+        // Local and global scopes are returned separately, each holding only what was set in that scope.
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> local = admin.topicPolicies().getTopicPolicies(testTopic);
+            Map<?, ?> retention = (Map<?, ?>) local.get("retentionPolicies");
+            assertNotNull(retention);
+            assertEquals(((Number) retention.get("retentionTimeInMinutes")).intValue(), 60);
+            assertEquals(((Number) retention.get("retentionSizeInMB")).longValue(), 1024L);
+            assertEquals(((Number) local.get("messageTTLInSeconds")).intValue(), 300);
+            assertNull(local.get("maxConsumerPerTopic"));
+            assertEquals(local.get("isGlobal"), Boolean.FALSE);
+
+            Map<String, Object> global = admin.topicPolicies(true).getTopicPolicies(testTopic);
+            assertEquals(((Number) global.get("maxConsumerPerTopic")).intValue(), 7);
+            assertNull(global.get("retentionPolicies"));
+            assertEquals(global.get("isGlobal"), Boolean.TRUE);
+        });
+
+        // Inherited namespace values are not part of the result.
+        admin.namespaces().setRetention(myNamespace, new RetentionPolicies(10, 10));
+        admin.topicPolicies().removeRetention(testTopic);
+        Awaitility.await().untilAsserted(
+                () -> assertNull(admin.topicPolicies().getTopicPolicies(testTopic).get("retentionPolicies")));
+
+        admin.topicPolicies().deleteTopicPolicies(testTopic);
+        Awaitility.await().untilAsserted(
+                () -> assertNull(admin.topicPolicies().getTopicPolicies(testTopic).get("messageTTLInSeconds")));
+    }
+
+    @Test
+    public void testGetAllTopicPoliciesErrors() {
+        String missing = "persistent://" + myNamespace + "/not-existing-" + UUID.randomUUID();
+        assertThrows(PulsarAdminException.NotFoundException.class,
+                () -> admin.topicPolicies().getTopicPolicies(missing));
+        assertThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.topicPolicies().getTopicPolicies(testTopic + "-partition-0"));
+    }
+
+    @Test
+    public void testGetAppliedTopicPolicies() throws Exception {
+        admin.topicPolicies().setRetention(testTopic, new RetentionPolicies(60, 1024));
+        admin.namespaces().setNamespaceMessageTTL(myNamespace, 120);
+        admin.namespaces().setMaxProducersPerTopic(myNamespace, 5);
+        admin.topicPolicies().setMaxProducers(testTopic, 3);
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> applied = admin.topicPolicies().getTopicPolicies(testTopic, true);
+            // set on the topic
+            assertApplied(applied, "retentionPolicies", "TOPIC");
+            assertApplied(applied, "maxProducerPerTopic", "TOPIC");
+            assertEquals(((Number) appliedValue(applied, "maxProducerPerTopic")).intValue(), 3);
+            // inherited from the namespace
+            assertApplied(applied, "messageTTLInSeconds", "NAMESPACE");
+            assertEquals(((Number) appliedValue(applied, "messageTTLInSeconds")).intValue(), 120);
+            // inherited from the broker
+            assertApplied(applied, "maxConsumerPerTopic", "BROKER");
+            assertEquals(((Number) appliedValue(applied, "maxConsumerPerTopic")).intValue(),
+                    conf.getMaxConsumersPerTopic());
+            assertApplied(applied, "persistence", "BROKER");
+            // policies that have no applied getter are reported too
+            assertApplied(applied, "maxMessageSize", "BROKER");
+            assertApplied(applied, "deduplicationSnapshotIntervalSeconds", "BROKER");
+        });
+
+        // The same call without applied still returns only what is set on the topic.
+        Map<String, Object> explicit = admin.topicPolicies().getTopicPolicies(testTopic, false);
+        assertNull(explicit.get("messageTTLInSeconds"));
+        assertEquals(((Number) ((Map<?, ?>) explicit.get("retentionPolicies")).get("retentionTimeInMinutes"))
+                .intValue(), 60);
+    }
+
+    @Test
+    public void testAppliedTopicPoliciesMatchPerPolicyGetters() throws Exception {
+        admin.topicPolicies().setRetention(testTopic, new RetentionPolicies(60, 1024));
+        admin.topicPolicies().setMessageTTL(testTopic, 300);
+        admin.namespaces().setMaxProducersPerTopic(myNamespace, 5);
+        admin.namespaces().setMaxConsumersPerTopic(myNamespace, 9);
+        admin.namespaces().setDeduplicationStatus(myNamespace, true);
+        admin.namespaces().setCompactionThreshold(myNamespace, 4096);
+        admin.namespaces().setSubscriptionExpirationTime(myNamespace, 77);
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> applied = admin.topicPolicies().getTopicPolicies(testTopic, true);
+            org.apache.pulsar.client.admin.TopicPolicies policies = admin.topicPolicies();
+            assertAppliedMatches(applied, "retentionPolicies", policies.getRetention(testTopic, true));
+            assertAppliedMatches(applied, "messageTTLInSeconds", policies.getMessageTTL(testTopic, true));
+            assertAppliedMatches(applied, "maxProducerPerTopic", policies.getMaxProducers(testTopic, true));
+            assertAppliedMatches(applied, "maxConsumerPerTopic", policies.getMaxConsumers(testTopic, true));
+            assertAppliedMatches(applied, "deduplicationEnabled", policies.getDeduplicationStatus(testTopic, true));
+            assertAppliedMatches(applied, "compactionThreshold", policies.getCompactionThreshold(testTopic, true));
+            assertAppliedMatches(applied, "subscriptionExpirationTimeInMinutes",
+                    policies.getSubscriptionExpirationTime(testTopic, true));
+            assertAppliedMatches(applied, "persistence", policies.getPersistence(testTopic, true));
+            assertAppliedMatches(applied, "dispatchRate", policies.getDispatchRate(testTopic, true));
+            assertAppliedMatches(applied, "subscriptionDispatchRate",
+                    policies.getSubscriptionDispatchRate(testTopic, true));
+            assertAppliedMatches(applied, "replicatorDispatchRate",
+                    policies.getReplicatorDispatchRate(testTopic, true));
+            assertAppliedMatches(applied, "subscribeRate", policies.getSubscribeRate(testTopic, true));
+            assertAppliedMatches(applied, "inactiveTopicPolicies",
+                    policies.getInactiveTopicPolicies(testTopic, true));
+            assertAppliedMatches(applied, "maxUnackedMessagesOnConsumer",
+                    policies.getMaxUnackedMessagesOnConsumer(testTopic, true));
+            assertAppliedMatches(applied, "maxUnackedMessagesOnSubscription",
+                    policies.getMaxUnackedMessagesOnSubscription(testTopic, true));
+        });
+    }
+
+    @Test
+    public void testGetAppliedTopicPoliciesWithoutPolicies() throws Exception {
+        Map<String, Object> applied = admin.topicPolicies(true).getTopicPolicies(testTopic, true);
+        assertNotNull(applied);
+        assertApplied(applied, "retentionPolicies", "BROKER");
+        assertNull(applied.get("isGlobal"));
+        // A topic-only policy that is not set is absent rather than attributed to the broker.
+        assertNull(applied.get("shadowTopics"));
+    }
+
+    @Test
+    public void testAppliedTopicPoliciesFollowLocalThenGlobalTopicPolicies() throws Exception {
+        final String topic = testTopic + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.namespaces().setRetention(myNamespace, new RetentionPolicies(10, 10));
+        admin.topicPolicies(true).setRetention(topic, new RetentionPolicies(60, 600));
+        admin.topicPolicies(true).setMaxConsumers(topic, 7);
+
+        // The global topic value wins over the namespace, whichever scope is requested.
+        for (boolean isGlobal : new boolean[]{false, true}) {
+            Awaitility.await().untilAsserted(() -> {
+                Map<String, Object> applied = admin.topicPolicies(isGlobal).getTopicPolicies(topic, true);
+                assertApplied(applied, "retentionPolicies", "TOPIC_GLOBAL");
+                assertEquals(((Number) ((Map<?, ?>) appliedValue(applied, "retentionPolicies"))
+                        .get("retentionTimeInMinutes")).intValue(), 60);
+                assertApplied(applied, "maxConsumerPerTopic", "TOPIC_GLOBAL");
+                assertEquals(((Number) appliedValue(applied, "maxConsumerPerTopic")).intValue(), 7);
+            });
+        }
+        // and it is what the loaded topic enforces
+        waitTopicPoliciesApplied(topic, 0, hierarchy -> {
+            assertEquals(hierarchy.getRetentionPolicies().get(), new RetentionPolicies(60, 600));
+            assertEquals(hierarchy.getMaxConsumerPerTopic().get(), Integer.valueOf(7));
+        });
+
+        // A local value wins over the global one.
+        admin.topicPolicies().setRetention(topic, new RetentionPolicies(30, 300));
+        for (boolean isGlobal : new boolean[]{false, true}) {
+            Awaitility.await().untilAsserted(() -> {
+                Map<String, Object> applied = admin.topicPolicies(isGlobal).getTopicPolicies(topic, true);
+                assertApplied(applied, "retentionPolicies", "TOPIC");
+                assertEquals(((Number) ((Map<?, ?>) appliedValue(applied, "retentionPolicies"))
+                        .get("retentionTimeInMinutes")).intValue(), 30);
+                // not overridden locally
+                assertApplied(applied, "maxConsumerPerTopic", "TOPIC_GLOBAL");
+            });
+        }
+        waitTopicPoliciesApplied(topic, 0, hierarchy ->
+                assertEquals(hierarchy.getRetentionPolicies().get(), new RetentionPolicies(30, 300)));
+    }
+
+    @Test
+    public void testAppliedPoliciesAreRejectedForSystemTopics() throws Exception {
+        // an event topic, and a topic in a system service namespace, which the broker also loads as a SystemTopic
+        for (String topic : List.of(
+                "persistent://" + myNamespace + "/" + NAMESPACE_EVENTS_LOCAL_NAME,
+                "persistent://pulsar/system/loadbalancer-service-unit-state")) {
+            try {
+                admin.topicPolicies().getTopicPolicies(topic, true);
+                Assert.fail("applied policies must be rejected for " + topic);
+            } catch (PulsarAdminException e) {
+                assertEquals(e.getStatusCode(), 412, topic);
+            }
+        }
+    }
+
+    @Test
+    public void testGetAllPoliciesOfNonPersistentTopic() throws Exception {
+        // the handler is inherited by the non-persistent path, and non-persistent topics apply topic policies
+        final String topic = TopicName.get(TopicDomain.non_persistent.value(), NamespaceName.get(myNamespace),
+                "test-np-get-all-" + UUID.randomUUID()).toString();
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topicPolicies().setMaxSubscriptionsPerTopic(topic, 10);
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> raw = admin.topicPolicies().getTopicPolicies(topic);
+            assertEquals(((Number) raw.get("maxSubscriptionsPerTopic")).intValue(), 10);
+            Map<String, Object> applied = admin.topicPolicies().getTopicPolicies(topic, true);
+            assertApplied(applied, "maxSubscriptionsPerTopic", "TOPIC");
+            assertEquals(((Number) appliedValue(applied, "maxSubscriptionsPerTopic")).intValue(), 10);
+        });
+    }
+
+    @Test
+    public void testAppliedTopicRateOverridesAreNormalized() throws Exception {
+        DispatchRate nsRate = DispatchRate.builder().dispatchThrottlingRateInMsg(100)
+                .dispatchThrottlingRateInByte(-1).ratePeriodInSecond(1).build();
+        admin.namespaces().setDispatchRate(myNamespace, nsRate);
+        // The CLI stores -1/-1 when no limit is given.
+        admin.topicPolicies().setDispatchRate(testTopic, DispatchRate.builder().dispatchThrottlingRateInMsg(-1)
+                .dispatchThrottlingRateInByte(-1).ratePeriodInSecond(1).build());
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> applied = admin.topicPolicies().getTopicPolicies(testTopic, true);
+            assertApplied(applied, "dispatchRate", "NAMESPACE");
+            assertEquals(((Number) ((Map<?, ?>) appliedValue(applied, "dispatchRate"))
+                    .get("dispatchThrottlingRateInMsg")).intValue(), 100);
+        });
+    }
+
+    @Test
+    public void testAppliedSubscriptionPoliciesCarryTheirSource() throws Exception {
+        // absent when no subscription has a policy
+        assertNull(admin.topicPolicies().getTopicPolicies(testTopic, true).get("subscriptionPolicies"));
+
+        DispatchRate rate = DispatchRate.builder().dispatchThrottlingRateInMsg(10)
+                .dispatchThrottlingRateInByte(1000).ratePeriodInSecond(1).build();
+        admin.topicPolicies().setSubscriptionDispatchRate(testTopic, "local-sub", rate);
+        admin.topicPolicies(true).setSubscriptionDispatchRate(testTopic, "global-sub", rate);
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<?, ?> subs = (Map<?, ?>) admin.topicPolicies().getTopicPolicies(testTopic, true)
+                    .get("subscriptionPolicies");
+            assertNotNull(subs);
+            assertEquals(((Map<?, ?>) subs.get("local-sub")).get("source"), "TOPIC");
+            assertEquals(((Map<?, ?>) subs.get("global-sub")).get("source"), "TOPIC_GLOBAL");
+            assertNotNull(((Map<?, ?>) subs.get("local-sub")).get("value"));
+        });
+    }
+
+    @Test
+    public void testAppliedPersistenceReplacesNegativeMarkDeleteRate() throws Exception {
+        admin.topicPolicies().setPersistence(testTopic, new PersistencePolicies(2, 2, 2, -1));
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> applied = admin.topicPolicies().getTopicPolicies(testTopic, true);
+            assertApplied(applied, "persistence", "TOPIC");
+            assertEquals(((Number) ((Map<?, ?>) appliedValue(applied, "persistence"))
+                    .get("managedLedgerMaxMarkDeleteRate")).doubleValue(),
+                    conf.getManagedLedgerDefaultMarkDeleteRateLimit());
+        });
+    }
+
+    @Test
+    public void testAppliedTopicPoliciesAreRejectedForSystemTopics() throws Exception {
+        // Setting a topic policy creates the namespace events system topic.
+        admin.topicPolicies().setMaxConsumers(testTopic, 3);
+        String systemTopic = "persistent://" + myNamespace + "/" + NAMESPACE_EVENTS_LOCAL_NAME;
+        assertThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.topicPolicies().getTopicPolicies(systemTopic, true));
+    }
+
+    private static Object appliedValue(Map<String, Object> applied, String policy) {
+        return ((Map<?, ?>) applied.get(policy)).get("value");
+    }
+
+    private static void assertApplied(Map<String, Object> applied, String policy, String source) {
+        Map<?, ?> value = (Map<?, ?>) applied.get(policy);
+        assertNotNull(value, policy);
+        assertEquals(value.get("source"), source, policy);
+    }
+
+    private static void assertAppliedMatches(Map<String, Object> applied, String policy, Object expected)
+            throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper =
+                org.apache.pulsar.common.util.ObjectMapperFactory.getMapper().getObjectMapper();
+        // Compare the serialized forms, so that an int and a long holding the same number are equal.
+        assertEquals(mapper.readTree(mapper.writeValueAsString(appliedValue(applied, policy))),
+                mapper.readTree(mapper.writeValueAsString(expected)), policy);
+    }
+
+    @Test
+    public void testGetAllTopicPoliciesAsyncInvalidTopic() {
+        // An invalid topic name must fail the returned future rather than throw synchronously.
+        CompletableFuture<Map<String, Object>> future =
+                admin.topicPolicies().getTopicPoliciesAsync("persistent://public/default/");
+        assertTrue(future.isCompletedExceptionally());
+        assertThrows(ExecutionException.class, future::get);
     }
 }

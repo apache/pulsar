@@ -71,6 +71,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.PartitionedManagedLedgerInfo;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.AppliedTopicPolicies;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -1403,6 +1404,60 @@ public class PersistentTopics extends PersistentTopicsBase {
                                 .log("Failed to delete topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/policies")
+    @Operation(summary = "Get all the policies explicitly set on a topic.",
+            description = "Returns the topic-level policies of the requested scope (local or global) in one call."
+                    + " Policies that were never set on the topic are not set in the response; inherited"
+                    + " namespace and broker values are not included, unless applied=true, which returns the"
+                    + " value in effect for every policy and the level it came from. The applied view merges the"
+                    + " local and the global topic policies, preferring the local ones, so it ignores isGlobal.")
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "With applied=false (the default), the policies explicitly set on the topic, as"
+                            + " TopicPolicies. With applied=true, the policies in effect, as AppliedTopicPolicies:"
+                            + " every policy is an object with the value in effect and its source.",
+                    content = @Content(schema = @Schema(oneOf = {TopicPolicies.class, AppliedTopicPolicies.class}))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Namespace or topic doesn't exist"),
+            @ApiResponse(responseCode = "405",
+                    description = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(responseCode = "409", description = "Concurrent modification"),
+            @ApiResponse(responseCode = "412", description = "Topic name is a partition")})
+    public void getTopicPolicies(
+            @Suspended AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Whether to get the global policies instead of the local policies."
+                    + " Ignored when applied is true")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @Parameter(description = "Whether to return the policies in effect, resolved through the local topic,"
+                    + " global topic, namespace and broker levels, together with the level of each value")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
+            @Parameter(description = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.ALL, PolicyOperation.READ)
+                .thenCompose(__ -> applied ? validateAppliedTopicPoliciesSupported()
+                        : CompletableFuture.<Void>completedFuture(null))
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> applied
+                        ? internalGetAppliedTopicPolicies().<Object>thenApply(policies -> policies)
+                        : internalGetTopicPolicies(isGlobal).<Object>thenApply(policies -> policies))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getTopicPolicies", ex, asyncResponse);
                     return null;
                 });
     }
