@@ -872,12 +872,14 @@ public class MessageChunkingTest extends SharedPulsarBaseTest {
             assertEquals(received, Set.of("chunk-A-0|chunk-A-1|", "chunk-C-0|chunk-C-1|"));
         } finally {
             // Release whatever is still pending (only on failure paths) so the test does not leak.
-            for (ConsumerImpl.ChunkedMessageCtx ctx : consumerImpl.chunkedMessagesMap.values()) {
-                if (ctx.chunkedMsgBuffer != null && ctx.chunkedMsgBuffer.refCnt() > 0) {
-                    ctx.chunkedMsgBuffer.release();
+            synchronized (consumerImpl.chunkedMessagesMap) {
+                for (ConsumerImpl.ChunkedMessageCtx ctx : consumerImpl.chunkedMessagesMap.values()) {
+                    if (ctx.chunkedMsgBuffer != null && ctx.chunkedMsgBuffer.refCnt() > 0) {
+                        ctx.chunkedMsgBuffer.release();
+                    }
                 }
+                consumerImpl.chunkedMessagesMap.clear();
             }
-            consumerImpl.chunkedMessagesMap.clear();
         }
     }
 
