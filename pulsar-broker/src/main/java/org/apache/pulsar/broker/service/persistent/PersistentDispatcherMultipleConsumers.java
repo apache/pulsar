@@ -122,6 +122,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected volatile boolean havePendingReplayRead = false;
     protected volatile Position minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
+
+    // Until the cursor catches up, bypass fixed-delay lookahead and retain replayed positions in the skip index.
+    private Position delayedDeliveryRewindPosition;
     protected final String name;
     private boolean sendInProgress = false;
     // Normal and replay reads can both complete while the subscription thread is busy. Guarded by this.
@@ -220,16 +223,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 // Wait for reads and queued dispatches from the previous run to be discarded before rewinding.
                 shouldRewindBeforeReadingOrReplaying = true;
             } else {
-                cursor.rewind();
+                rewindCursor();
                 shouldRewindBeforeReadingOrReplaying = false;
             }
             redeliveryMessages.clear();
-            delayedDeliveryTracker.ifPresent(tracker -> {
-                // Don't clean up BucketDelayedDeliveryTracker, otherwise we will lose the bucket snapshot
-                if (tracker instanceof InMemoryDelayedDeliveryTracker) {
-                    tracker.clear();
-                }
-            });
         }
 
         if (isConsumersExceededOnSubscription()) {
@@ -409,7 +406,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 log.debug("Skipping read until the read pending before all consumers disconnected ends");
                 return;
             }
-            cursor.rewind();
+            rewindCursor();
             shouldRewindBeforeReadingOrReplaying = false;
         }
         if (shouldPauseDeliveryForDelayTracker()) {
@@ -546,8 +543,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         // Filter out and skip read delayed messages exist in DelayedDeliveryTracker
         if (delayedDeliveryTracker.isPresent()) {
             final DelayedDeliveryTracker deliveryTracker = delayedDeliveryTracker.get();
-            if (deliveryTracker instanceof BucketDelayedDeliveryTracker) {
-                skipCondition = position -> ((BucketDelayedDeliveryTracker) deliveryTracker)
+            if (deliveryTracker instanceof BucketDelayedDeliveryTracker bucketTracker) {
+                skipCondition = position -> bucketTracker
+                        .containsMessage(position.getLedgerId(), position.getEntryId());
+            } else if (deliveryTracker instanceof InMemoryDelayedDeliveryTracker inMemoryTracker
+                    && (inMemoryTracker.getNumberOfDelayedMessages() > 0 || delayedDeliveryRewindPosition != null)) {
+                skipCondition = position -> inMemoryTracker
                         .containsMessage(position.getLedgerId(), position.getEntryId());
             }
         }
@@ -1700,8 +1701,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     protected synchronized NavigableSet<Position> getMessagesToReplayNow(int maxMessagesToRead, long bytesToRead) {
-        boolean delayedMessagesAvailable =
-                delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().hasMessageAvailable();
+        DelayedDeliveryTracker tracker = delayedDeliveryTracker.orElse(null);
+        boolean drainAll = tracker instanceof InMemoryDelayedDeliveryTracker && !topic.isDelayedDeliveryEnabled();
+        boolean delayedMessagesAvailable = tracker != null
+                && (drainAll ? tracker.getNumberOfDelayedMessages() > 0 : tracker.hasMessageAvailable());
         if (!delayedMessagesAvailable && redeliveryMessages.isEmpty()) {
             // nothing to replay, the common case: skip the size cap's estimate, which the normal read computes again
             return Collections.emptyNavigableSet();
@@ -1714,9 +1717,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     .log("Capped max messages to read from redelivery list");
         }
         if (delayedMessagesAvailable) {
-            delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
-            NavigableSet<Position> messagesAvailableNow =
-                    delayedDeliveryTracker.get().getScheduledMessages(cappedMaxMessagesToRead);
+            tracker.resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
+            NavigableSet<Position> messagesAvailableNow = drainAll
+                    ? ((InMemoryDelayedDeliveryTracker) tracker).drainAllMessages(cappedMaxMessagesToRead)
+                    : tracker.getScheduledMessages(cappedMaxMessagesToRead);
             messagesAvailableNow.forEach(p -> redeliveryMessages.add(p.getLedgerId(), p.getEntryId()));
         }
         if (!redeliveryMessages.isEmpty()) {
@@ -1753,9 +1757,39 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
 
-    protected boolean shouldPauseDeliveryForDelayTracker() {
-        return delayedDeliveryTrackerCreateFuture != null
-                || delayedDeliveryTracker.map(DelayedDeliveryTracker::shouldPauseAllDeliveries).orElse(false);
+    protected void rewindCursor() {
+        if (delayedDeliveryTracker.orElse(null) instanceof InMemoryDelayedDeliveryTracker tracker) {
+            Position readPosition = cursor.getReadPosition();
+            if (delayedDeliveryRewindPosition == null
+                    || readPosition.compareTo(delayedDeliveryRewindPosition) > 0) {
+                delayedDeliveryRewindPosition = readPosition;
+            }
+            tracker.startRewind();
+            tracker.removeMessagesUpTo(cursor.getMarkDeletedPosition());
+        }
+        cursor.rewind();
+    }
+
+    protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
+        if (delayedDeliveryTrackerCreateFuture != null) {
+            return true;
+        }
+        if (delayedDeliveryRewindPosition != null) {
+            // Replay can advance the shared cursor while a normal read still holds an earlier continuation.
+            // Keep its skip markers until that read completes, even if the shared position has caught up.
+            if (havePendingRead || cursor.getReadPosition().compareTo(delayedDeliveryRewindPosition) < 0) {
+                return false;
+            }
+            delayedDeliveryRewindPosition = null;
+            if (delayedDeliveryTracker.orElse(null) instanceof InMemoryDelayedDeliveryTracker tracker) {
+                tracker.endRewind();
+            }
+        }
+        if (delayedDeliveryTracker.orElse(null) instanceof InMemoryDelayedDeliveryTracker
+                && !topic.isDelayedDeliveryEnabled()) {
+            return false;
+        }
+        return delayedDeliveryTracker.map(DelayedDeliveryTracker::shouldPauseAllDeliveries).orElse(false);
     }
 
     @Override
@@ -1897,7 +1931,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     @Override
-    public void cursorIsReset() {
+    public synchronized void cursorIsReset() {
+        delayedDeliveryRewindPosition = null;
+        // A seek changes the set of entries the subscription can read; reconnect alone does not.
+        delayedDeliveryTracker.filter(InMemoryDelayedDeliveryTracker.class::isInstance)
+                .ifPresent(DelayedDeliveryTracker::clear);
         if (this.lastIndividualDeletedRangeFromCursorRecovery != null) {
             this.lastIndividualDeletedRangeFromCursorRecovery = null;
         }
