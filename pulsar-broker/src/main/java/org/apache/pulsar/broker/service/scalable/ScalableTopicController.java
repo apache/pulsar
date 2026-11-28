@@ -2043,7 +2043,10 @@ public class ScalableTopicController {
     /**
      * Delete a subscription from the scalable topic. Unregisters any in-memory consumers on
      * this leader, deletes the persisted {@code SubscriptionMetadata} (and all its consumer
-     * registration children), and removes the subscription from every segment topic.
+     * registration children), and removes the subscription from every segment topic. A failure
+     * to delete a per-segment cursor is surfaced so that the caller can retry once that
+     * segment's consumers are disconnected; swallowing it would leave the cursor behind and
+     * keep a sealed segment from being garbage collected.
      */
     public CompletableFuture<Void> deleteSubscription(String subscription) {
         checkLeader();
@@ -2230,6 +2233,12 @@ public class ScalableTopicController {
         }
     }
 
+    /**
+     * Delete the subscription from a segment. Only a missing subscription is tolerated; any
+     * other failure, such as {@code SubscriptionBusyException} while a consumer is still
+     * attached, is surfaced so that the caller can retry instead of being told the delete
+     * succeeded while the cursor is left behind.
+     */
     private CompletableFuture<Void> deleteSubscriptionOnSegment(SegmentInfo segment, String subscription) {
         String segmentTopicName = SegmentTopicName.backingTopicName(topicName, segment);
         try {
@@ -2247,7 +2256,7 @@ public class ScalableTopicController {
                         log.warn().attr("subscription", subscription)
                                 .attr("segment", segmentTopicName).exceptionMessage(cause)
                                 .log("Failed to delete subscription from segment");
-                        return null;
+                        throw org.apache.pulsar.common.util.FutureUtil.wrapToCompletionException(cause);
                     });
         } catch (PulsarServerException e) {
             return CompletableFuture.failedFuture(e);

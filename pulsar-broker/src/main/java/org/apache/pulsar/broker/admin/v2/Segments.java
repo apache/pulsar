@@ -45,6 +45,7 @@ import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
@@ -243,6 +244,7 @@ public class Segments extends AdminResource {
             @ApiResponse(responseCode = "204", description = "Subscription cursor deleted (or never existed)"),
             @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
             @ApiResponse(responseCode = "403", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "412", description = "Subscription has active consumers"),
             @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void deleteSubscription(
             @Suspended final AsyncResponse asyncResponse,
@@ -283,6 +285,13 @@ public class Segments extends AdminResource {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof BrokerServiceException.SubscriptionBusyException) {
+                        // Same status as deleting the subscription of a regular topic: the
+                        // caller can retry once its consumers are disconnected.
+                        asyncResponse.resume(new RestException(Response.Status.PRECONDITION_FAILED, cause));
+                        return null;
+                    }
                     log.error().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
                             .attr("subscription", subscription)
                             .exception(ex).log("Failed to delete subscription on segment");

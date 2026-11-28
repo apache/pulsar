@@ -828,6 +828,18 @@ public class ScalableTopicControllerTest {
     }
 
     @Test
+    public void testDeleteSubscriptionReportsSegmentDeleteFailure() throws Exception {
+        controller.initialize().get();
+        controller.createSubscription("sub-a", SubscriptionType.STREAM).get();
+        // A segment that refuses the delete must fail the scalable-level delete instead of leaving
+        // its cursor behind and reporting success.
+        when(scalableTopics.deleteSegmentSubscriptionAsync(anyString(), anyString()))
+                .thenReturn(FutureUtil.failedFuture(new RuntimeException("segment unavailable")));
+
+        assertThrows(ExecutionException.class, () -> controller.deleteSubscription("sub-a").get());
+    }
+
+    @Test
     public void testDeleteSubscriptionRemovesInMemoryCoordinator() throws Exception {
         controller.initialize().get();
         controller.createSubscription("sub-a", SubscriptionType.STREAM).get();

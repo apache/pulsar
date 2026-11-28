@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.testng.Assert.expectThrows;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,7 @@ import java.util.Map;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.Producer;
 import org.apache.pulsar.client.api.v5.QueueConsumer;
@@ -77,6 +79,61 @@ public class ScalableTopicQueueSubscriptionTest extends V5ClientBaseTest {
             controller(topic).runGcTickAsync().get();
             assertThat(segmentIds(topic))
                     .as("the queue subscription acknowledged every message of the sealed parent")
+                    .doesNotContain(parent);
+        });
+    }
+
+    /**
+     * Deleting the subscription of a scalable topic while a queue consumer is still attached to a sealed
+     * segment fails with 412 instead of reporting success and leaving the cursor behind. Once the consumer
+     * is closed, the retried delete removes the cursor and the GC can prune the sealed segment.
+     */
+    @Test
+    public void testDeleteSubscriptionReportsQueueConsumerAndRetryRemovesCursor() throws Exception {
+        String topic = newScalableTopic(1);
+        @Cleanup
+        QueueConsumer<String> consumer = v5Client.newQueueConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(SUBSCRIPTION)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+        publish(topic);
+        long parent = segmentIds(topic).get(0);
+        Awaitility.await().untilAsserted(() -> {
+            SegmentTopicStats.SubscriptionStats sub = admin.scalableTopics().getSegmentStats(topic, parent)
+                    .getSubscriptions().get(SUBSCRIPTION);
+            assertThat(sub).as("the queue consumer is attached to the segment").isNotNull();
+            assertThat(sub.getConsumers()).isNotEmpty();
+        });
+
+        admin.scalableTopics().splitSegment(topic, parent);
+
+        // The queue consumer is still attached to the sealed parent: the delete must not report
+        // success while its cursor stays behind.
+        PulsarAdminException failure = expectThrows(PulsarAdminException.class,
+                () -> admin.scalableTopics().deleteSubscription(topic, SUBSCRIPTION));
+        assertThat(failure.getStatusCode()).isEqualTo(412);
+        assertThat(admin.scalableTopics().getSegmentStats(topic, parent).getSubscriptions())
+                .as("the failed delete leaves the queue consumer's cursor in place")
+                .containsKey(SUBSCRIPTION);
+
+        consumer.close();
+        Awaitility.await().untilAsserted(() -> {
+            SegmentTopicStats.SubscriptionStats sub = admin.scalableTopics().getSegmentStats(topic, parent)
+                    .getSubscriptions().get(SUBSCRIPTION);
+            assertThat(sub == null ? List.of() : sub.getConsumers()).isEmpty();
+        });
+
+        // The retried delete removes the cursor, so the GC can prune the sealed segment.
+        admin.scalableTopics().deleteSubscription(topic, SUBSCRIPTION);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(admin.scalableTopics().getSegmentStats(topic, parent).getSubscriptions())
+                        .as("the retried delete removes the queue consumer's cursor")
+                        .doesNotContainKey(SUBSCRIPTION));
+        Awaitility.await().untilAsserted(() -> {
+            controller(topic).runGcTickAsync().get();
+            assertThat(segmentIds(topic))
+                    .as("the sealed segment is pruned once the leftover cursor is gone")
                     .doesNotContain(parent);
         });
     }
