@@ -194,8 +194,6 @@ public class Consumer {
     /** Interceptor indices (see {@code BrokerInterceptors}) that received a successful {@code consumerCreated}. */
     private final Set<Integer> brokerInterceptorCreateSuccessIndices = ConcurrentHashMap.newKeySet();
 
-    private boolean cleanupStarted;
-
     private final AtomicBoolean brokerInterceptorClosedNotified = new AtomicBoolean(false);
     private final AtomicInteger brokerInterceptorCreateInProgress = new AtomicInteger();
     private final AtomicBoolean brokerInterceptorClosePendingDuringCreate = new AtomicBoolean();
@@ -529,23 +527,12 @@ public class Consumer {
     }
 
     public void close(boolean isResetCursor) throws BrokerServiceException {
-        synchronized (this) {
-            if (cleanupStarted) {
-                return;
-            }
-            cleanupStarted = true;
-        }
-        try {
-            subscription.removeConsumer(this, isResetCursor);
-            cnx.removedConsumer(this);
-            // Broker-initiated close can run under dispatcher/subscription locks; notify off the connection thread.
-            cnx.scheduleNotifyConsumerClosed(this);
-        } catch (BrokerServiceException e) {
-            synchronized (this) {
-                cleanupStarted = false;
-            }
-            throw e;
-        }
+        subscription.removeConsumer(this, isResetCursor);
+        cnx.removedConsumer(this);
+        // Broker-initiated close can run under dispatcher/subscription locks; notify off the connection thread.
+        // Interceptor close is idempotent via markBrokerInterceptorClosedNotified; repeat closes are required for
+        // STICKY Key_Shared selector cleanup when subscribe and disconnect race.
+        cnx.scheduleNotifyConsumerClosed(this);
     }
 
     public void markBrokerInterceptorCreatedNotified(int interceptorIndex) {
