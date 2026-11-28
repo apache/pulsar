@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkState;
 import static org.apache.pulsar.client.impl.TransactionMetaStoreHandler.getExceptionByServerError;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.Queues;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -31,6 +30,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.Promise;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
@@ -40,6 +40,7 @@ import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +49,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -58,7 +60,6 @@ import java.util.regex.Pattern;
 import javax.net.ssl.SSLException;
 import lombok.AccessLevel;
 import lombok.Getter;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -159,8 +160,10 @@ public class ClientCnx extends PulsarHandler {
     // getTopics, getLastMessageId). This set tracks which requestIds belong to lookup requests,
     // so that removePendingRequest can release the lookup semaphore correctly.
     private final Set<Long> pendingLookupRequestIds = ConcurrentHashMap.newKeySet();
-    // LookupRequests that waiting in client side.
-    private final Queue<Pair<Long, Pair<ByteBuf, TimedCompletableFuture<LookupDataResult>>>> waitingLookupRequests;
+    // Under lookupLock a submission either gets an active permit or joins the FIFO, and a completion
+    // either passes its permit to the FIFO head or returns it. Disconnect detaches the FIFO and closes admission.
+    private final Object lookupLock = new Object();
+    private Queue<WaitingLookup> waitingLookupRequests = new ArrayDeque<>(1);
 
     @VisibleForTesting
     final ConcurrentLongHashMap<ProducerImpl<?>> producers =
@@ -227,7 +230,7 @@ public class ClientCnx extends PulsarHandler {
     @VisibleForTesting
     @Getter(AccessLevel.PACKAGE)
     private final Semaphore pendingLookupRequestSemaphore;
-    private final Semaphore maxLookupRequestSemaphore;
+    private final int maxWaitingLookupRequests;
 
     private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(ClientCnx.class, "numberOfRejectRequests");
@@ -311,6 +314,9 @@ public class ClientCnx extends PulsarHandler {
     private final Counter connectionsOpenedCounter;
     private final Counter connectionsClosedCounter;
 
+    private record WaitingLookup(long requestId, ByteBuf request, TimedCompletableFuture<LookupDataResult> future) {
+    }
+
     private static class RequestTime {
         private final long creationTimeNanos;
         final long requestId;
@@ -356,9 +362,7 @@ public class ClientCnx extends PulsarHandler {
         super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         checkArgument(conf.getMaxLookupRequest() > conf.getConcurrentLookupRequest());
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), false);
-        this.maxLookupRequestSemaphore =
-                new Semaphore(conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest(), false);
-        this.waitingLookupRequests = Queues.newConcurrentLinkedQueue();
+        this.maxWaitingLookupRequests = conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest();
         this.authDriver = resolveAuthDriver(conf);
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
@@ -531,17 +535,24 @@ public class ClientCnx extends PulsarHandler {
         connectionsClosedCounter.increment();
         lastDisconnectedTimestamp = System.currentTimeMillis();
         log.info("Disconnected");
+        Queue<WaitingLookup> waiting;
+        synchronized (lookupLock) {
+            waiting = waitingLookupRequests;
+            waitingLookupRequests = null;
+        }
         if (!connectionFuture.isDone()) {
             connectionFuture.completeExceptionally(new ConnectException("Connection already closed"));
         }
 
         ConnectException e = new ConnectException(
                 "Disconnected from server at " + ctx.channel().remoteAddress());
-
-        // Fail out all waiting lookup requests first, and clear the queue so that
-        // releasePermitAndDriveWaitingQueue won't dispatch requests on a dead connection.
-        waitingLookupRequests.forEach(pair -> pair.getRight().getRight().completeExceptionally(e));
-        waitingLookupRequests.clear();
+        if (waiting != null) {
+            WaitingLookup lookup;
+            while ((lookup = waiting.poll()) != null) {
+                ReferenceCountUtil.release(lookup.request());
+                lookup.future().completeExceptionally(e);
+            }
+        }
         // Fail out all the pending ops
         pendingRequests.forEach((key, future) -> {
             if (removePendingRequest(key, future) && !future.isDone()) {
@@ -1166,46 +1177,62 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
-    // caller of this method needs to be protected under pendingLookupRequestSemaphore
-    private void addPendingLookupRequests(long requestId, TimedCompletableFuture<LookupDataResult> future) {
+    // Called under lookupLock so disconnect can find every admitted or promoted request.
+    private void registerPendingLookup(long requestId, TimedCompletableFuture<LookupDataResult> future) {
         pendingLookupRequestIds.add(requestId);
         pendingRequests.put(requestId, future);
-        requestTimeoutQueue.add(new RequestTime(requestId, RequestType.Lookup));
     }
 
-    /**
-     * Release the lookup semaphore permit and drive the waiting queue.
-     * This is the single centralized primitive for permit release/transfer.
-     */
     private void releasePermitAndDriveWaitingQueue() {
-        Pair<Long, Pair<ByteBuf, TimedCompletableFuture<LookupDataResult>>> firstOneWaiting =
-                waitingLookupRequests.poll();
-        if (firstOneWaiting != null) {
-            maxLookupRequestSemaphore.release();
-            // schedule a new lookup in.
-            ctx.executor().execute(() -> {
-                long newId = firstOneWaiting.getLeft();
-                TimedCompletableFuture<LookupDataResult> newFuture = firstOneWaiting.getRight().getRight();
-                addPendingLookupRequests(newId, newFuture);
-                ctx.writeAndFlush(firstOneWaiting.getRight().getLeft()).addListener(writeFuture -> {
-                    if (!writeFuture.isSuccess()) {
-                        log.warn()
-                                .attr("requestId", newId)
-                                .exceptionMessage(writeFuture.cause())
-                                .log("Failed to send request to broker");
-                        if (removePendingRequest(newId, newFuture)) {
-                            newFuture.completeExceptionally(writeFuture.cause());
-                        }
-                    }
-                });
-            });
-        } else {
-            pendingLookupRequestSemaphore.release();
+        while (true) {
+            WaitingLookup next;
+            synchronized (lookupLock) {
+                next = waitingLookupRequests == null ? null : waitingLookupRequests.poll();
+                if (next == null) {
+                    pendingLookupRequestSemaphore.release();
+                    return;
+                }
+                // Transfer the active permit and publish the waiter before disconnect can scan pendingRequests.
+                registerPendingLookup(next.requestId(), next.future());
+            }
+
+            try {
+                // Let the current response finish first since a broker error may close the channel.
+                // Once accepted, the task owns the unsent buffer even if disconnect completes the future.
+                ctx.executor().execute(() -> writeLookup(next.request(), next.requestId(), next.future()));
+                return;
+            } catch (RejectedExecutionException e) {
+                ReferenceCountUtil.release(next.request());
+                if (!pendingRequests.remove(next.requestId(), next.future())) {
+                    return; // Another completion owns the permit.
+                }
+                pendingLookupRequestIds.remove(next.requestId());
+                next.future().completeExceptionally(e);
+                // Still own the permit. Try the next waiter without recursing on a stopped executor.
+            }
         }
     }
 
+    private void writeLookup(ByteBuf request, long requestId, TimedCompletableFuture<LookupDataResult> future) {
+        if (pendingRequests.get(requestId) != future) {
+            // Disconnect removed the request before its write ran. Netty never received the buffer.
+            ReferenceCountUtil.release(request);
+            return;
+        }
+        requestTimeoutQueue.add(new RequestTime(requestId, RequestType.Lookup));
+        ctx.writeAndFlush(request).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                log.warn().attr("requestId", requestId).exceptionMessage(writeFuture.cause())
+                        .log("Failed to send request to broker");
+                if (removePendingRequest(requestId, future)) {
+                    future.completeExceptionally(writeFuture.cause());
+                }
+            }
+        });
+    }
+
     /**
-     * Unified cleanup primitive for all pending requests.
+     * Claim a pending request on response, timeout, write failure, or disconnect.
      * Uses pendingRequests.remove(requestId, expectedFuture) as the single CAS contention point.
      * Only the thread that successfully removes the entry from pendingRequests owns the cleanup
      * responsibility (including permit release for lookup requests).
@@ -1220,9 +1247,8 @@ public class ClientCnx extends PulsarHandler {
             return false;
         }
         // Won the CAS. If it's a lookup request, release the permit and drive waiting queue.
-        if (pendingLookupRequestIds.contains(requestId)) {
+        if (pendingLookupRequestIds.remove(requestId)) {
             releasePermitAndDriveWaitingQueue();
-            pendingLookupRequestIds.remove(requestId);
         }
         return true;
     }
@@ -1384,32 +1410,30 @@ public class ClientCnx extends PulsarHandler {
     public CompletableFuture<LookupDataResult> newLookup(ByteBuf request, long requestId) {
         TimedCompletableFuture<LookupDataResult> future = new TimedCompletableFuture<>();
 
-        if (pendingLookupRequestSemaphore.tryAcquire()) {
-            addPendingLookupRequests(requestId, future);
-            ctx.writeAndFlush(request).addListener(writeFuture -> {
-                if (!writeFuture.isSuccess()) {
-                    log.warn()
-                            .attr("requestId", requestId)
-                            .exceptionMessage(writeFuture.cause())
-                            .log("Failed to send request to broker");
-                    if (removePendingRequest(requestId, future)) {
-                        future.completeExceptionally(writeFuture.cause());
-                    }
-                }
-            });
-        } else {
-            log.debug().attr("requestId", requestId).log("Failed to add lookup-request into pending queue");
+        boolean closed;
+        boolean send;
+        synchronized (lookupLock) {
+            closed = waitingLookupRequests == null;
+            send = !closed && pendingLookupRequestSemaphore.tryAcquire();
+            if (send) {
+                registerPendingLookup(requestId, future);
+            } else if (!closed && waitingLookupRequests.size() < maxWaitingLookupRequests) {
+                waitingLookupRequests.add(new WaitingLookup(requestId, request, future));
+                return future;
+            }
+        }
 
-            if (maxLookupRequestSemaphore.tryAcquire()) {
-                waitingLookupRequests.add(Pair.of(requestId, Pair.of(request, future)));
+        if (send) {
+            writeLookup(request, requestId, future);
+        } else {
+            ReferenceCountUtil.release(request);
+            if (closed) {
+                future.completeExceptionally(new ConnectException("Disconnected from server at " + remoteAddress));
             } else {
-                request.release();
                 log.debug().attr("requestId", requestId).log("Failed to add lookup-request into waiting queue");
                 future.completeExceptionally(new PulsarClientException.TooManyRequestsException(String.format(
-                    "Requests number out of config: There are {%s} lookup requests outstanding and {%s} requests"
-                            + " pending.",
-                    pendingLookupRequestSemaphore.getQueueLength(),
-                    waitingLookupRequests.size())));
+                        "Requests number out of config: There are {%s} lookup requests outstanding and {%s} requests"
+                                + " pending.", pendingLookupRequestIds.size(), maxWaitingLookupRequests)));
             }
         }
         return future;
@@ -2200,11 +2224,10 @@ public class ClientCnx extends PulsarHandler {
      * @return true if the connection is eligible.
      */
     public boolean idleCheck() {
-        if (pendingRequests != null && !pendingRequests.isEmpty()) {
-            return false;
-        }
-        if (waitingLookupRequests != null  && !waitingLookupRequests.isEmpty()) {
-            return false;
+        synchronized (lookupLock) {
+            if (!pendingRequests.isEmpty() || (waitingLookupRequests != null && !waitingLookupRequests.isEmpty())) {
+                return false;
+            }
         }
         if (!consumers.isEmpty()) {
             return false;

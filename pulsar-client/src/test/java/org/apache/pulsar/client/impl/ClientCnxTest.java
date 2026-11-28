@@ -19,8 +19,11 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.same;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -28,21 +31,28 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.EventExecutor;
 import java.lang.reflect.Field;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.BrokerMetadataException;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
@@ -58,6 +68,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.Test;
 
 public class ClientCnxTest {
@@ -822,6 +833,204 @@ public class ClientCnxTest {
         } finally {
             eventLoop.shutdownGracefully();
         }
+    }
+
+    @Test
+    public void testLookupAdmissionAndFifoHandoff() {
+        EmbeddedChannel channel = newLookupChannel();
+        ClientCnx cnx = channel.pipeline().get(ClientCnx.class);
+        try {
+            CompletableFuture<LookupDataResult> first = cnx.newLookup(Unpooled.copyInt(1), 1);
+            CompletableFuture<LookupDataResult> second = cnx.newLookup(Unpooled.copyInt(2), 2);
+            CompletableFuture<LookupDataResult> third = cnx.newLookup(Unpooled.copyInt(3), 3);
+            ByteBuf rejected = Unpooled.copyInt(4);
+            assertLookupFailure(cnx.newLookup(rejected, 4), PulsarClientException.TooManyRequestsException.class);
+            assertThat(rejected.refCnt()).as("Rejected request buffer").isZero();
+            assertOnlyLookupWritten(channel, 1);
+
+            completeLookup(cnx, 1);
+            assertThat(first).succeedsWithin(0, TimeUnit.SECONDS);
+            channel.runPendingTasks();
+            assertOnlyLookupWritten(channel, 2);
+            completeLookup(cnx, 2);
+            assertThat(second).succeedsWithin(0, TimeUnit.SECONDS);
+            channel.runPendingTasks();
+            assertOnlyLookupWritten(channel, 3);
+
+            // Submit another lookup from the completion of the last active one.
+            CompletableFuture<LookupDataResult> next = third.thenCompose(
+                    ignored -> cnx.newLookup(Unpooled.copyInt(5), 5));
+            completeLookup(cnx, 3);
+            assertOnlyLookupWritten(channel, 5);
+            completeLookup(cnx, 5);
+            assertThat(next).succeedsWithin(0, TimeUnit.SECONDS);
+            assertThat(cnx.getPendingLookupRequestSemaphore().availablePermits()).isOne();
+            assertThat(cnx.idleCheck()).isTrue();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    public void testClosingResponseFailsPromotedAndWaitingLookups() {
+        EmbeddedChannel channel = newLookupChannel();
+        ClientCnx cnx = channel.pipeline().get(ClientCnx.class);
+        EventExecutor executor = mock(EventExecutor.class);
+        ChannelHandlerContext writes = useLookupExecutor(cnx, executor);
+        try {
+            CompletableFuture<LookupDataResult> active = cnx.newLookup(Unpooled.copyInt(1), 1);
+            ByteBuf promoted = Unpooled.copyInt(2);
+            CompletableFuture<LookupDataResult> next = cnx.newLookup(promoted, 2);
+            ByteBuf waiting = Unpooled.copyInt(3);
+            CompletableFuture<LookupDataResult> queued = cnx.newLookup(waiting, 3);
+            ByteBuf retry = Unpooled.copyInt(4);
+            CompletableFuture<LookupDataResult> retried = queued.exceptionallyCompose(
+                    error -> cnx.newLookup(retry, 4));
+            assertOnlyLookupWritten(channel, 1);
+
+            cnx.handleLookupResponse(new CommandLookupTopicResponse().setRequestId(1)
+                    .setResponse(CommandLookupTopicResponse.LookupType.Failed).setError(ServerError.ServiceNotReady));
+            channel.runPendingTasks();
+            assertThat(channel.isActive()).isFalse();
+            assertLookupFailure(active, PulsarClientException.ServiceNotReadyException.class);
+            ByteBuf afterClose = Unpooled.copyInt(5);
+            CompletableFuture<LookupDataResult> late = cnx.newLookup(afterClose, 5);
+            for (CompletableFuture<?> future : List.of(next, queued, retried, late)) {
+                assertLookupFailure(future, PulsarClientException.ConnectException.class);
+            }
+            // Disconnect already retired the promoted request when the event loop runs its deferred write.
+            ArgumentCaptor<Runnable> handoff = ArgumentCaptor.forClass(Runnable.class);
+            verify(executor).execute(handoff.capture());
+            handoff.getValue().run();
+            assertThat(promoted.refCnt()).as("Promoted buffer after its write task ran").isZero();
+            assertThat(waiting.refCnt()).as("Queued buffer on disconnect").isZero();
+            assertThat(retry.refCnt()).as("Buffer submitted during disconnect").isZero();
+            assertThat(afterClose.refCnt()).as("Buffer submitted after disconnect").isZero();
+            verify(writes).writeAndFlush(any());
+            assertThat(cnx.getPendingLookupRequestSemaphore().availablePermits()).isOne();
+            assertThat(cnx.idleCheck()).isTrue();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    public void testRejectedLookupHandoffsReleaseTheirBuffersAndPermit() {
+        EmbeddedChannel channel = newLookupChannel();
+        ClientCnx cnx = channel.pipeline().get(ClientCnx.class);
+        EventExecutor rejectingExecutor = mock(EventExecutor.class);
+        doThrow(new RejectedExecutionException("Event loop stopped")).when(rejectingExecutor).execute(any());
+        useLookupExecutor(cnx, rejectingExecutor);
+        try {
+            CompletableFuture<LookupDataResult> active = cnx.newLookup(Unpooled.copyInt(1), 1);
+            ByteBuf second = Unpooled.copyInt(2);
+            CompletableFuture<LookupDataResult> secondFuture = cnx.newLookup(second, 2);
+            ByteBuf third = Unpooled.copyInt(3);
+            CompletableFuture<LookupDataResult> thirdFuture = cnx.newLookup(third, 3);
+            assertOnlyLookupWritten(channel, 1);
+            completeLookup(cnx, 1);
+
+            assertThat(active).succeedsWithin(0, TimeUnit.SECONDS);
+            for (CompletableFuture<?> future : List.of(secondFuture, thirdFuture)) {
+                assertLookupFailure(future, RejectedExecutionException.class);
+            }
+            assertThat(second.refCnt()).isZero();
+            assertThat(third.refCnt()).isZero();
+            assertThat(cnx.getPendingLookupRequestSemaphore().availablePermits()).isOne();
+            CompletableFuture<LookupDataResult> fresh = cnx.newLookup(Unpooled.copyInt(4), 4);
+            assertOnlyLookupWritten(channel, 4);
+            completeLookup(cnx, 4);
+            assertThat(fresh).succeedsWithin(0, TimeUnit.SECONDS);
+            assertThat(cnx.idleCheck()).isTrue();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    public void testConcurrentLookupSubmissionAndResponseMakeProgress() throws Exception {
+        EventLoopGroup group = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testConcurrentLookupSubmissionAndResponseMakeProgress"));
+        try {
+            EventLoop eventLoop = group.next();
+            ClientCnx cnx = newLookupClientCnx(group);
+            ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop);
+            cnx.setCtx(ctx);
+            cnx.state = ClientCnx.State.Ready;
+            CyclicBarrier start = new CyclicBarrier(2);
+            for (int round = 0; round < 16; round++) {
+                int firstId = 2 * round;
+                int nextId = firstId + 1;
+                CompletableFuture<LookupDataResult> first = cnx.newLookup(Unpooled.copyInt(firstId), firstId);
+                Future<?> response = eventLoop.submit(() -> {
+                    start.await(10, TimeUnit.SECONDS);
+                    completeLookup(cnx, firstId);
+                    return null;
+                });
+                ByteBuf request = Unpooled.copyInt(nextId);
+                start.await(10, TimeUnit.SECONDS);
+                CompletableFuture<LookupDataResult> next = cnx.newLookup(request, nextId);
+                response.get(10, TimeUnit.SECONDS);
+                assertThat(first).succeedsWithin(0, TimeUnit.SECONDS);
+                // Any handoff submitted by the response must precede this task on the connection's event loop.
+                eventLoop.submit(() -> {
+                    verify(ctx).writeAndFlush(same(request));
+                    completeLookup(cnx, nextId);
+                }).get(10, TimeUnit.SECONDS);
+                assertThat(next).succeedsWithin(0, TimeUnit.SECONDS);
+                assertThat(cnx.getPendingLookupRequestSemaphore().availablePermits()).isOne();
+                assertThat(cnx.idleCheck()).isTrue();
+            }
+        } finally {
+            group.shutdownGracefully(0, 0, TimeUnit.SECONDS).sync();
+        }
+    }
+
+    private static ChannelHandlerContext useLookupExecutor(ClientCnx cnx, EventExecutor executor) {
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class, delegatesTo(cnx.ctx()));
+        when(ctx.executor()).thenReturn(executor);
+        cnx.setCtx(ctx);
+        return ctx;
+    }
+
+    private static EmbeddedChannel newLookupChannel() {
+        ClientCnx cnx = newLookupClientCnx(mock(EventLoopGroup.class));
+        EmbeddedChannel channel = new EmbeddedChannel(cnx);
+        ByteBuf connect = channel.readOutbound();
+        connect.release();
+        cnx.handleConnected(new CommandConnected().setServerVersion("test")
+                .setProtocolVersion(Commands.getCurrentProtocolVersion()));
+        return channel;
+    }
+
+    private static ClientCnx newLookupClientCnx(EventLoopGroup eventLoopGroup) {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setKeepAliveIntervalSeconds(0);
+        conf.setConcurrentLookupRequest(1);
+        conf.setMaxLookupRequest(3);
+        return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup);
+    }
+
+    private static void completeLookup(ClientCnx cnx, long requestId) {
+        cnx.handleLookupResponse(new CommandLookupTopicResponse().setRequestId(requestId)
+                .setResponse(CommandLookupTopicResponse.LookupType.Connect)
+                .setBrokerServiceUrl("pulsar://broker:6650"));
+    }
+
+    private static void assertLookupFailure(CompletableFuture<?> future, Class<? extends Throwable> cause) {
+        assertThat(future).failsWithin(0, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class).withCauseInstanceOf(cause);
+    }
+
+    private static void assertOnlyLookupWritten(EmbeddedChannel channel, int expectedId) {
+        ByteBuf frame = channel.readOutbound();
+        assertThat(frame).as("Outbound lookup %s", expectedId).isNotNull();
+        try {
+            assertThat(frame.readInt()).as("Lookup sent to the broker").isEqualTo(expectedId);
+        } finally {
+            frame.release();
+        }
+        assertThat(channel.outboundMessages()).as("Additional writes").isEmpty();
     }
 
     /**
