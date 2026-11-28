@@ -96,7 +96,7 @@ public class BrokerInterceptorProducerCloseOrderingTest extends ProducerConsumer
         closeFuture.get(30, TimeUnit.SECONDS);
         inFlight.get(30, TimeUnit.SECONDS);
 
-        List<String> events = new ArrayList<>(ProducerCloseOrderingBrokerInterceptor.lifecycleEvents);
+        List<String> events = new ArrayList<>(ProducerCloseOrderingBrokerInterceptor.LIFECYCLE_EVENTS);
         assertEquals(events.indexOf(ProducerCloseOrderingBrokerInterceptor.MESSAGE_PRODUCED),
                 0);
         assertEquals(events.indexOf(ProducerCloseOrderingBrokerInterceptor.PRODUCER_CLOSED),
@@ -113,12 +113,12 @@ public class BrokerInterceptorProducerCloseOrderingTest extends ProducerConsumer
         static final String MESSAGE_PRODUCED = "messageProduced";
         static final String PRODUCER_CLOSED = "producerClosed";
 
-        static final List<String> lifecycleEvents = new CopyOnWriteArrayList<>();
+        static final List<String> LIFECYCLE_EVENTS = new CopyOnWriteArrayList<>();
         static CountDownLatch messageProducedEntered = new CountDownLatch(1);
         static CountDownLatch unblockMessageProduced = new CountDownLatch(1);
 
         static void reset() {
-            lifecycleEvents.clear();
+            LIFECYCLE_EVENTS.clear();
             messageProducedEntered = new CountDownLatch(1);
             unblockMessageProduced = new CountDownLatch(1);
         }
@@ -129,7 +129,7 @@ public class BrokerInterceptorProducerCloseOrderingTest extends ProducerConsumer
 
         @Override
         public void producerClosed(ServerCnx cnx, Producer producer, Map<String, String> metadata) {
-            lifecycleEvents.add(PRODUCER_CLOSED);
+            LIFECYCLE_EVENTS.add(PRODUCER_CLOSED);
         }
 
         @Override
@@ -144,7 +144,7 @@ public class BrokerInterceptorProducerCloseOrderingTest extends ProducerConsumer
                 Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
-            lifecycleEvents.add(MESSAGE_PRODUCED);
+            LIFECYCLE_EVENTS.add(MESSAGE_PRODUCED);
         }
 
         @Override
