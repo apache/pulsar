@@ -3011,14 +3011,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (seekPosition == null) {
             return CompletableFuture.completedFuture(null);
         }
+        if (!isSupportedSeekPosition(seekPosition)) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException("Only support seek by messageId or timestamp"));
+        }
         if (seekPosition instanceof MessageId) {
             return seekAsync((MessageId) seekPosition);
-        } else if (seekPosition.getClass().getTypeName()
-                .equals(Long.class.getTypeName())) {
-            return seekAsync((long) seekPosition);
         }
-        return FutureUtil.failedFuture(
-                new PulsarClientException("Only support seek by messageId or timestamp"));
+        return seekAsync((long) seekPosition);
+    }
+
+    static boolean isSupportedSeekPosition(Object position) {
+        return position instanceof MessageIdAdv || position instanceof Long;
     }
 
     private CompletableFuture<Void> seekAsyncInternal(long requestId, ByteBuf seek, MessageId seekId,

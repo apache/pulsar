@@ -690,6 +690,56 @@ public class MultiTopicsConsumerImplTest {
         assertTrue(impl.getUnAckedMessageTracker().remove(skippedUnacked));
     }
 
+    @DataProvider
+    @SuppressWarnings("deprecation")
+    public static Object[][] invalidSeekPositions() {
+        return new Object[][] {
+                {Integer.valueOf(0)},
+                {new MultiMessageIdImpl(Collections.singletonMap("topic", MessageId.earliest))}
+        };
+    }
+
+    @Test(dataProvider = "invalidSeekPositions")
+    @SuppressWarnings("unchecked")
+    public void testSeekByFunctionRejectsInvalidPositionBeforeCleanup(Object invalidPosition) {
+        String validTopic = "persistent://public/default/topic-partition-0";
+        String invalidTopic = "persistent://public/default/topic-partition-1";
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setAckTimeoutMillis(1000);
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+        ConsumerImpl<byte[]> validConsumer = addPartitionConsumer(impl, validTopic, null, 10);
+        ConsumerImpl<byte[]> invalidConsumer = addPartitionConsumer(impl, invalidTopic, null, 10);
+
+        impl.enqueueMessageAndCheckBatchReceive(
+                new TopicMessageImpl<>(validTopic, newMessage(validTopic, 1, 1, 0), validConsumer));
+        impl.enqueueMessageAndCheckBatchReceive(
+                new TopicMessageImpl<>(invalidTopic, newMessage(invalidTopic, 2, 1, 1), invalidConsumer));
+        TopicMessageIdImpl validUnacked = new TopicMessageIdImpl(validTopic, new MessageIdImpl(1, 0, 0));
+        TopicMessageIdImpl invalidUnacked = new TopicMessageIdImpl(invalidTopic, new MessageIdImpl(2, 0, 1));
+        impl.getUnAckedMessageTracker().add(validUnacked);
+        impl.getUnAckedMessageTracker().add(invalidUnacked);
+
+        CompletableFuture<Void> seek = impl.seekAsync(
+                topic -> topic.equals(validTopic) ? MessageId.earliest : invalidPosition);
+
+        CompletionException error = expectThrows(CompletionException.class, seek::join);
+        assertEquals(error.getCause().getMessage(), "Only support seek by messageId or timestamp");
+        verify(validConsumer, never()).seekAsync(any(Function.class));
+        verify(invalidConsumer, never()).seekAsync(any(Function.class));
+        assertEquals(impl.getTotalIncomingMessages(), 2);
+        assertEquals(impl.getIncomingMessageSize(), 2);
+        Message<byte[]> validQueued = impl.incomingMessages.poll();
+        Message<byte[]> invalidQueued = impl.incomingMessages.poll();
+        assertEquals(validQueued.getMessageId(), new MessageIdImpl(1, 1, 0));
+        assertEquals(invalidQueued.getMessageId(), new MessageIdImpl(2, 1, 1));
+        validQueued.release();
+        invalidQueued.release();
+        assertEquals(impl.getUnAckedMessageTracker().size(), 2);
+        assertTrue(impl.getUnAckedMessageTracker().remove(validUnacked));
+        assertTrue(impl.getUnAckedMessageTracker().remove(invalidUnacked));
+    }
+
     @Test(timeOut = 10000, dataProvider = "seekByFunction")
     @SuppressWarnings("unchecked")
     public void testSelectiveSeekRefillsOnlySoughtPartition(boolean seekByFunction) throws Exception {

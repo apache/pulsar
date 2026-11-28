@@ -911,6 +911,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 positions.put(consumer, position);
             }
         });
+        if (positions.values().stream().anyMatch(position -> !ConsumerImpl.isSupportedSeekPosition(position))) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException("Only support seek by messageId or timestamp"));
+        }
         return seekAsyncInternal(positions.keySet(), consumer -> consumer.seekAsync(topic -> positions.get(consumer)));
     }
 
