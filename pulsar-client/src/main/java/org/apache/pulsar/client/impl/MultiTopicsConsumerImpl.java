@@ -48,6 +48,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -1791,6 +1792,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private CompletableFuture<Consumer<T>> addNewConsumerIfNotExists(String internalTopicName,
             Supplier<ConsumerImpl<T>> newConsumerSupplier, CompletableFuture<Void> childrenPublished) {
         AtomicBoolean created = new AtomicBoolean();
+        AtomicReference<ConsumerImpl<T>> replacedConsumer = new AtomicReference<>();
         ConsumerImpl<T> consumer = consumers.compute(internalTopicName, (__, existingConsumer) -> {
             if (existingConsumer != null) {
                 if (existingConsumer.subscribeFuture().isCompletedExceptionally()) {
@@ -1798,8 +1800,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                 .log("Closing and replacing existing consumer"
                                         + " that wasn't completed successfully"
                                         + " for");
-                    // Other partitions can still be using the parent's shared schema.
-                    existingConsumer.closeAsync(existingConsumer.schema != schema);
+                    // Close after the map update, once the replacement is published:
+                    // the failed child's prepared schema may still be held by a
+                    // healthy sibling from the same refresh.
+                    replacedConsumer.set(existingConsumer);
                 } else {
                         log.debug().attr("internalTopicName", internalTopicName)
                                 .log("Reusing existing consumer for");
@@ -1812,6 +1816,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             created.set(true);
             return newConsumerSupplier.get();
         });
+        ConsumerImpl<T> replaced = replacedConsumer.get();
+        if (replaced != null) {
+            // A refresh hands the same prepared schema instance to every new child,
+            // so a failed child's schema can still be in use by a healthy sibling.
+            // Close it only once no other registered child holds the same instance.
+            replaced.closeAsync(!sharesSchemaWithSibling(replaced));
+        }
         // Reconcile after compute publishes the child, without holding a map lock together with pauseMutex.
         synchronizeConsumerPauseState(consumer);
         if (childrenPublished != null && created.get()) {
@@ -1823,6 +1834,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             });
         }
         return consumer.subscribeFuture();
+    }
+
+    // A refresh hands the same prepared schema instance to every new child, so a failed
+    // child's schema may still be held by a healthy sibling; closing it would break
+    // decoding on that sibling. The parent's own schema is never closed from a child,
+    // and a schema owned by no other registered child is safe to close.
+    private boolean sharesSchemaWithSibling(ConsumerImpl<T> consumer) {
+        Schema<T> consumerSchema = consumer.schema;
+        if (consumerSchema == null || consumerSchema == schema) {
+            return true;
+        }
+        return consumers.values().stream()
+                .anyMatch(sibling -> sibling != consumer && sibling.schema == consumerSchema);
     }
 
     private TimerTask partitionsAutoUpdateTimerTask = new TimerTask() {
