@@ -51,6 +51,8 @@ type Conf struct {
 	ProcessingGuarantees int32  `json:"processingGuarantees" yaml:"processingGuarantees"`
 	SecretsMap           string `json:"secretsMap" yaml:"secretsMap"`
 	Runtime              int32  `json:"runtime" yaml:"runtime"`
+	// Secrets provider the function worker selected for the function
+	SecretsProviderClassName string `json:"secretsProviderClassName" yaml:"secretsProviderClassName"`
 	// Authentication
 	ClientAuthenticationPlugin     string `json:"clientAuthenticationPlugin" yaml:"clientAuthenticationPlugin"`
 	ClientAuthenticationParameters string `json:"clientAuthenticationParameters" yaml:"clientAuthenticationParameters"`

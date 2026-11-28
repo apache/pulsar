@@ -441,6 +441,7 @@ public class ProcessRuntimeTest {
         assertEquals(goInstanceConfig.get("nameSpace"), TEST_NAMESPACE);
         assertEquals(goInstanceConfig.get("name"), TEST_NAME);
         assertEquals(goInstanceConfig.get("runtime"), 3);
+        assertEquals(goInstanceConfig.get("secretsProviderClassName"), "secretsprovider.ClearTextSecretsProvider");
         assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"), "com.MyAuth");
         assertEquals(goInstanceConfig.get("clientAuthenticationParameters"), "{\"authParam1\": \"authParamValue1\"}");
         assertEquals(goInstanceConfig.get("tlsTrustCertsFilePath"), "");

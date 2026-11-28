@@ -186,3 +186,9 @@ func GetUserConfMap() map[string]interface{} {
 func GetUserConfValue(key string) interface{} {
 	return NewFuncContext().userConfigs[key]
 }
+
+// GetSecret provides access to a secret of the pulsar function before
+// initializing the pulsar function
+func GetSecret(ctx context.Context, secretName string) (string, error) {
+	return NewFuncContext().GetSecret(ctx, secretName)
+}

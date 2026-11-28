@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.secretsproviderconfigurator;
 import com.google.gson.Gson;
 import java.util.HashMap;
 import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -28,6 +29,20 @@ import org.testng.annotations.Test;
  * Unit test of {@link KubernetesSecretsProviderConfigurator}.
  */
 public class KubernetesSecretsProviderConfiguratorTest {
+
+    @Test
+    public void testSecretsProviderClassName() {
+        KubernetesSecretsProviderConfigurator provider = new KubernetesSecretsProviderConfigurator();
+        Assert.assertEquals(
+                provider.getSecretsProviderClassName(new FunctionDetails().setRuntime(FunctionDetails.Runtime.JAVA)),
+                EnvironmentBasedSecretsProvider.class.getName());
+        Assert.assertEquals(
+                provider.getSecretsProviderClassName(new FunctionDetails().setRuntime(FunctionDetails.Runtime.PYTHON)),
+                "secretsprovider.EnvironmentBasedSecretsProvider");
+        Assert.assertEquals(
+                provider.getSecretsProviderClassName(new FunctionDetails().setRuntime(FunctionDetails.Runtime.GO)),
+                "EnvironmentBasedSecretsProvider");
+    }
 
     @Test
     public void testConfigValidation() throws Exception {
