@@ -142,6 +142,9 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             stats.updateNumMsgsReceived(message);
             return message;
         } catch (InterruptedException e) {
+            if (!incomingMessages.isTerminated()) {
+                Thread.currentThread().interrupt();
+            }
             stats.incrementNumReceiveFailed();
             throw PulsarClientException.unwrap(e);
         } finally {

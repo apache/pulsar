@@ -1209,4 +1209,74 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
                 .hasCauseInstanceOf(InterruptedException.class);
         producer.close();
     }
+
+    @Test(timeOut = 30000)
+    public void testRealInterruptOnLiveQueueRestoresFlag() throws Exception {
+        final String topicName = newTopicName();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("test-sub")
+                .receiverQueueSize(0)
+                .subscribe();
+
+        AtomicReference<PulsarClientException> caught = new AtomicReference<>();
+        AtomicBoolean flagAfter = new AtomicBoolean();
+
+        Thread receiver = new Thread(() -> {
+            try {
+                consumer.receive();
+            } catch (PulsarClientException e) {
+                caught.set(e);
+                flagAfter.set(Thread.currentThread().isInterrupted());
+            }
+        }, "test-receiver");
+        receiver.start();
+
+        Awaitility.await().until(() -> receiver.getState() == Thread.State.WAITING);
+
+        receiver.interrupt();
+        receiver.join(5000);
+
+        assertThat(caught.get()).isNotNull();
+        assertThat(caught.get().getCause()).isInstanceOf(InterruptedException.class);
+        assertThat(flagAfter.get())
+                .as("real thread interrupt on a live queue must restore the interrupt flag")
+                .isTrue();
+    }
+
+    @Test(timeOut = 30000)
+    public void testQueueTerminationDoesNotRestoreInterruptFlag() throws Exception {
+        final String topicName = newTopicName();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("test-sub")
+                .receiverQueueSize(0)
+                .subscribe();
+
+        AtomicReference<PulsarClientException> caught = new AtomicReference<>();
+        AtomicBoolean flagAfter = new AtomicBoolean();
+
+        Thread receiver = new Thread(() -> {
+            try {
+                consumer.receive();
+            } catch (PulsarClientException e) {
+                caught.set(e);
+                flagAfter.set(Thread.currentThread().isInterrupted());
+            }
+        }, "test-receiver");
+        receiver.start();
+
+        Awaitility.await().until(() -> receiver.getState() == Thread.State.WAITING);
+
+        consumer.close();
+        receiver.join(5000);
+
+        assertThat(caught.get()).isNotNull();
+        assertThat(flagAfter.get())
+                .as("queue termination (consumer close) must not set the interrupt flag")
+                .isFalse();
+    }
 }
