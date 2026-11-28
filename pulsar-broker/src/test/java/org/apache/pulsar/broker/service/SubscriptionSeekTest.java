@@ -55,6 +55,7 @@ import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetInProgressException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
@@ -63,6 +64,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
@@ -94,6 +96,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -174,17 +177,23 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         assertEquals(sub.getNumberOfEntriesInBacklog(false), 0);
     }
 
-    @Test
-    public void testSeekRejectsGroupedAckFromDisconnectedConsumer() throws Exception {
-        String topicName = "persistent://prop/ns-abc/seek-rejects-old-consumer-ack";
+    @DataProvider
+    public Object[][] individualAckSubscriptions() {
+        return new Object[][] {{SubscriptionType.Shared}, {SubscriptionType.Key_Shared}};
+    }
+
+    @Test(dataProvider = "individualAckSubscriptions")
+    public void testSeekRejectsGroupedAckFromDisconnectedConsumer(SubscriptionType type) throws Exception {
+        String topicName = "persistent://prop/ns-abc/seek-rejects-old-consumer-ack-" + type;
         try (var clientConsumer = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub")
-                     .subscriptionType(SubscriptionType.Shared).enableBatchIndexAcknowledgment(true).subscribe();
+                     .subscriptionType(type).enableBatchIndexAcknowledgment(true).subscribe();
              var producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(true)
+                     .batcherBuilder(BatcherBuilder.KEY_BASED)
                      .batchingMaxMessages(2).batchingMaxPublishDelay(10, TimeUnit.SECONDS).create()) {
-            var leading = producer.sendAsync("whole");
+            var leading = producer.newMessage().key("key").value("whole").sendAsync();
             producer.flush();
-            var first = producer.sendAsync("first");
-            var second = producer.sendAsync("second");
+            var first = producer.newMessage().key("key").value("first").sendAsync();
+            var second = producer.newMessage().key("key").value("second").sendAsync();
             producer.flush();
             MessageIdAdv wholeId = (MessageIdAdv) leading.get(5, TimeUnit.SECONDS);
             MessageIdAdv batchId = (MessageIdAdv) first.get(5, TimeUnit.SECONDS);
@@ -216,10 +225,22 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             }
 
             var newConsumer = subscription.getConsumers().getFirst();
+            var pending = newConsumer.getPendingAcks();
+            assertThat(pending.getRemainingUnacked(whole.getLedgerId(), whole.getEntryId())).isEqualTo(1);
+            assertThat(pending.getRemainingUnacked(batch.getLedgerId(), batch.getEntryId())).isEqualTo(2);
+            // Without a receipt the old command returns normally. Its entries now belong to the reconnected consumer.
+            oldConsumer.messageAcked(ack).get(5, TimeUnit.SECONDS);
+            assertThat(subscription.getCursor().isMessageDeleted(whole)).isFalse();
+            assertThat(subscription.getCursor().getBatchPositionAckSet(batch)).isNull();
+            assertThat(pending.getRemainingUnacked(whole.getLedgerId(), whole.getEntryId())).isEqualTo(1);
+            assertThat(pending.getRemainingUnacked(batch.getLedgerId(), batch.getEntryId())).isEqualTo(2);
+
             ack.setConsumerId(newConsumer.consumerId());
             newConsumer.messageAcked(ack, true).get(5, TimeUnit.SECONDS);
             assertThat(subscription.getCursor().isMessageDeleted(whole)).isTrue();
             assertThat(subscription.getCursor().getBatchPositionAckSet(batch)).containsExactly(2L);
+            assertThat(pending.contains(whole.getLedgerId(), whole.getEntryId())).isFalse();
+            assertThat(pending.getRemainingUnacked(batch.getLedgerId(), batch.getEntryId())).isEqualTo(1);
         }
     }
 
@@ -1016,6 +1037,74 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             Message<String> replay = standby.receive(10, TimeUnit.SECONDS);
             assertThat(replay).isNotNull();
             assertThat(replay.getValue()).isEqualTo("replay");
+            assertThat(subscription.getConsumers()).singleElement().isSameAs(retained);
+            standby.acknowledgeAsync(replay).get(10, TimeUnit.SECONDS);
+            assertThat(subscription.getCursor().isMessageDeleted(position)).isTrue();
+        }
+    }
+
+    @Test
+    public void testFailoverSeekWaitsForAckAlreadyRoutedToStandby() throws Exception {
+        String topicName = "persistent://prop/ns-abc/seek-with-routed-standby-ack";
+        try (var standby = pulsarClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub")
+                     .subscriptionType(SubscriptionType.Failover).consumerName("standby").priorityLevel(1)
+                     .isAckReceiptEnabled(true).acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).subscribe();
+             var primaryClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).build();
+             var producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create()) {
+            var topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).orElseThrow();
+            var subscription = topic.getSubscription("sub");
+            Consumer retained = subscription.getConsumers().getFirst();
+            MessageIdAdv id = (MessageIdAdv) producer.send("replay");
+            Position position = PositionFactory.create(id.getLedgerId(), id.getEntryId());
+            Message<String> original = standby.receive(10, TimeUnit.SECONDS);
+            assertThat(original).isNotNull();
+            standby.acknowledgeAsync(original).get(10, TimeUnit.SECONDS);
+            assertThat(subscription.getCursor().isMessageDeleted(position)).isTrue();
+
+            try (var primary = primaryClient.newConsumer(Schema.STRING).topic(topicName).subscriptionName("sub")
+                    .subscriptionType(SubscriptionType.Failover).consumerName("primary").priorityLevel(0)
+                    .receiverQueueSize(0).subscribe()) {
+                var dispatcher = (AbstractDispatcherSingleActiveConsumer) subscription.getDispatcher();
+                Consumer originalPrimary = dispatcher.getActiveConsumer();
+                assertThat(originalPrimary.consumerName()).isEqualTo(primary.getConsumerName());
+                CommandAck duplicate = new CommandAck().setConsumerId(retained.consumerId())
+                        .setAckType(CommandAck.AckType.Individual);
+                duplicate.addMessageId().setLedgerId(id.getLedgerId()).setEntryId(id.getEntryId());
+                CompletableFuture<Void> routed = new CompletableFuture<>();
+                CompletableFuture<Void> release = new CompletableFuture<>();
+                // The connection routed a duplicate ACK for its earlier delivery before seek refreshed its generation.
+                CompletableFuture<Void> oldAck = CompletableFuture.supplyAsync(() -> {
+                    routed.complete(null);
+                    release.orTimeout(15, TimeUnit.SECONDS).join();
+                    return retained.messageAcked(duplicate, true);
+                }, retained.cnx()::execute).thenCompose(Function.identity());
+                long generation = subscription.getPendingAckHandle().getOrdinaryAckGeneration();
+                CompletableFuture<Void> seek;
+                try {
+                    routed.get(5, TimeUnit.SECONDS);
+                    seek = subscription.resetCursor(position);
+                    Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                            subscription.getPendingAckHandle().getOrdinaryAckGeneration() != generation);
+                    assertThat(subscription.getCursor().isMessageDeleted(position)).isFalse();
+                    assertThat(seek).isNotDone();
+                } finally {
+                    release.complete(null);
+                }
+                assertThatThrownBy(() -> oldAck.get(10, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(CursorResetInProgressException.class);
+                seek.get(10, TimeUnit.SECONDS);
+                assertThat(subscription.getCursor().isMessageDeleted(position)).isFalse();
+                // Closing the reconnected primary must trigger the standby handoff after the seek.
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                    Consumer reconnected = dispatcher.getActiveConsumer();
+                    assertThat(reconnected).isNotNull().isNotSameAs(originalPrimary);
+                    assertThat(reconnected.consumerName()).isEqualTo(primary.getConsumerName());
+                });
+            }
+
+            Message<String> replay = standby.receive(10, TimeUnit.SECONDS);
+            assertThat(replay).isNotNull();
+            assertThat(replay.getMessageId()).isEqualTo(id);
             assertThat(subscription.getConsumers()).singleElement().isSameAs(retained);
             standby.acknowledgeAsync(replay).get(10, TimeUnit.SECONDS);
             assertThat(subscription.getCursor().isMessageDeleted(position)).isTrue();

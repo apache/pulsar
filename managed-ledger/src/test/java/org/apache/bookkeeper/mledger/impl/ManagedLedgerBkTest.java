@@ -76,6 +76,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorResetInProgressException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -96,9 +97,11 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.zookeeper.KeeperException.BadVersionException;
 import org.awaitility.Awaitility;
@@ -1701,6 +1704,69 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), p1);
         assertEquals(cursor.getReadPosition(), p2);
         assertEquals(cursor.getNumberOfEntriesInBacklog(false), 3);
+    }
+
+    @Test(timeOut = 60000)
+    public void testIndividualAckDuringResetIsNotRecoveredByNewOwner() throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setEnsembleSize(2).setWriteQuorumSize(2)
+                .setAckQuorumSize(2).setThrottleMarkDelete(0);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory writer = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedger ledger = writer.open(testName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            positions.add(ledger.addEntry(new byte[] {(byte) i}));
+        }
+        // Leave a hole at entry 3 so the old checkpoint has both a mark-delete and a separate individual ACK.
+        cursor.markDelete(positions.get(2));
+        cursor.delete(positions.get(4));
+
+        LedgerHandle checkpointLedger = cursor.cursorLedger;
+        long previousCheckpoint = checkpointLedger.getLastAddConfirmed();
+        BookieId bookie = checkpointLedger.getLedgerMetadata().getEnsembleAt(previousCheckpoint).get(0);
+        CountDownLatch suspended = new CountDownLatch(1);
+        CountDownLatch resume = new CountDownLatch(1);
+        Future<?> reset;
+        try {
+            // The other replica can accept the append, but this cursor ledger requires both replies.
+            sleepBookie(bookie, resume, suspended);
+            assertThat(suspended.await(5, TimeUnit.SECONDS)).isTrue();
+            reset = executor.submit(() -> {
+                cursor.resetCursor(positions.get(1));
+                return null;
+            });
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(checkpointLedger.getLastAddPushed()).isEqualTo(previousCheckpoint + 1));
+            assertThat(checkpointLedger.getLastAddConfirmed()).isEqualTo(previousCheckpoint);
+            Future<?> ack = executor.submit(() -> {
+                cursor.delete(positions.get(5));
+                return null;
+            });
+            assertThatThrownBy(() -> ack.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(CursorResetInProgressException.class);
+            assertThat(reset.isDone()).isFalse();
+        } finally {
+            resume.countDown();
+        }
+        reset.get(10, TimeUnit.SECONDS);
+
+        // Take ownership from new ZooKeeper and BookKeeper clients before a graceful close can replace the checkpoint.
+        @Cleanup
+        MetadataStoreExtended recoveryStore = MetadataStoreExtended.create(zkUtil.getZooKeeperConnectString(),
+                MetadataStoreConfig.builder().build());
+        @Cleanup("shutdown")
+        ManagedLedgerFactory newOwner = new ManagedLedgerFactoryImpl(recoveryStore,
+                new ClientConfiguration(baseClientConf));
+        ManagedCursor recovered = newOwner.open(testName, config).openCursor("sub");
+        assertThat(recovered.getMarkDeletedPosition()).isEqualTo(positions.get(0));
+        List<Entry> replay = recovered.readEntries(positions.size());
+        try {
+            assertThat(replay).extracting(Entry::getPosition)
+                    .containsExactlyElementsOf(positions.subList(1, positions.size()));
+        } finally {
+            replay.forEach(Entry::release);
+        }
     }
 
     @Test(timeOut = 30000)
