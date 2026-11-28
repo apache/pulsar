@@ -62,6 +62,7 @@ import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -2151,19 +2152,27 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             throws Exception {
         String topic = "persistent://pulsar/system/test-system-topic";
         NamespaceBundle bundleName = pulsar.getNamespaceService().getBundle(TopicName.get(topic));
-        var releasing = new ServiceUnitStateData(Releasing, pulsar2.getBrokerId(), pulsar1.getBrokerId(), 1);
-        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId1)))
-                .when(loadManager).selectAsync(any(), any(), any());
+        var serviceUnit = bundleName.toString();
+        var tableView = getTableView(channel1);
+        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId2)))
+                .when(loadManager).selectAsync(any(), eq(Set.of(brokerId1)), any());
 
         try {
             disableChannels();
-            overrideTableView(channel1, bundleName.toString(), releasing);
+            tableView.put(serviceUnit, new ServiceUnitStateData(Owned, brokerId1, true, 1)).get();
+            waitUntilState(channel1, serviceUnit, Owned);
+            tableView.put(serviceUnit, new ServiceUnitStateData(Releasing, brokerId2, brokerId1, 2)).get();
+            waitUntilState(channel1, serviceUnit, Releasing);
         } finally {
             enableChannels();
         }
 
         channel1.cleanOwnerships();
-        channel2.cleanOwnerships();
+        Awaitility.await().untilAsserted(() -> {
+            var current = getTableView(channel2).get(serviceUnit);
+            assertEquals(Owned, state(current));
+            assertEquals(brokerId2, current.dstBroker());
+        });
     }
 
     @Test(priority = 24)

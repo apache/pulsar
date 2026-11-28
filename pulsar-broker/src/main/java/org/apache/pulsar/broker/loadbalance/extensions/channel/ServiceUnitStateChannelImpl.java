@@ -1584,24 +1584,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 });
     }
 
-    private void waitForCleanups(String broker, boolean gracefully, boolean systemBundles, int maxWaitTimeInMillis) {
+    private void waitForCleanups(String broker, boolean gracefully, Iterable<String> serviceUnits) {
         long started = System.currentTimeMillis();
-        while (System.currentTimeMillis() - started < maxWaitTimeInMillis) {
+        while (System.currentTimeMillis() - started < OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS) {
             boolean cleaned = true;
             List<CompletableFuture<Void>> overrideFutures = new ArrayList<>();
-            for (var etr : tableview.entrySet()) {
-                var serviceUnit = etr.getKey();
-                var data = etr.getValue();
-
-                if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString()) != systemBundles) {
-                    continue;
-                }
-
-                if (data.state() == Owned && broker.equals(data.dstBroker())) {
+            for (var serviceUnit : serviceUnits) {
+                var data = tableview.get(serviceUnit);
+                if (data != null && broker.equals(data.dstBroker())
+                        && (data.state() == Assigning || data.state() == Owned || data.state() == Releasing)) {
                     cleaned = false;
                     // An in-flight assignment can win against the initial cleanup override at the same
-                    // version. A successful publish does not mean the override was accepted. Retry using
-                    // the current state, keeping version conflict checks so a new owner's state is safe.
+                    // version. The metadata-store view can still show Assigning until the notification arrives.
+                    // Leave a graceful Releasing transfer to its new destination alone.
                     overrideFutures.add(overrideOwnership(serviceUnit, data, broker, gracefully));
                     tryWaitForOverrides(overrideFutures, false);
                 }
@@ -1676,6 +1671,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
+    private static boolean isOrphanForBroker(ServiceUnitStateData data, String broker) {
+        return data != null && (broker.equals(data.dstBroker()) && isActiveState(data.state())
+                || broker.equals(data.sourceBroker()) && isInFlightState(data.state()));
+    }
+
     private void doCleanup(String broker, boolean gracefully) {
         try {
             if (getChannelOwnerAsync().get(MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS)
@@ -1724,24 +1724,22 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.error().exception(e).log("Failed to flush");
         }
         List<CompletableFuture<Void>> overrideFutures = new ArrayList<>();
-        Map<String, ServiceUnitStateData> orphanSystemServiceUnits = new HashMap<>();
-        var iter =  tableview.entrySet().iterator();
-        while (iter.hasNext()) {
-            var etr = iter.next();
+        Set<String> orphanSystemServiceUnits = new HashSet<>();
+        String systemBundlePrefix = SYSTEM_NAMESPACE + "/";
+        for (var etr : tableview.entrySet()) {
             var stateData = etr.getValue();
             var serviceUnit = etr.getKey();
-            var state = state(stateData);
-            if (Objects.equals(broker, stateData.dstBroker()) && isActiveState(state)
-                    || Objects.equals(broker, stateData.sourceBroker()) && isInFlightState(state)) {
-                if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
-                    orphanSystemServiceUnits.put(serviceUnit, stateData);
+            if (isOrphanForBroker(stateData, broker)) {
+                if (serviceUnit.startsWith(systemBundlePrefix)) {
+                    orphanSystemServiceUnits.add(serviceUnit);
                 } else {
                     overrideFutures.add(overrideOwnership(serviceUnit, stateData, broker, gracefully));
-                    tryWaitForOverrides(overrideFutures, !iter.hasNext());
+                    tryWaitForOverrides(overrideFutures, false);
                 }
                 orphanServiceUnitCleanupCnt++;
             }
         }
+        tryWaitForOverrides(overrideFutures, true);
 
         try {
             tableview.flush(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
@@ -1756,24 +1754,21 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             // can cause the cluster to be temporarily unstable.
             // Hence, we clean the non-system bundles first and gracefully wait for them.
             // After that, we clean the system bundles, if any.
-            waitForCleanups(broker, gracefully, false, OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
+            waitForCleanups(broker, gracefully, () -> tableview.entrySet().stream().map(Map.Entry::getKey)
+                    .filter(key -> !key.startsWith(systemBundlePrefix)).iterator());
             this.totalOrphanServiceUnitCleanupCnt += orphanServiceUnitCleanupCnt;
             this.totalInactiveBrokerCleanupCnt++;
         }
 
         // clean system bundles in the end
-        var orphanSystemServiceUnitIter = orphanSystemServiceUnits.entrySet().iterator();
-        while (orphanSystemServiceUnitIter.hasNext()) {
-            var orphanSystemServiceUnit = orphanSystemServiceUnitIter.next();
-            var current = tableview.get(orphanSystemServiceUnit.getKey());
+        for (var serviceUnit : orphanSystemServiceUnits) {
+            var current = tableview.get(serviceUnit);
             // Ordinary-bundle cleanup may have taken long enough for this system bundle to change owners.
-            if (current == null || !(Objects.equals(broker, current.dstBroker()) && isActiveState(current.state())
-                    || Objects.equals(broker, current.sourceBroker()) && isInFlightState(current.state()))) {
+            if (!isOrphanForBroker(current, broker)) {
                 continue;
             }
-            log.info().attr("unit", orphanSystemServiceUnit.getKey()).log("Overriding orphan system service unit");
-            overrideFutures.add(
-                    overrideOwnership(orphanSystemServiceUnit.getKey(), current, broker, gracefully));
+            log.info().attr("unit", serviceUnit).log("Overriding orphan system service unit");
+            overrideFutures.add(overrideOwnership(serviceUnit, current, broker, gracefully));
             tryWaitForOverrides(overrideFutures, false);
         }
         tryWaitForOverrides(overrideFutures, true);
@@ -1786,7 +1781,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         // System bundles must stay last, but their overrides can lose a version conflict just like ordinary
         // bundles. Re-read ownership and retry only bundles still owned by the broker being cleaned up.
-        waitForCleanups(broker, gracefully, true, OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
+        if (!orphanSystemServiceUnits.isEmpty()) {
+            waitForCleanups(broker, gracefully, orphanSystemServiceUnits);
+        }
 
         double cleanupTime = TimeUnit.NANOSECONDS
                 .toMillis((System.nanoTime() - startTime));

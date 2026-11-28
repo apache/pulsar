@@ -21,16 +21,19 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Free;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
 import static org.assertj.core.api.Assertions.assertThat;
+import io.opentelemetry.api.OpenTelemetry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
@@ -40,11 +43,18 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateC
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateMetadataStoreTableViewImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl;
+import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -77,7 +87,8 @@ public class ExtensibleLoadManagerCloseTest {
         for (int i = 0; i < numBrokers; i++) {
             var config = brokerConfig(topicPoliciesEnabled);
             config.setLoadManagerServiceUnitStateTableViewClassName(tableViewClass);
-            final var broker = new PulsarService(config);
+            final var broker = tableViewClass.equals(DelayedMetadataStoreTableView.class.getName())
+                    ? brokerWithDelayedOwnershipNotifications(config) : new PulsarService(config);
             brokers.add(broker);
             broker.start();
         }
@@ -90,6 +101,29 @@ public class ExtensibleLoadManagerCloseTest {
         }
     }
 
+
+    private PulsarService brokerWithDelayedOwnershipNotifications(ServiceConfiguration config) {
+        return new PulsarService(config) {
+            @Override
+            public MetadataStoreExtended createLocalMetadataStore(PulsarMetadataEventSynchronizer synchronizer,
+                                                                  OpenTelemetry openTelemetry)
+                    throws MetadataStoreException {
+                return new ZKMetadataStore(config.getMetadataStoreUrl(), MetadataStoreConfig.builder().build(), true) {
+                    @Override
+                    protected CompletableFuture<Void> receivedNotification(Notification notification) {
+                        String prefix = ServiceUnitStateMetadataStoreTableViewImpl.PATH_PREFIX + "/";
+                        String path = notification.getPath();
+                        var race = path.startsWith(prefix)
+                                ? assignmentRaces.get(path.substring(prefix.length())) : null;
+                        if (race != null && race.metadataWriter != null && race.pendingOwned.isDone()) {
+                            return race.releaseNotification.thenCompose(__ -> super.receivedNotification(notification));
+                        }
+                        return super.receivedNotification(notification);
+                    }
+                };
+            }
+        };
+    }
 
     @AfterMethod(alwaysRun = true, timeOut = 30000)
     public void cleanupBrokers() throws Exception {
@@ -210,11 +244,16 @@ public class ExtensibleLoadManagerCloseTest {
         } while (internalBundles.contains(bundle) || ownership(channel, bundle) != null);
 
         var race = new AssignmentRace();
+        // A separate metadata writer sees its own successful write immediately. The cleaning broker sees
+        // it through ZooKeeper, whose notification is held until the first retry on stale Assigning.
+        if (tableViewClass.equals(DelayedMetadataStoreTableView.class.getName())) {
+            race.metadataWriter = new ServiceUnitStateMetadataStoreTableViewImpl();
+            race.metadataWriter.start(broker, (key, value) -> {}, (key, value) -> {}, (key, value) -> {});
+        }
         assignmentRaces.put(bundle, race);
         CompletableFuture<String> lookup = null;
         try {
             // Exercise real lookup, broker selection, state handlers and persistent conflict resolution.
-            // The table views below only delay the normal Owned write until cleanup publishes its override.
             lookup = broker.getAdminClient().lookups().lookupTopicAsync(topic);
             var owned = race.pendingOwned.get(10, TimeUnit.SECONDS);
             var owner = brokers.stream().filter(b -> b.getBrokerId().equals(owned.dstBroker()))
@@ -222,9 +261,13 @@ public class ExtensibleLoadManagerCloseTest {
             var replacement = brokers.stream().filter(b -> b != owner).findFirst();
             var ownerChannel = ServiceUnitStateChannelImpl.get(owner);
             ownerChannel.cleanOwnerships();
-            assertThat(race.conflictingOverride.get(10, TimeUnit.SECONDS).versionId())
+            assertThat(race.firstOverride.get(10, TimeUnit.SECONDS).versionId())
                     .as("Cleanup must encounter the same-version conflict")
                     .isEqualTo(owned.versionId());
+            if (race.metadataWriter != null) {
+                assertThat(race.releaseNotification.isDone())
+                        .as("Cleanup must retry while the Owned notification is still pending").isTrue();
+            }
             String serviceUnit = bundle;
             Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
                 var remaining = ownership(ownerChannel, serviceUnit);
@@ -239,11 +282,57 @@ public class ExtensibleLoadManagerCloseTest {
             });
         } finally {
             race.releaseOwned.complete(null);
+            race.releaseNotification.complete(null);
             assignmentRaces.remove(bundle, race);
             if (lookup != null) {
                 // Disabling the original owner can cancel the lookup that triggered the race.
-                lookup.handle((result, error) -> null).get(10, TimeUnit.SECONDS);
+                lookup.cancel(false);
             }
+            if (race.metadataWriter != null) {
+                race.metadataWriter.close();
+            }
+        }
+    }
+
+    @Test(timeOut = 60000)
+    public void testCleanupRevalidatesCollectedSystemBundles() throws Exception {
+        setupBrokers(2, false, DelayedMetadataStoreTableView.class.getName());
+        var owner = brokers.get(0);
+        var other = brokers.get(1);
+        var channel = ServiceUnitStateChannelImpl.get(owner);
+        var unused = owner.getNamespaceService().getNamespaceBundleFactory().getBundles(NamespaceName.SYSTEM_NAMESPACE)
+                .getBundles().stream().map(Object::toString).filter(key -> ownership(channel, key) == null)
+                .limit(3).toList();
+        assertThat(unused).hasSize(3);
+        var assigning = unused.get(0);
+        var moved = unused.get(1);
+        var newlyOwned = unused.get(2);
+        var firstOverrides = new ConcurrentHashMap<String, ServiceUnitStateData>();
+        var race = new AssignmentRace();
+        assignmentRaces.put(assigning, race);
+        try {
+            channel.publishAssignEventAsync(assigning, owner.getBrokerId());
+            var owned = race.pendingOwned.get(10, TimeUnit.SECONDS);
+            channel.publishAssignEventAsync(moved, owner.getBrokerId()).get(10, TimeUnit.SECONDS);
+
+            DelayedMetadataStoreTableView.afterSnapshot.set(view -> {
+                race.releaseOwned.complete(null);
+                race.ownedPublished.join();
+                view.put(moved, new ServiceUnitStateData(Owned, other.getBrokerId(), true,
+                        view.get(moved).versionId() + 1)).join();
+                view.put(newlyOwned, new ServiceUnitStateData(Owned, owner.getBrokerId(), true, 1)).join();
+                view.firstOverrides = firstOverrides;
+            });
+
+            channel.cleanOwnerships();
+            assertThat(firstOverrides).containsKey(assigning).doesNotContainKeys(moved, newlyOwned);
+            assertThat(firstOverrides.get(assigning).versionId()).isEqualTo(owned.versionId() + 1);
+            assertThat(ownership(channel, moved).dstBroker()).isEqualTo(other.getBrokerId());
+            assertThat(ownership(channel, newlyOwned).dstBroker()).isEqualTo(owner.getBrokerId());
+        } finally {
+            DelayedMetadataStoreTableView.afterSnapshot.remove();
+            race.releaseOwned.complete(null);
+            assignmentRaces.remove(assigning, race);
         }
     }
 
@@ -255,8 +344,10 @@ public class ExtensibleLoadManagerCloseTest {
     private static class AssignmentRace {
         private final AtomicBoolean held = new AtomicBoolean();
         private final CompletableFuture<ServiceUnitStateData> pendingOwned = new CompletableFuture<>();
-        private final CompletableFuture<ServiceUnitStateData> conflictingOverride = new CompletableFuture<>();
+        private final CompletableFuture<ServiceUnitStateData> firstOverride = new CompletableFuture<>();
         private final CompletableFuture<Void> releaseOwned = new CompletableFuture<>();
+        private final CompletableFuture<Void> releaseNotification = new CompletableFuture<>();
+        private ServiceUnitStateMetadataStoreTableViewImpl metadataWriter;
         private volatile CompletableFuture<Void> ownedPublished;
     }
 
@@ -265,15 +356,18 @@ public class ExtensibleLoadManagerCloseTest {
         var race = assignmentRaces.get(key);
         if (race != null && data != null) {
             if (data.state() == Owned && !data.force() && race.held.compareAndSet(false, true)) {
-                race.ownedPublished = race.releaseOwned.thenCompose(__ -> write.get());
+                race.ownedPublished = race.releaseOwned.thenCompose(__ -> race.metadataWriter == null
+                        ? write.get() : race.metadataWriter.put(key, data));
                 race.pendingOwned.complete(data);
                 return race.ownedPublished;
             }
             var owned = race.pendingOwned.getNow(null);
-            if (data.force() && owned != null && data.versionId() == owned.versionId()) {
-                race.conflictingOverride.complete(data);
+            if (data.force() && owned != null && race.firstOverride.complete(data)) {
                 race.releaseOwned.complete(null);
                 return race.ownedPublished.thenCompose(__ -> write.get());
+            }
+            if (data.force() && owned != null && data.versionId() == owned.versionId()) {
+                race.releaseNotification.complete(null);
             }
         }
         return write.get();
@@ -287,8 +381,27 @@ public class ExtensibleLoadManagerCloseTest {
     }
 
     public static class DelayedMetadataStoreTableView extends ServiceUnitStateMetadataStoreTableViewImpl {
+        // Only intercept the initial snapshot on the thread calling cleanOwnerships().
+        private static final ThreadLocal<Consumer<DelayedMetadataStoreTableView>> afterSnapshot = new ThreadLocal<>();
+        private volatile Map<String, ServiceUnitStateData> firstOverrides;
+
+        @Override
+        public Set<Map.Entry<String, ServiceUnitStateData>> entrySet() {
+            var action = afterSnapshot.get();
+            if (action == null) {
+                return super.entrySet();
+            }
+            afterSnapshot.remove();
+            var snapshot = Set.copyOf(super.entrySet());
+            action.accept(this);
+            return snapshot;
+        }
+
         @Override
         public CompletableFuture<Void> put(String key, ServiceUnitStateData value) {
+            if (firstOverrides != null && value.force()) {
+                firstOverrides.putIfAbsent(key, value);
+            }
             return delayOwnedWrite(key, value, () -> super.put(key, value));
         }
     }
