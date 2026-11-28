@@ -26,6 +26,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawReader;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Compactor for Pulsar topics.
@@ -55,13 +56,27 @@ public abstract class Compactor {
     }
 
     public CompletableFuture<Long> compact(String topic) {
-        return RawReader.create(pulsar, topic, COMPACTION_SUBSCRIPTION, false, false).thenComposeAsync(
-                this::compactAndCloseReader, scheduler);
+        // Record the start of the compaction attempt before creating the raw reader so that a failure
+        // to create the reader (lookup, connection, authorization, topic-not-found) is also covered
+        // by the compaction counters instead of being silently invisible.
+        mxBean.addCompactionStartOp(topic);
+        final CompletableFuture<RawReader> readerFuture;
+        try {
+            readerFuture = RawReader.create(pulsar, topic, COMPACTION_SUBSCRIPTION, false, false);
+        } catch (RuntimeException e) {
+            mxBean.addCompactionEndOp(topic, false);
+            return FutureUtil.failedFuture(e);
+        }
+        readerFuture.whenComplete((reader, throwable) -> {
+            if (throwable != null) {
+                mxBean.addCompactionEndOp(topic, false);
+            }
+        });
+        return readerFuture.thenComposeAsync(this::compactAndCloseReader, scheduler);
     }
 
     private CompletableFuture<Long> compactAndCloseReader(RawReader reader) {
         CompletableFuture<Long> promise = new CompletableFuture<>();
-        mxBean.addCompactionStartOp(reader.getTopic());
         doCompaction(reader, bk).whenComplete(
                 (ledgerId, exception) -> {
                     reader.closeAsync().whenComplete((v, exception2) -> {
