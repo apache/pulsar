@@ -19,20 +19,28 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.functions.Utils.FILE;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.fail;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.commons.io.FileUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -43,11 +51,13 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Instance;
+import org.apache.pulsar.functions.proto.PackageLocationMetaData;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -271,6 +281,129 @@ public class FunctionActionerTest {
         String pkgPathLocation = "function://public/default/test-function@latest";
         startFunction(actioner, pkgPathLocation, pkgPathLocation);
         verify(runtime, times(1)).start();
+    }
+
+    @DataProvider(name = "originalFileNames")
+    public Object[][] originalFileNames() {
+        return new Object[][]{
+                {"", "", ""},
+                {"package.jar", "package.jar", ""},
+                // Each original file name below is the name of the directory the other package is downloaded to.
+                // These rows pass without the fix too; they check that one package's file cannot take the
+                // directory of the other package.
+                {"transform-function-package", "transform-function.jar", ""},
+                {"sink.jar", "package", ""},
+                // An older worker downloaded packages into the instance directory itself, so a stale package file
+                // may sit where a download directory is created now.
+                {"", "", "package"},
+                {"", "", "transform-function-package"},
+        };
+    }
+
+    /**
+     * A sink and its transform function, both given as package URLs, must be downloaded to different files,
+     * otherwise the transform function package replaces the sink package before the runtime is created.
+     */
+    @Test(dataProvider = "originalFileNames")
+    public void testStartSinkWithTransformFunctionPackageUrl(String sinkOriginalFileName,
+                                                             String transformFunctionOriginalFileName,
+                                                             String stalePackageFileName)
+            throws Exception {
+        File downloadDirectory = Files.createTempDirectory("function-actioner-test").toFile();
+        try {
+            if (!stalePackageFileName.isEmpty()) {
+                Path instanceDirectory = Files.createDirectories(downloadDirectory.toPath()
+                        .resolve(Path.of("test-tenant", "test-namespace", "test-sink", "0")));
+                Files.writeString(instanceDirectory.resolve(stalePackageFileName), "stale package");
+            }
+            WorkerConfig workerConfig = new WorkerConfig();
+            workerConfig.setWorkerId("worker-1");
+            workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
+            workerConfig.setDownloadDirectory(downloadDirectory.getAbsolutePath());
+
+            String sinkPackageUrl = "sink://public/default/test-sink@latest";
+            String transformFunctionPackageUrl = "function://public/default/test-transform-function@latest";
+            PulsarAdmin pulsarAdmin = mock(PulsarAdmin.class);
+            Packages packages = mock(Packages.class);
+            doReturn(packages).when(pulsarAdmin).packages();
+            doAnswer(invocation -> {
+                Files.writeString(Path.of(invocation.getArgument(1, String.class)),
+                        "content of " + invocation.getArgument(0, String.class));
+                return null;
+            }).when(packages).download(any(), any());
+
+            record PackageFile(String path, String content) {
+            }
+            List<PackageFile> packageFilesAtContainerCreation = new ArrayList<>();
+            RuntimeFactory factory = mock(RuntimeFactory.class);
+            Runtime runtime = mock(Runtime.class);
+            doAnswer(invocation -> {
+                for (int index : new int[]{1, 3}) {
+                    String path = invocation.getArgument(index, String.class);
+                    packageFilesAtContainerCreation.add(new PackageFile(path, Files.readString(Path.of(path))));
+                }
+                return runtime;
+            }).when(factory).createContainer(any(), any(), any(), any(), any(), any());
+
+            @SuppressWarnings("resource")
+            FunctionActioner actioner = new FunctionActioner(workerConfig, factory, mock(Namespace.class),
+                    new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), pulsarAdmin,
+                    mock(PackageUrlValidator.class));
+
+            FunctionMetaData function = new FunctionMetaData();
+            function.setFunctionDetails().setTenant("test-tenant")
+                    .setNamespace("test-namespace").setName("test-sink")
+                    .setComponentType(FunctionDetails.ComponentType.SINK)
+                    .setRuntime(FunctionDetails.Runtime.JAVA)
+                    .setClassName("org.apache.pulsar.functions.api.utils.IdentityFunction")
+                    .setSink().setClassName("org.example.TestSink");
+            PackageLocationMetaData sinkPackageLocation =
+                    function.setPackageLocation().setPackagePath(sinkPackageUrl);
+            PackageLocationMetaData transformFunctionPackageLocation =
+                    function.setTransformFunctionPackageLocation().setPackagePath(transformFunctionPackageUrl);
+            if (!sinkOriginalFileName.isEmpty()) {
+                sinkPackageLocation.setOriginalFileName(sinkOriginalFileName);
+            }
+            if (!transformFunctionOriginalFileName.isEmpty()) {
+                transformFunctionPackageLocation.setOriginalFileName(transformFunctionOriginalFileName);
+            }
+            Instance instance = new Instance();
+            instance.setFunctionMetaData().copyFrom(function);
+            instance.setInstanceId(0);
+            FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
+            doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
+
+            actioner.startFunction(functionRuntimeInfo);
+
+            verify(functionRuntimeInfo, never()).setStartupException(any());
+            verify(runtime).start();
+            assertThat(packageFilesAtContainerCreation)
+                    .as("package files passed to the runtime factory")
+                    .hasSize(2);
+            PackageFile sinkPackageFile = packageFilesAtContainerCreation.get(0);
+            PackageFile transformFunctionPackageFile = packageFilesAtContainerCreation.get(1);
+            assertThat(sinkPackageFile.content())
+                    .as("content of the sink package file %s when the runtime is created", sinkPackageFile.path())
+                    .isEqualTo("content of " + sinkPackageUrl);
+            assertThat(transformFunctionPackageFile.content())
+                    .as("content of the transform function package file %s when the runtime is created",
+                            transformFunctionPackageFile.path())
+                    .isEqualTo("content of " + transformFunctionPackageUrl);
+            assertThat(transformFunctionPackageFile.path())
+                    .as("transform function package file")
+                    .isNotEqualTo(sinkPackageFile.path());
+
+            actioner.stopFunction(functionRuntimeInfo);
+
+            assertThat(new File(sinkPackageFile.path()))
+                    .as("sink package file after the function is stopped")
+                    .doesNotExist();
+            assertThat(new File(transformFunctionPackageFile.path()))
+                    .as("transform function package file after the function is stopped")
+                    .doesNotExist();
+        } finally {
+            FileUtils.deleteDirectory(downloadDirectory);
+        }
     }
 
     @Test

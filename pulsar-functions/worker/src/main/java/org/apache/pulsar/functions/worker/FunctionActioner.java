@@ -82,6 +82,11 @@ import org.apache.pulsar.functions.utils.io.Connector;
 @CustomLog
 public class FunctionActioner {
 
+    // The function package and the transform function package can get the same file name, so each one is
+    // downloaded to its own directory under the instance directory.
+    private static final String PACKAGE_DOWNLOAD_DIRECTORY = "package";
+    private static final String TRANSFORM_FUNCTION_PACKAGE_DOWNLOAD_DIRECTORY = "transform-function-package";
+
     private final WorkerConfig workerConfig;
     private final RuntimeFactory runtimeFactory;
     private final Namespace dlogNamespace;
@@ -129,11 +134,12 @@ public class FunctionActioner {
                 transformFunctionPackageFile = transformFunctionPkgLocation.getPackagePath();
             } else {
                 packageFile = getPackageFile(functionMetaData, functionDetails, instanceId, pkgLocation,
-                        InstanceUtils.calculateSubjectType(functionDetails));
+                        InstanceUtils.calculateSubjectType(functionDetails), PACKAGE_DOWNLOAD_DIRECTORY);
                 if (!isEmpty(transformFunctionPkgLocation.getPackagePath())) {
                     transformFunctionPackageFile =
                             getPackageFile(functionMetaData, functionDetails, instanceId, transformFunctionPkgLocation,
-                                    FunctionDetails.ComponentType.FUNCTION);
+                                    FunctionDetails.ComponentType.FUNCTION,
+                                    TRANSFORM_FUNCTION_PACKAGE_DOWNLOAD_DIRECTORY);
                 }
             }
 
@@ -158,7 +164,7 @@ public class FunctionActioner {
 
     private String getPackageFile(FunctionMetaData functionMetaData, FunctionDetails functionDetails, int instanceId,
                                   PackageLocationMetaData pkgLocation,
-                                  FunctionDetails.ComponentType componentType)
+                                  FunctionDetails.ComponentType componentType, String downloadDirectoryName)
             throws URISyntaxException, IOException, ClassNotFoundException, PulsarAdminException {
         String packagePath = pkgLocation.getPackagePath();
         boolean isPkgUrlProvided = isFunctionPackageUrlSupported(packagePath);
@@ -178,8 +184,14 @@ public class FunctionActioner {
             File pkgFile = getBuiltinArchive(componentType, functionDetailsCopy);
             packageFile = pkgFile.getAbsolutePath();
         } else {
-            File pkgDir = new File(workerConfig.getDownloadDirectory(),
-                    getDownloadPackagePath(functionMetaData, instanceId));
+            File pkgDir = new File(new File(workerConfig.getDownloadDirectory(),
+                    getDownloadPackagePath(functionMetaData, instanceId)), downloadDirectoryName);
+            if (pkgDir.isFile()) {
+                // Older versions downloaded packages directly into the instance directory.
+                log.warn().attr("pkgFile", pkgDir).log("Stale function package exists at the download directory, "
+                        + "deleting it");
+                pkgDir.delete();
+            }
             pkgDir.mkdirs();
             File pkgFile = new File(
                     pkgDir,
