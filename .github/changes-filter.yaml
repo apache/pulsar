@@ -6,7 +6,6 @@ docs:
   - '*.md'
   - '**/*.md'
   - '.asf.yaml'
-  - '.github/changes-filter.yaml'
   - '.github/ISSUE_TEMPLATE/**'
   - '.idea/**'
   - 'deployment/**'
@@ -23,6 +22,14 @@ need_owasp:
   - '**/pom.xml'
   - 'src/owasp-dependency-check-false-positives.xml'
   - 'src/owasp-dependency-check-suppressions.xml'
+# Real packet-injection checks need Docker and are excluded from ordinary launcher tests.
+performance_network:
+  - 'tests/performance/launcher/**'
+  - 'tests/performance/common/**'
+  - 'tests/performance/scenarios/**'
+  - 'tests/docker-images/java-test-image/**'
+  - '.github/workflows/pulsar-ci.yaml'
+  - '.github/changes-filter.yaml'
 pulsar_dockerfile_wolfi:
   - 'docker/pulsar/Dockerfile.wolfi'
   - 'tests/docker-images/java-test-image/Dockerfile'

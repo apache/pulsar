@@ -195,7 +195,8 @@ public class ScenarioFilesTest {
 
     @Test(dataProvider = "networkOverlays")
     public void appliesEveryNetworkOverlayToTheScenarios(String overlay) {
-        for (String scenario : List.of("iot-telemetry-small.yaml", "iot-telemetry-high-rate.yaml")) {
+        for (String scenario : List.of("iot-telemetry-small.yaml", "iot-telemetry-high-rate.yaml",
+                "iot-telemetry-ci.yaml")) {
             ObjectNode resolved = resolve(SCENARIOS.resolve(scenario),
                     List.of(SCENARIOS.resolve("network").resolve(overlay)));
             ClusterSettings cluster = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
@@ -210,6 +211,33 @@ public class ScenarioFilesTest {
             assertThat(ledgerSetting(cluster, "managedLedgerDefaultEnsembleSize"))
                     .as("the ensemble size of %d bookie(s)", cluster.bookies().replicas())
                     .isBetween(1, cluster.bookies().replicas());
+            checkWorkload(resolved);
+        }
+    }
+
+    @Test
+    public void nightlyFaultsKeepABoundedWorkloadWithoutShorteningTheFaults() {
+        for (String fault : List.of("broker-isolation", "metadata-takeover", "bookie-partition",
+                "silent-client-disconnect", "geo-partition")) {
+            Path overlay = SCENARIOS.resolve("network").resolve(fault + ".yaml");
+            ObjectNode resolved = resolve(SCENARIOS.resolve("iot-telemetry-ci.yaml"), List.of(overlay));
+            JsonNode workload = loader.select(resolved, "workloads.iotTelemetry");
+            assertThat(workload.path("devices").path("count").asInt()).as(fault).isEqualTo(1000);
+            assertThat(workload.path("rate").asInt()).as(fault).isEqualTo(200);
+            assertThat(workload.path("gateways").path("producer").path("maxOutstanding").asInt())
+                    .as(fault).isEqualTo(256);
+            assertThat(workload.path("applications").path("count").asInt()).as(fault).isEqualTo(2);
+            assertThat(workload.path("applications").path("podsPerApplication").asInt()).as(fault).isEqualTo(2);
+            assertThat(workload.path("timeoutSeconds").asInt()).as(fault).isBetween(300, 360);
+            ClusterSettings cluster = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
+            assertThat(cluster.remote() != null).as(fault).isEqualTo(fault.equals("geo-partition"));
+            if (!fault.equals("geo-partition") && !fault.equals("silent-client-disconnect")) {
+                assertThat(cluster.brokers().replicas()).as(fault).isEqualTo(2);
+                assertThat(cluster.bookies().replicas()).as(fault).isEqualTo(4);
+                assertThat(ledgerSetting(cluster, "managedLedgerDefaultAckQuorum")).as(fault).isEqualTo(2);
+            }
+            // A smaller CI workload must not accidentally override an overlay's injection settings or timeline.
+            assertThat(resolved.path("network")).as(fault).isEqualTo(resolve(overlay, List.of()).path("network"));
             checkWorkload(resolved);
         }
     }

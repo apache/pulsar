@@ -39,6 +39,7 @@ import org.testcontainers.containers.Container;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.images.builder.ImageFromDockerfile;
+import org.testng.ITestResult;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -107,11 +108,12 @@ public class NetworkImpairmentsCheck {
 
     @BeforeMethod
     public void createRunDirectory() throws IOException {
-        runDirectory = Files.createTempDirectory("network-impairments-check");
+        Path artifacts = Files.createDirectories(Path.of("build/network-check"));
+        runDirectory = Files.createTempDirectory(artifacts, "network-impairments-check-");
     }
 
     @AfterMethod(alwaysRun = true)
-    public void closeImpairments() throws Exception {
+    public void closeImpairments(ITestResult result) throws Exception {
         if (impairments != null) {
             impairments.close();
             impairments = null;
@@ -129,6 +131,10 @@ public class NetworkImpairmentsCheck {
         // A silent disconnection leaves an iperf3 server busy with a connection that is gone
         for (String name : containers.keySet()) {
             exec(name, "pkill iperf3; sleep 0.2; iperf3 -s -D");
+        }
+        // Keep partial network events and summaries for CI diagnosis when the check failed.
+        if (!result.isSuccess() || runDirectory == null) {
+            return;
         }
         try (Stream<Path> files = Files.walk(runDirectory)) {
             for (Path file : files.sorted(Comparator.reverseOrder()).toList()) {
