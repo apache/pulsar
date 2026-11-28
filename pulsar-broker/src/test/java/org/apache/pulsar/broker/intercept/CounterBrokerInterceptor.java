@@ -28,6 +28,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.AllArgsConstructor;
@@ -57,7 +58,15 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     private final AtomicInteger count = new AtomicInteger();
     private final AtomicInteger connectionCreationCount = new AtomicInteger();
     private final AtomicInteger producerCount = new AtomicInteger();
+    @Getter
+    private final AtomicInteger producerCreatedInvocations = new AtomicInteger();
+    @Getter
+    private final AtomicInteger producerClosedInvocations = new AtomicInteger();
     private final AtomicInteger consumerCount = new AtomicInteger();
+    @Getter
+    private final AtomicInteger consumerCreatedInvocations = new AtomicInteger();
+    @Getter
+    private final AtomicInteger consumerClosedInvocations = new AtomicInteger();
     private final AtomicInteger messagePublishCount = new AtomicInteger();
     private final AtomicInteger messageCount = new AtomicInteger();
     private final AtomicInteger messageDispatchCount = new AtomicInteger();
@@ -68,6 +77,8 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     private final AtomicInteger txnCount = new AtomicInteger();
     private final AtomicInteger committedTxnCount = new AtomicInteger();
     private final AtomicInteger abortedTxnCount = new AtomicInteger();
+    private final ConcurrentHashMap<Long, Integer> producerClosedCountByProducerId = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Integer> consumerClosedCountByConsumerId = new ConcurrentHashMap<>();
     public static final String NAME = "COUNTER-BROKER-INTERCEPTOR";
 
     public void reset() {
@@ -76,7 +87,11 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         count.set(0);
         connectionCreationCount.set(0);
         producerCount.set(0);
+        producerCreatedInvocations.set(0);
+        producerClosedInvocations.set(0);
         consumerCount.set(0);
+        consumerCreatedInvocations.set(0);
+        consumerClosedInvocations.set(0);
         messagePublishCount.set(0);
         messageCount.set(0);
         messageDispatchCount.set(0);
@@ -86,6 +101,16 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         committedTxnCount.set(0);
         abortedTxnCount.set(0);
         handleNackCount.set(0);
+        producerClosedCountByProducerId.clear();
+        consumerClosedCountByConsumerId.clear();
+    }
+
+    public int getProducerClosedCount(long producerId) {
+        return producerClosedCountByProducerId.getOrDefault(producerId, 0);
+    }
+
+    public int getConsumerClosedCount(long consumerId) {
+        return consumerClosedCountByConsumerId.getOrDefault(consumerId, 0);
     }
 
     private final List<ResponseEvent> responseList = new CopyOnWriteArrayList<>();
@@ -108,6 +133,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                                 Map<String, String> metadata) {
         log.debug().attr("name", producer.getProducerName())
                 .attr("id", producer.getProducerId()).log("Producer created");
+        producerCreatedInvocations.incrementAndGet();
         producerCount.incrementAndGet();
     }
 
@@ -116,6 +142,8 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                                 Map<String, String> metadata) {
         log.debug().attr("name", producer.getProducerName())
                 .attr("id", producer.getProducerId()).log("Producer closed");
+        producerClosedInvocations.incrementAndGet();
+        producerClosedCountByProducerId.merge(producer.getProducerId(), 1, Integer::sum);
         producerCount.decrementAndGet();
     }
 
@@ -125,6 +153,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                                  Map<String, String> metadata) {
         log.debug().attr("name", consumer.consumerName())
                 .attr("id", consumer.consumerId()).log("Consumer created");
+        consumerCreatedInvocations.incrementAndGet();
         consumerCount.incrementAndGet();
     }
 
@@ -134,6 +163,8 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                                 Map<String, String> metadata) {
         log.debug().attr("name", consumer.consumerName())
                 .attr("id", consumer.consumerId()).log("Consumer closed");
+        consumerClosedInvocations.incrementAndGet();
+        consumerClosedCountByConsumerId.merge(consumer.consumerId(), 1, Integer::sum);
         consumerCount.decrementAndGet();
     }
 

@@ -146,11 +146,14 @@ public class BrokerInterceptors implements BrokerInterceptor {
                                  Consumer consumer,
                                  Map<String, String> metadata) {
         if (interceptorsEnabled()) {
-            for (BrokerInterceptorWithClassLoader value : interceptors) {
-                value.consumerCreated(
-                        cnx,
-                        consumer,
-                        metadata);
+            for (int i = 0; i < interceptors.length; i++) {
+                try {
+                    interceptors[i].consumerCreated(cnx, consumer, metadata);
+                    consumer.markBrokerInterceptorCreatedNotified(i);
+                } catch (Throwable t) {
+                    log.error().exception(t).attr("interceptorIndex", i)
+                            .log("Exception occur when intercept consumer created.");
+                }
             }
         }
     }
@@ -160,8 +163,16 @@ public class BrokerInterceptors implements BrokerInterceptor {
                                Consumer consumer,
                                Map<String, String> metadata) {
         if (interceptorsEnabled()) {
-            for (BrokerInterceptorWithClassLoader value : interceptors) {
-                value.consumerClosed(cnx, consumer, metadata);
+            for (int i = 0; i < interceptors.length; i++) {
+                if (!consumer.wasBrokerInterceptorCreatedNotified(i)) {
+                    continue;
+                }
+                try {
+                    interceptors[i].consumerClosed(cnx, consumer, metadata);
+                } catch (Throwable t) {
+                    log.error().exception(t).attr("interceptorIndex", i)
+                            .log("Exception occur when intercept consumer closed.");
+                }
             }
         }
     }
@@ -170,8 +181,14 @@ public class BrokerInterceptors implements BrokerInterceptor {
     public void producerCreated(ServerCnx cnx, Producer producer,
                                  Map<String, String> metadata){
         if (interceptorsEnabled()) {
-            for (BrokerInterceptorWithClassLoader value : interceptors) {
-                value.producerCreated(cnx, producer, metadata);
+            for (int i = 0; i < interceptors.length; i++) {
+                try {
+                    interceptors[i].producerCreated(cnx, producer, metadata);
+                    producer.markBrokerInterceptorCreatedNotified(i);
+                } catch (Throwable t) {
+                    log.error().exception(t).attr("interceptorIndex", i)
+                            .log("Exception occur when intercept producer created.");
+                }
             }
         }
     }
@@ -181,8 +198,16 @@ public class BrokerInterceptors implements BrokerInterceptor {
                                Producer producer,
                                Map<String, String> metadata) {
         if (interceptorsEnabled()) {
-            for (BrokerInterceptorWithClassLoader value : interceptors) {
-                value.producerClosed(cnx, producer, metadata);
+            for (int i = 0; i < interceptors.length; i++) {
+                if (!producer.wasBrokerInterceptorCreatedNotified(i)) {
+                    continue;
+                }
+                try {
+                    interceptors[i].producerClosed(cnx, producer, metadata);
+                } catch (Throwable t) {
+                    log.error().exception(t).attr("interceptorIndex", i)
+                            .log("Exception occur when intercept producer closed.");
+                }
             }
         }
     }

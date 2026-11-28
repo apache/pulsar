@@ -94,6 +94,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
@@ -238,6 +239,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final String listenerName;
     private final Map<Long, Long> recentlyClosedProducers;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
+    /** Producers under creation (including WaitForExclusive while not yet completed on this connection). */
+    private final ConcurrentLongHashMap<Producer> producersUnderCreation;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     // Confined to the channel event loop. A consumer notification can itself trigger a write.
     private boolean notifyingConsumersWritable;
@@ -389,6 +392,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .expectedItems(8)
                 .concurrencyLevel(1)
                 .build();
+        this.producersUnderCreation = ConcurrentLongHashMap.<Producer>newBuilder()
+                .expectedItems(8)
+                .concurrencyLevel(1)
+                .build();
         this.consumers = ConcurrentLongHashMap.<CompletableFuture<Consumer>>newBuilder()
                 .expectedItems(8)
                 .concurrencyLevel(1)
@@ -475,18 +482,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         // Connection is gone, close the producers immediately
-        producers.forEach((__, producerFuture) -> {
+        producers.forEach((producerId, producerFuture) -> {
             // prevent race conditions in completing producers
             if (!producerFuture.isDone()
                     && producerFuture.completeExceptionally(new IllegalStateException("Connection closed."))) {
+                Producer pending = producersUnderCreation.remove(producerId);
+                if (pending != null) {
+                    pending.closeNow(true);
+                }
                 return;
             }
             if (producerFuture.isDone() && !producerFuture.isCompletedExceptionally()) {
-                Producer producer = producerFuture.getNow(null);
-                producer.closeNow(true);
-                if (brokerInterceptor != null) {
-                    brokerInterceptor.producerClosed(this, producer, producer.getMetadata());
-                }
+                producerFuture.getNow(null).closeNow(true);
             }
         });
 
@@ -500,9 +507,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 Consumer consumer = consumerFuture.getNow(null);
                 try {
                     consumer.close();
-                    if (brokerInterceptor != null) {
-                        brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
-                    }
                 } catch (BrokerServiceException e) {
                     log.warn().attr("consumer", consumer).exceptionMessage(e)
                             .log("Consumer was already closed");
@@ -2418,9 +2422,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                 .log("Consumer with the same id is already created, closing it");
                         try {
                             consumer.close();
-                            if (brokerInterceptor != null) {
-                                brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
-                            }
                         } catch (BrokerServiceException e) {
                             log.warn()
                                     .attr("consumer", consumer)
@@ -2526,15 +2527,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         .attr("subscription", subscriptionName)
                                         .log("Created subscription on topic");
                                 commandSender.sendSuccessResponse(requestId);
-                                if (brokerInterceptor != null) {
-                                    try {
-                                        brokerInterceptor.consumerCreated(this, consumer, metadata);
-                                    } catch (Throwable t) {
-                                        log.error()
-                                                .exception(t)
-                                                .log("Exception occur when intercept consumer created.");
-                                    }
-                                }
+                                scheduleConsumerCreatedInterceptor(consumer, metadata);
                             } else {
                                 // The consumer future was completed before by a close command
                                 try {
@@ -2712,6 +2705,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .attr("producerId", producerId)
                         .log("client doesn't support topic migration handling");
             }
+            producer.closeNow(true);
+            if (!producerFuture.isDone()) {
+                producerFuture.completeExceptionally(ex);
+            }
+            producers.remove(producerId, producerFuture);
             closeProducer(producer);
         } else {
             if (clusterURL.isPresent()) {
@@ -3078,6 +3076,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
                 userProvidedProducerName, producerAccessMode, topicEpoch, supportsPartialProducer,
                 isAutoProduceBytes, requiresSchemaVersion);
+        producersUnderCreation.put(producerId, producer);
+        producerFuture.whenComplete((__, ___) -> producersUnderCreation.remove(producerId, producer));
 
         topic.addProducer(producer, producerQueuedFuture).thenAcceptAsync(newTopicEpoch -> {
             if (isActive()) {
@@ -3089,13 +3089,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     commandSender.sendProducerSuccessResponse(requestId, producerName,
                             producer.getLastSequenceId(), producer.getSchemaVersion(),
                             newTopicEpoch, true /* producer is ready now */);
-                    if (brokerInterceptor != null) {
-                        try {
-                            brokerInterceptor.producerCreated(this, producer, metadata);
-                        } catch (Throwable t) {
-                            log.error().exception(t).log("Exception occur when intercept producer created.");
-                        }
-                    }
+                    scheduleProducerCreatedInterceptor(producer, metadata);
                     return;
                 } else {
                     // The producer's future was completed before by
@@ -3171,10 +3165,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 commandSender.sendProducerSuccessResponse(requestId, producerName,
                         producer.getLastSequenceId(), producer.getSchemaVersion(),
                         Optional.empty(), false/* producer is not ready now */);
-                if (brokerInterceptor != null) {
-                    brokerInterceptor.
-                            producerCreated(this, producer, metadata);
-                }
+                // WaitForExclusive: producerCreated is emitted when the producer becomes ready, not while queued.
             }
         }, ctx.executor());
     }
@@ -3542,9 +3533,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     .log("Closed producer on cnx. producerId");
             commandSender.sendSuccessResponse(requestId);
             producers.remove(producerId, producerFuture);
-            if (brokerInterceptor != null) {
-                brokerInterceptor.producerClosed(this, producer, producer.getMetadata());
-            }
         }, ctx.executor());
     }
 
@@ -3596,9 +3584,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             log.info()
                     .attr("consumerId", consumerId)
                     .log("Closed consumer, consumerId");
-            if (brokerInterceptor != null) {
-                brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
-            }
         } catch (BrokerServiceException e) {
             log.warn()
                     .attr("consumer", consumer)
@@ -5038,9 +5023,145 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         safelyRemoveConsumer(consumer);
     }
 
+    private void scheduleConsumerCreatedInterceptor(Consumer consumer, Map<String, String> metadata) {
+        if (brokerInterceptor == null) {
+            return;
+        }
+        if (consumer.isBrokerInterceptorClosedBeforeCreate()) {
+            return;
+        }
+        consumer.beginBrokerInterceptorCreate();
+        execute(() -> runConsumerCreatedInterceptor(consumer, metadata));
+    }
+
+    private void runConsumerCreatedInterceptor(Consumer consumer, Map<String, String> metadata) {
+        try {
+            if (consumer.isBrokerInterceptorClosedBeforeCreate()) {
+                return;
+            }
+            consumer.markBrokerInterceptorCreateAttempted();
+            try {
+                brokerInterceptor.consumerCreated(this, consumer, metadata);
+                if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                    consumer.markBrokerInterceptorCreatedNotified(0);
+                }
+            } catch (Throwable t) {
+                if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                    log.error().exception(t).log("Exception occur when intercept consumer created.");
+                }
+            }
+        } finally {
+            consumer.endBrokerInterceptorCreate(this);
+        }
+    }
+
+    /**
+     * Fires {@code producerCreated} when the broker producer is ready to publish (including WaitForExclusive
+     * after promotion). At most once per {@link Producer} ({@code markBrokerInterceptorCreateLifecycleInvoked}).
+     */
+    private void scheduleProducerCreatedInterceptor(Producer producer, Map<String, String> metadata) {
+        if (brokerInterceptor == null || !producer.markBrokerInterceptorCreateLifecycleInvoked()) {
+            return;
+        }
+        if (producer.isBrokerInterceptorClosedBeforeCreate()) {
+            return;
+        }
+        producer.beginBrokerInterceptorCreate();
+        execute(() -> runProducerCreatedInterceptor(producer, metadata));
+    }
+
+    private void runProducerCreatedInterceptor(Producer producer, Map<String, String> metadata) {
+        try {
+            if (producer.isBrokerInterceptorClosedBeforeCreate()) {
+                return;
+            }
+            producer.markBrokerInterceptorCreateAttempted();
+            try {
+                brokerInterceptor.producerCreated(this, producer, metadata);
+                if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                    producer.markBrokerInterceptorCreatedNotified(0);
+                }
+            } catch (Throwable t) {
+                if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                    log.error().exception(t).log("Exception occur when intercept producer created.");
+                }
+            }
+        } finally {
+            producer.endBrokerInterceptorCreate(this);
+        }
+    }
+
+    /**
+     * Delivers {@code consumerClosed} on the connection event loop when {@code consumerCreated} succeeded for at least
+     * one listener ({@link Consumer#hasBrokerInterceptorCreateNotifications()}). Lone plugins use index {@code 0};
+     * {@link BrokerInterceptors} pairs close per successful index inside the composite.
+     */
+    @Override
+    public void notifyConsumerClosed(Consumer consumer) {
+        if (brokerInterceptor == null) {
+            return;
+        }
+        if (consumer.isBrokerInterceptorCreateInProgress()) {
+            consumer.noteBrokerInterceptorClosePendingDuringCreate();
+            return;
+        }
+        if (!consumer.hasBrokerInterceptorCreateNotifications()) {
+            if (!consumer.wasBrokerInterceptorCreateAttempted()) {
+                consumer.noteBrokerInterceptorClosePendingDuringCreate();
+                consumer.markBrokerInterceptorClosedBeforeCreate();
+            }
+            return;
+        }
+        if (!consumer.markBrokerInterceptorClosedNotified()) {
+            return;
+        }
+        Map<String, String> metadata = consumer.getMetadata();
+        try {
+            brokerInterceptor.consumerClosed(this, consumer, metadata);
+        } catch (Throwable t) {
+            if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                log.error().exception(t).log("Exception occur when intercept consumer closed.");
+            }
+        }
+    }
+
     @Override
     public void removedProducer(Producer producer) {
         safelyRemoveProducer(producer);
+    }
+
+    /**
+     * Delivers {@code producerClosed} on the connection event loop when {@code producerCreated} succeeded for at least
+     * one listener ({@link Producer#hasBrokerInterceptorCreateNotifications()}). Lone plugins use index {@code 0};
+     * {@link BrokerInterceptors} pairs close per successful index inside the composite.
+     */
+    @Override
+    public void notifyProducerClosed(Producer producer) {
+        if (brokerInterceptor == null) {
+            return;
+        }
+        if (producer.isBrokerInterceptorCreateInProgress()) {
+            producer.noteBrokerInterceptorClosePendingDuringCreate();
+            return;
+        }
+        if (!producer.hasBrokerInterceptorCreateNotifications()) {
+            if (!producer.wasBrokerInterceptorCreateAttempted()) {
+                producer.noteBrokerInterceptorClosePendingDuringCreate();
+                producer.markBrokerInterceptorClosedBeforeCreate();
+            }
+            return;
+        }
+        if (!producer.markBrokerInterceptorClosedNotified()) {
+            return;
+        }
+        Map<String, String> metadata = producer.getMetadata();
+        try {
+            brokerInterceptor.producerClosed(this, producer, metadata);
+        } catch (Throwable t) {
+            if (!(brokerInterceptor instanceof BrokerInterceptors)) {
+                log.error().exception(t).log("Exception occur when intercept producer closed.");
+            }
+        }
     }
 
     private void safelyRemoveProducer(Producer producer) {

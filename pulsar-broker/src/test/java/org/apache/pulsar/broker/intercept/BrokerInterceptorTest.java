@@ -30,6 +30,7 @@ import java.net.URLClassLoader;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -40,14 +41,18 @@ import okhttp3.Callback;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
@@ -194,13 +199,52 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void testWaitForExclusiveProducerOneCreateOneCloseAcrossPromotion() throws Exception {
+        String topic = "persistent://public/default/wait-exclusive-interceptor-" + UUID.randomUUID();
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        @Cleanup
+        Producer<String> active = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.Exclusive)
+                .create();
+        Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+        assertEquals(counterBrokerInterceptor.getProducerCreatedInvocations().get(), 1);
+        CompletableFuture<Producer<String>> waitingFuture = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.WaitForExclusive)
+                .createAsync();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(counterBrokerInterceptor.getProducerCount(), 1);
+            assertEquals(counterBrokerInterceptor.getProducerCreatedInvocations().get(), 1);
+        });
+        active.close();
+        @Cleanup
+        Producer<String> waiting = waitingFuture.get(10, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(counterBrokerInterceptor.getProducerCount(), 1);
+            assertEquals(counterBrokerInterceptor.getProducerCreatedInvocations().get(), 2);
+        });
+        waiting.close();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(counterBrokerInterceptor.getProducerCount(), 0);
+            assertEquals(counterBrokerInterceptor.getProducerCreatedInvocations().get(), 2);
+            assertEquals(counterBrokerInterceptor.getProducerClosedInvocations().get(), 2);
+        });
+    }
+
+    @Test
     public void testProducerClose() throws PulsarClientException {
+        String topicName = "persistent://public/default/broker-interceptor-producer-client-close";
         CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
         assertEquals(counterBrokerInterceptor.getProducerCount(), 0);
-        Producer<Boolean> producer = pulsarClient.newProducer(Schema.BOOL).topic("test").create();
+        Producer<Boolean> producer = pulsarClient.newProducer(Schema.BOOL).topic(topicName).create();
         Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+        org.apache.pulsar.broker.service.Producer brokerProducer =
+                pulsar.getBrokerService().getTopic(topicName, false).join().orElseThrow().getProducers().values()
+                        .iterator().next();
         producer.close();
-        Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(counterBrokerInterceptor.getProducerClosedCount(brokerProducer.getProducerId()), 1));
     }
 
     @Test
@@ -213,13 +257,136 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
     @Test
     public void testConsumerClose() throws PulsarClientException {
+        String topicName = "persistent://public/default/broker-interceptor-consumer-client-close";
+        String subName = "broker-interceptor-client-close-sub";
         CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
         assertEquals(counterBrokerInterceptor.getConsumerCount(), 0);
-        Consumer<String> consumer = pulsarClient
-                .newConsumer(Schema.STRING).topic("test1").subscriptionName("test-sub").subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribe();
         Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
+        org.apache.pulsar.broker.service.Consumer brokerConsumer =
+                ((PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().orElseThrow())
+                        .getSubscription(subName).getConsumers().get(0);
         consumer.close();
-        Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(counterBrokerInterceptor.getConsumerClosedCount(brokerConsumer.consumerId()), 1));
+    }
+
+    @Test
+    public void testProducerClosedOnBrokerDisconnect() throws Exception {
+        String topicName = "persistent://public/default/broker-interceptor-producer-disconnect-" + UUID.randomUUID();
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        try (Producer<Boolean> clientProducer = pulsarClient.newProducer(Schema.BOOL).topic(topicName).create()) {
+            Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+            PersistentTopic brokerTopic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopic(topicName, false).get().orElseThrow();
+            org.apache.pulsar.broker.service.Producer brokerProducer =
+                    brokerTopic.getProducers().values().iterator().next();
+            brokerProducer.disconnect().get(10, TimeUnit.SECONDS);
+            long brokerProducerId = brokerProducer.getProducerId();
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(counterBrokerInterceptor.getProducerClosedCount(brokerProducerId), 1));
+        }
+    }
+
+    @Test
+    public void testProducerClosedOnTopicUnload() throws Exception {
+        String topicName = "persistent://public/default/broker-interceptor-producer-unload-" + UUID.randomUUID();
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        try (Producer<Boolean> clientProducer = pulsarClient.newProducer(Schema.BOOL).topic(topicName).create()) {
+            Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+            PersistentTopic brokerTopic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopic(topicName, false).get().orElseThrow();
+            long brokerProducerId = brokerTopic.getProducers().values().iterator().next().getProducerId();
+            admin.topics().unload(topicName);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(counterBrokerInterceptor.getProducerClosedCount(brokerProducerId), 1));
+        }
+    }
+
+    @Test
+    public void testConsumerClosedOnTopicUnload() throws Exception {
+        String topicName = "persistent://public/default/broker-interceptor-consumer-unload-" + UUID.randomUUID();
+        String subName = "broker-interceptor-unload-sub";
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        try (Consumer<String> clientConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribe()) {
+            Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
+            PersistentTopic brokerTopic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopic(topicName, false).get().orElseThrow();
+            org.apache.pulsar.broker.service.Consumer brokerConsumer =
+                    ((PersistentSubscription) brokerTopic.getSubscription(subName)).getConsumers().get(0);
+            long brokerConsumerId = brokerConsumer.consumerId();
+            admin.topics().unload(topicName);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(counterBrokerInterceptor.getConsumerClosedCount(brokerConsumerId), 1));
+        }
+    }
+
+    @Test
+    public void testConsumerClosedOnUnsubscribe() throws Exception {
+        String topicName = "persistent://public/default/broker-interceptor-unsubscribe-" + UUID.randomUUID();
+        String subName = "broker-interceptor-exclusive-sub";
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive)
+                .subscribe();
+        Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
+        org.apache.pulsar.broker.service.Consumer brokerConsumer =
+                ((PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).join().orElseThrow())
+                        .getSubscription(subName).getConsumers().get(0);
+        long brokerConsumerId = brokerConsumer.consumerId();
+        consumer.unsubscribe();
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(counterBrokerInterceptor.getConsumerClosedCount(brokerConsumerId), 1));
+    }
+
+    @Test
+    public void testConsumerClosedOnBrokerDisconnect() throws Exception {
+        String topicName = "persistent://public/default/broker-interceptor-consumer-disconnect-" + UUID.randomUUID();
+        String subName = "broker-interceptor-sub";
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        try (Consumer<String> clientConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribe()) {
+            Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
+            PersistentTopic brokerTopic = (PersistentTopic) pulsar.getBrokerService()
+                    .getTopic(topicName, false).get().orElseThrow();
+            PersistentSubscription subscription =
+                    (PersistentSubscription) brokerTopic.getSubscription(subName);
+            org.apache.pulsar.broker.service.Consumer brokerConsumer = subscription.getConsumers().get(0);
+            long brokerConsumerId = brokerConsumer.consumerId();
+            brokerConsumer.disconnect();
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(counterBrokerInterceptor.getConsumerClosedCount(brokerConsumerId), 1));
+        }
+    }
+
+    @Test
+    public void testUnloadWithConsumerBeforeCreatedInterceptorKeepsCreateCloseBalanced() throws Exception {
+        String topicName = "persistent://public/default/broker-interceptor-pre-create-unload-" + UUID.randomUUID();
+        String subName = "broker-interceptor-pre-create-sub";
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        CompletableFuture<Consumer<String>> subscribeFuture = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(subName).subscribeAsync();
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).pollInterval(1, TimeUnit.MILLISECONDS).until(() -> {
+            Optional<org.apache.pulsar.broker.service.Topic> topic =
+                    pulsar.getBrokerService().getTopic(topicName, false).join();
+            if (topic.isEmpty()) {
+                return false;
+            }
+            org.apache.pulsar.broker.service.Subscription subscription = topic.get().getSubscription(subName);
+            return subscription != null && !subscription.getConsumers().isEmpty();
+        });
+        admin.topics().unload(topicName);
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(counterBrokerInterceptor.getConsumerCreatedInvocations().get(),
+                    counterBrokerInterceptor.getConsumerClosedInvocations().get());
+            assertEquals(counterBrokerInterceptor.getConsumerCount(), 0);
+        });
+        subscribeFuture.cancel(true);
     }
 
     @Test

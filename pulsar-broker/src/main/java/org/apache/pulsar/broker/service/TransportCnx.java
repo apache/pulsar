@@ -60,12 +60,28 @@ public interface TransportCnx {
 
     void removedProducer(Producer producer);
 
+    default void notifyProducerClosed(Producer producer) {
+    }
+
+    /** Run {@link #notifyProducerClosed} on the connection event loop (not under topic/subscription locks). */
+    default void scheduleNotifyProducerClosed(Producer producer) {
+        execute(() -> notifyProducerClosed(producer));
+    }
+
     void closeProducer(Producer producer);
     void closeProducer(Producer producer, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     void execute(Runnable runnable);
 
     void removedConsumer(Consumer consumer);
+
+    default void notifyConsumerClosed(Consumer consumer) {
+    }
+
+    /** Run {@link #notifyConsumerClosed} on the connection event loop (not under topic/subscription locks). */
+    default void scheduleNotifyConsumerClosed(Consumer consumer) {
+        execute(() -> notifyConsumerClosed(consumer));
+    }
 
     void closeConsumer(Consumer consumer, Optional<BrokerLookupData> assignedBrokerLookupData);
 

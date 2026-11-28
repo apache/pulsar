@@ -1204,6 +1204,20 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     public void removeProducer(Producer producer) {
         checkArgument(producer.getTopic() == this);
 
+        lock.writeLock().lock();
+        try {
+            waitingExclusiveProducers.removeIf(pair -> {
+                if (pair.getKey() == producer) {
+                    pair.getValue().completeExceptionally(
+                            new IllegalStateException("Producer connection closed while waiting for exclusive access"));
+                    return true;
+                }
+                return false;
+            });
+        } finally {
+            lock.writeLock().unlock();
+        }
+
         if (producers.remove(producer.getProducerName(), producer)) {
             if (!producer.isRemote()) {
                 USER_CREATED_PRODUCER_COUNTER_UPDATER.decrementAndGet(this);

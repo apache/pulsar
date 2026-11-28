@@ -36,7 +36,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -186,6 +190,15 @@ public class Consumer {
     private volatile Attributes openTelemetryAttributes;
     private static final AtomicReferenceFieldUpdater<Consumer, Attributes> OPEN_TELEMETRY_ATTRIBUTES_FIELD_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(Consumer.class, Attributes.class, "openTelemetryAttributes");
+
+    /** Interceptor indices (see {@code BrokerInterceptors}) that received a successful {@code consumerCreated}. */
+    private final Set<Integer> brokerInterceptorCreateSuccessIndices = ConcurrentHashMap.newKeySet();
+
+    private final AtomicBoolean brokerInterceptorClosedNotified = new AtomicBoolean(false);
+    private final AtomicInteger brokerInterceptorCreateInProgress = new AtomicInteger();
+    private final AtomicBoolean brokerInterceptorClosePendingDuringCreate = new AtomicBoolean();
+    private final AtomicBoolean brokerInterceptorClosedBeforeCreate = new AtomicBoolean();
+    private final AtomicBoolean brokerInterceptorCreateAttempted = new AtomicBoolean();
 
     @Getter
     @Setter
@@ -516,6 +529,69 @@ public class Consumer {
     public void close(boolean isResetCursor) throws BrokerServiceException {
         subscription.removeConsumer(this, isResetCursor);
         cnx.removedConsumer(this);
+        // Broker-initiated close can run under dispatcher/subscription locks; notify off the connection thread.
+        // Interceptor close is idempotent via markBrokerInterceptorClosedNotified; repeat closes are required for
+        // STICKY Key_Shared selector cleanup when subscribe and disconnect race.
+        cnx.scheduleNotifyConsumerClosed(this);
+    }
+
+    public void markBrokerInterceptorCreatedNotified(int interceptorIndex) {
+        brokerInterceptorCreateSuccessIndices.add(interceptorIndex);
+    }
+
+    public boolean hasBrokerInterceptorCreateNotifications() {
+        return !brokerInterceptorCreateSuccessIndices.isEmpty();
+    }
+
+    public boolean wasBrokerInterceptorCreatedNotified(int interceptorIndex) {
+        return brokerInterceptorCreateSuccessIndices.contains(interceptorIndex);
+    }
+
+    public boolean markBrokerInterceptorClosedNotified() {
+        return brokerInterceptorClosedNotified.compareAndSet(false, true);
+    }
+
+    public void beginBrokerInterceptorCreate() {
+        brokerInterceptorCreateInProgress.incrementAndGet();
+    }
+
+    public void endBrokerInterceptorCreate(TransportCnx transportCnx) {
+        if (brokerInterceptorCreateInProgress.decrementAndGet() != 0) {
+            return;
+        }
+        if (brokerInterceptorClosePendingDuringCreate.getAndSet(false)
+                && hasBrokerInterceptorCreateNotifications()) {
+            transportCnx.scheduleNotifyConsumerClosed(this);
+        }
+    }
+
+    public boolean isBrokerInterceptorCreateInProgress() {
+        return brokerInterceptorCreateInProgress.get() > 0;
+    }
+
+    public void noteBrokerInterceptorClosePendingDuringCreate() {
+        brokerInterceptorClosePendingDuringCreate.set(true);
+    }
+
+    public void markBrokerInterceptorClosedBeforeCreate() {
+        brokerInterceptorClosedBeforeCreate.set(true);
+    }
+
+    public boolean isBrokerInterceptorClosedBeforeCreate() {
+        return brokerInterceptorClosedBeforeCreate.get();
+    }
+
+    /**
+     * Records that {@code ServerCnx} invoked the broker {@code consumerCreated} chain for this entity (including when
+     * the listener threw). Distinguishes close-before-create from failed-create; pairing uses
+     * {@link #markBrokerInterceptorCreatedNotified(int)} only.
+     */
+    public void markBrokerInterceptorCreateAttempted() {
+        brokerInterceptorCreateAttempted.set(true);
+    }
+
+    public boolean wasBrokerInterceptorCreateAttempted() {
+        return brokerInterceptorCreateAttempted.get();
     }
 
     public void disconnect() {
@@ -539,7 +615,7 @@ public class Consumer {
     public void doUnsubscribe(final long requestId, boolean force) {
         subscription.doUnsubscribe(this, force).thenAccept(v -> {
             log.info("Unsubscribed successfully");
-            cnx.removedConsumer(this);
+            // close() on the doUnsubscribe path already scheduled consumerClosed on the connection thread.
             cnx.getCommandSender().sendSuccessResponse(requestId);
         }).exceptionally(exception -> {
             log.warn().exception(exception).log("Unsubscribe failed");

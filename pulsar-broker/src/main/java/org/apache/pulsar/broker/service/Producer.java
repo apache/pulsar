@@ -37,9 +37,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import org.apache.bookkeeper.mledger.Position;
@@ -115,6 +118,16 @@ public class Producer {
     private final SchemaVersion schemaVersion;
     private final String clientAddress; // IP address only, no port number included
     private final AtomicBoolean isDisconnecting = new AtomicBoolean(false);
+
+    /** Interceptor indices (see {@code BrokerInterceptors}) that received a successful {@code producerCreated}. */
+    private final Set<Integer> brokerInterceptorCreateSuccessIndices = ConcurrentHashMap.newKeySet();
+
+    private final AtomicBoolean brokerInterceptorClosedNotified = new AtomicBoolean(false);
+    private final AtomicInteger brokerInterceptorCreateInProgress = new AtomicInteger();
+    private final AtomicBoolean brokerInterceptorClosePendingDuringCreate = new AtomicBoolean();
+    private final AtomicBoolean brokerInterceptorClosedBeforeCreate = new AtomicBoolean();
+    private final AtomicBoolean brokerInterceptorCreateAttempted = new AtomicBoolean();
+    private final AtomicBoolean brokerInterceptorCreateLifecycleInvoked = new AtomicBoolean(false);
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
@@ -634,11 +647,13 @@ public class Producer {
             if (this.chunked) {
                 producer.stats.recordChunkedMsgIn();
             }
-            producer.publishOperationCompleted();
             if (producer.brokerInterceptor != null) {
                 producer.brokerInterceptor.messageProduced(
                         (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, this);
             }
+            // After the last ack, closeNow schedules producerClosed on the connection executor; run it only after
+            // messageProduced for this publish.
+            producer.publishOperationCompleted();
             recycle();
         }
 
@@ -837,8 +852,73 @@ public class Producer {
         cnx.removedProducer(this);
 
         log.debug("Removed producer");
+        // closeNow is often reached under the topic write lock; run interceptor callbacks on the connection thread.
+        cnx.scheduleNotifyProducerClosed(this);
         closeFuture.complete(null);
         isDisconnecting.set(false);
+    }
+
+    public void markBrokerInterceptorCreatedNotified(int interceptorIndex) {
+        brokerInterceptorCreateSuccessIndices.add(interceptorIndex);
+    }
+
+    public boolean hasBrokerInterceptorCreateNotifications() {
+        return !brokerInterceptorCreateSuccessIndices.isEmpty();
+    }
+
+    public boolean wasBrokerInterceptorCreatedNotified(int interceptorIndex) {
+        return brokerInterceptorCreateSuccessIndices.contains(interceptorIndex);
+    }
+
+    public boolean markBrokerInterceptorClosedNotified() {
+        return brokerInterceptorClosedNotified.compareAndSet(false, true);
+    }
+
+    public boolean markBrokerInterceptorCreateLifecycleInvoked() {
+        return brokerInterceptorCreateLifecycleInvoked.compareAndSet(false, true);
+    }
+
+    public void beginBrokerInterceptorCreate() {
+        brokerInterceptorCreateInProgress.incrementAndGet();
+    }
+
+    public void endBrokerInterceptorCreate(TransportCnx transportCnx) {
+        if (brokerInterceptorCreateInProgress.decrementAndGet() != 0) {
+            return;
+        }
+        if (brokerInterceptorClosePendingDuringCreate.getAndSet(false)
+                && hasBrokerInterceptorCreateNotifications()) {
+            transportCnx.scheduleNotifyProducerClosed(this);
+        }
+    }
+
+    public boolean isBrokerInterceptorCreateInProgress() {
+        return brokerInterceptorCreateInProgress.get() > 0;
+    }
+
+    public void noteBrokerInterceptorClosePendingDuringCreate() {
+        brokerInterceptorClosePendingDuringCreate.set(true);
+    }
+
+    public void markBrokerInterceptorClosedBeforeCreate() {
+        brokerInterceptorClosedBeforeCreate.set(true);
+    }
+
+    public boolean isBrokerInterceptorClosedBeforeCreate() {
+        return brokerInterceptorClosedBeforeCreate.get();
+    }
+
+    /**
+     * Records that {@code ServerCnx} invoked the broker {@code producerCreated} chain for this entity (including when
+     * the listener threw). Distinguishes close-before-create from failed-create; pairing uses
+     * {@link #markBrokerInterceptorCreatedNotified(int)} only.
+     */
+    public void markBrokerInterceptorCreateAttempted() {
+        brokerInterceptorCreateAttempted.set(true);
+    }
+
+    public boolean wasBrokerInterceptorCreateAttempted() {
+        return brokerInterceptorCreateAttempted.get();
     }
 
     public CompletableFuture<Void> disconnect() {
