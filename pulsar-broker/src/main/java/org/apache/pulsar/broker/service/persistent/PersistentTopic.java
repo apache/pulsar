@@ -2734,7 +2734,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Find the target position.
         long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTtlInSeconds);
         CompletableFuture<Position> positionToMarkDelete = new CompletableFuture<>();
-        finder.findMessages(expiredMessageTimestamp, new AsyncCallbacks.FindEntryCallback() {
+        // The expiry only moves mark-delete positions forward, so the find does not read the entries up to the
+        // oldest mark-delete position of the cursors that it moves. The cursor container orders only the durable
+        // cursors, and a shadow replicator has a non-durable cursor.
+        Position searchAfter = cursorWithOldestPosition.getPosition();
+        for (Replicator shadowReplicator : shadowReplicators.values()) {
+            Position shadowMarkDelete =
+                    ((PersistentReplicator) shadowReplicator).getCursor().getMarkDeletedPosition();
+            if (shadowMarkDelete.compareTo(searchAfter) < 0) {
+                searchAfter = shadowMarkDelete;
+            }
+        }
+        finder.findMessages(expiredMessageTimestamp, searchAfter, new AsyncCallbacks.FindEntryCallback() {
             @Override
             public void findEntryComplete(Position position, Object ctx) {
                 positionToMarkDelete.complete(position);

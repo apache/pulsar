@@ -126,7 +126,8 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         checkExpiryByLedgerClosureTime(cursor, messageTTLInSeconds);
         // Some part of entries in active Ledger may have reached TTL, so we need to continue searching.
         long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTTLInSeconds);
-        finder.findMessages(expiredMessageTimestamp, this);
+        // The expiry only moves the mark-delete position forward, so the find does not read the entries up to it.
+        finder.findMessages(expiredMessageTimestamp, cursor.getMarkDeletedPosition(), this);
         return true;
     }
 

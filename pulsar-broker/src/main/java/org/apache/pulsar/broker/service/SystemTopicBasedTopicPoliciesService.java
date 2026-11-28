@@ -126,8 +126,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             new ConcurrentHashMap<>();
 
     // Namespaces whose next policy cache initialization re-notifies the topic-policy listeners even when
-    // topicPolicyListenerReplayEnabled is off, because its reader replaces one that stopped delivering. The value
-    // holds the topics that had cached policies before, so the listeners of those that have none now are told.
+    // topicPolicyListenerReplayEnabled is off, because the initialization before it was dropped together with its
+    // reader (dropInitializationIfCurrent). The value holds the topics that had cached policies before, so the
+    // listeners of those that have none now are told.
     private final Map<NamespaceName, TopicsWithPoliciesBeforeReplacement> listenerReplayPending =
             new ConcurrentHashMap<>();
 
@@ -336,13 +337,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         // The initialization whose reader has to read the event back, and its tracker, taken in one compute() step on
         // the namespace. A tracker is created (getMessageHandlerTracker) and removed inside such a step only, and
         // removed only in the step that drops the initialization it belongs to (dropInitializationIfCurrent,
-        // cleanPoliciesCacheInitMap), or else kept together with the reader for the retry that reuses both. So the
-        // pair read here is consistent: the wait is registered with the tracker of the initialization it blames on
-        // a timeout, and a reader replacement cannot register it with the new reader's tracker while the old
-        // reader's initialization gets the blame. It is the initialization current now, not the one the update read
-        // its policies from, because a reader that replaces a stalled one records the events of its first pass over
-        // the topic in the tracker, so the wait completes when the replacement has applied the event (see
-        // initPolicesCache).
+        // cleanPoliciesCacheInitMap). So the pair read here is consistent: the wait is registered with the tracker
+        // of the initialization it blames on a timeout, and a reader replacement cannot register it with the new
+        // reader's tracker while the old reader's initialization gets the blame. It is the initialization current
+        // now, not the one the update read its policies from, because a reader that replaces a stalled one records
+        // the events of its first pass over the topic in the tracker, so the wait completes when the replacement
+        // has applied the event (see initPolicesCache).
         MutableObject<CompletableFuture<Void>> initFuture = new MutableObject<>();
         MutableObject<TopicPolicyMessageHandlerTracker> tracker = new MutableObject<>();
         policyCacheInitMap.compute(namespaceObject, (__, currentInitFuture) -> {
@@ -412,51 +412,47 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     /**
      * Close the reader of {@code initFuture}'s initialization, which stopped delivering, drop the policies it had
-     * cached, and read the namespace's {@code __change_events} again with a fresh reader if this broker still serves
-     * topics of the namespace.
-     *
-     * <p>The cached policies cannot be kept. A new reader reads the compacted topic from the start and applies only
-     * the events it finds, so a policy that was deleted while the reader was stalled, and whose tombstone compaction
-     * has dropped since, would stay cached: policy reads would return it, and the next update of the topic would
-     * write it back.
-     *
-     * <p>The topics loaded here got none of the events the stalled reader withheld, and a new initialization only
-     * fills the caches. So that initialization also re-notifies the topic-policy listeners of the namespace,
-     * whatever {@code topicPolicyListenerReplayEnabled} says: without it a loaded topic would keep enforcing its
-     * policies from before the stall until its next policy update or reload. Listeners of a topic whose policies
-     * are gone get the {@code null} update that a delivered deletion gives them.
+     * cached (see {@link #dropInitializationIfCurrent}), and read the namespace's {@code __change_events} again with
+     * a fresh reader if this broker still serves topics of the namespace.
      */
     private void replaceStalledReader(@NonNull NamespaceName namespace, @NonNull CompletableFuture<Void> initFuture) {
-        boolean dropped = dropInitializationIfCurrent(namespace, initFuture, true, () ->
-                // The cached policies go in the same step as the initialization they belong to. A policy read takes
-                // its answer inside compute() on this key, from a completed initialization only, and the next
-                // initialization is installed through this map as well, so no read sees the namespace's cache while
-                // it is empty or half rebuilt. A delivery of this reader writes to the cache inside compute() on
-                // this key too, and only while this initialization is still current (applyEventIfCurrent), so a
-                // delivery that the reader had already received when it is closed cannot put a policy back after
-                // this step. The replay is requested here too, so that the next initialization cannot reach the end
-                // of the topic without it.
-                listenerReplayPending.merge(namespace, removeCachedPolicies(namespace),
-                        TopicsWithPoliciesBeforeReplacement::mergedWith));
-        if (!dropped) {
-            return;
+        TopicsWithPoliciesBeforeReplacement replayRequest = dropInitializationIfCurrent(namespace, initFuture);
+        if (replayRequest != null) {
+            settleListenerReplayAfterDrop(namespace, replayRequest, true);
         }
-        // On the namespace's ordered executor, so the ownership check and the call that starts the initialization
-        // are ordered with the bundle loads and unloads, as they are in addOwnedNamespaceBundleAsync.
+    }
+
+    /**
+     * Decides what becomes of the listener replay that {@link #dropInitializationIfCurrent} has requested. A broker
+     * that owns no bundle of the namespace has no topic of it loaded, so there the request is removed. The check
+     * runs on the namespace's ordered executor, like the bundle loads and unloads in
+     * {@link #addOwnedNamespaceBundleAsync}: the drop runs on another thread, where a bundle whose load is still
+     * queued here would not count yet, although its topics can be loaded already.
+     *
+     * @param replayRequest the request that the drop recorded; a request that a later drop has recorded or merged
+     *                      is left to the check that follows that drop
+     * @param readAgain whether to start the next initialization when the broker owns a bundle of the namespace;
+     *                  otherwise the next topic policy access of the namespace starts it
+     */
+    private void settleListenerReplayAfterDrop(@NonNull NamespaceName namespace,
+                                               @NonNull TopicsWithPoliciesBeforeReplacement replayRequest,
+                                               boolean readAgain) {
         pulsarService.getOrderedExecutor().executeOrdered(namespace, () -> {
             if (!ownsBundleOf(namespace)) {
-                // No topic of the namespace is loaded here; the next policy access initializes the namespace again.
-                listenerReplayPending.remove(namespace);
+                listenerReplayPending.computeIfPresent(namespace,
+                        (__, pending) -> pending == replayRequest ? null : pending);
                 return;
             }
-            prepareInitPoliciesCacheAsync(namespace).exceptionally(t -> {
-                log.warn()
-                        .attr("namespace", namespace)
-                        .exceptionMessage(t)
-                        .log("Failed to initialize the policies cache again after replacing the stalled "
-                                + "__change_events reader; the next topic policy access retries it");
-                return null;
-            });
+            if (readAgain) {
+                prepareInitPoliciesCacheAsync(namespace).exceptionally(t -> {
+                    log.warn()
+                            .attr("namespace", namespace)
+                            .exceptionMessage(t)
+                            .log("Failed to initialize the policies cache again after replacing the stalled "
+                                    + "__change_events reader; the next topic policy access retries it");
+                    return null;
+                });
+            }
         });
     }
 
@@ -864,9 +860,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         // dropInitializationIfCurrent). So an initialization that is dropped before its reader
                         // exists has already published the slot that the unload removes and closes, and the reader
                         // created afterwards is closed on arrival instead of staying cached, one event in, for the
-                        // next initialization to inherit. The slot may still hold the reader of a failed
-                        // initialization that was kept for this retry. The reader itself is created after the step:
-                        // that sets up a client consumer, and may create the client.
+                        // next initialization to inherit. The reader itself is created after the step: that sets
+                        // up a client consumer, and may create the client.
                         readerSlot.setValue(readerCaches.computeIfAbsent(namespace, ___ -> {
                             readerSlotCreated.set(true);
                             return new CompletableFuture<>();
@@ -910,18 +905,15 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                                     .attr("namespace", namespace)
                                                     .exception(ex)
                                                     .log("Failed to create reader on __change_events topic");
-                                            initNamespacePolicyFuture.completeExceptionally(ex);
-                                            cleanupFailedPolicyCacheInit(namespace, initNamespacePolicyFuture, true);
-                                        } else {
-                                            initNamespacePolicyFuture.completeExceptionally(ex);
-                                            // The reader is kept for the retry that the next topic load of a
-                                            // namespace served here makes, and the bundle unload closes it at the
-                                            // latest. A broker that owns no bundle of the namespace gets neither,
-                                            // so the reader would stay subscribed, with nothing reading from it,
-                                            // until the broker restarts (issue #27366).
-                                            cleanupFailedPolicyCacheInit(namespace, initNamespacePolicyFuture,
-                                                    isAlreadyClosedException(ex) || !ownsBundleOf(namespace));
                                         }
+                                        // The reader of a failed first pass is closed, whatever the failure. A
+                                        // reader kept for the retry would continue from its position, so the
+                                        // policies it had read would have to stay cached; a reader that reconnects
+                                        // into a newer compaction of the topic never sees the deletion of one of
+                                        // them. A kept reader would also stay subscribed, with nothing reading
+                                        // from it, on a broker that owns no bundle of the namespace (issue #27366).
+                                        initNamespacePolicyFuture.completeExceptionally(ex);
+                                        cleanupFailedPolicyCacheInit(namespace, initNamespacePolicyFuture);
                                     } catch (Throwable cleanupEx) {
                                         // Adding this catch to avoid break callback chain
                                         log.error()
@@ -1017,7 +1009,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         .log("Timed out initializing the topic policies cache; closing the stuck __change_events "
                                 + "reader so the namespace can be loaded again");
                 try {
-                    cleanupFailedPolicyCacheInit(namespace, initNamespacePolicyFuture, true);
+                    cleanupFailedPolicyCacheInit(namespace, initNamespacePolicyFuture);
                 } catch (Throwable cleanupEx) {
                     log.error()
                             .attr("namespace", namespace)
@@ -1041,40 +1033,51 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * would drop that newer future and close its reader, pinning the namespace again. Guarding on identity ensures a
      * late failure never clobbers a newer initialization.
      *
-     * @param closeReader when {@code true}, also closes the reader and message-handler tracker that belong to this
-     *                    initialization; when {@code false}, only the init future is dropped, leaving the reader
-     *                    cached for the retry to reuse. The cached policies are intentionally left in place; they
-     *                    are cleared only when the whole namespace is unloaded or its stalled reader is replaced
-     *                    (see {@link #replaceStalledReader}), so this cleanup cannot race a concurrent
-     *                    re-initialization.
+     * <p>The reader and the message-handler tracker that belong to the initialization are closed, and the policies
+     * that reader had cached are dropped (see {@link #dropInitializationIfCurrent}). Nothing starts the next
+     * initialization here; the next topic policy access of the namespace does.
      */
     @VisibleForTesting
-    void cleanupFailedPolicyCacheInit(@NonNull NamespaceName namespace,
-                                      @NonNull CompletableFuture<Void> initFuture, boolean closeReader) {
-        dropInitializationIfCurrent(namespace, initFuture, closeReader, null);
+    void cleanupFailedPolicyCacheInit(@NonNull NamespaceName namespace, @NonNull CompletableFuture<Void> initFuture) {
+        TopicsWithPoliciesBeforeReplacement replayRequest = dropInitializationIfCurrent(namespace, initFuture);
+        if (replayRequest != null) {
+            settleListenerReplayAfterDrop(namespace, replayRequest, false);
+        }
     }
 
     /**
      * Drops {@code initFuture} from {@link #policyCacheInitMap} while it is still the namespace's current
-     * initialization, and with it, when {@code closeReader}, the reader and the message-handler tracker that belong
-     * to it. The map removals happen in one {@code compute} step on the namespace, so the next initialization, which
-     * is installed through this map, can neither be handed this reader nor record its first pass in this tracker,
-     * which is about to be closed (see {@link #untilMessageIdHasBeenRead} for what that pairing guarantees). Failing
-     * the initialization and closing the reader and the tracker complete futures, so they come after the step.
+     * initialization, and with it the reader and the message-handler tracker that belong to it, and the policies
+     * that reader had cached. The map removals happen in one {@code compute} step on the namespace, so the next
+     * initialization, which is installed through this map, can neither be handed this reader nor record its first
+     * pass in this tracker, which is about to be closed (see {@link #untilMessageIdHasBeenRead} for what that
+     * pairing guarantees). Failing the initialization and closing the reader and the tracker complete futures, so
+     * they come after the step.
      *
-     * @param insideStep what else has to go in the same step as the initialization, run after the identity guard
-     *                   passed; {@link #replaceStalledReader} clears the cached policies there
-     * @return whether {@code initFuture} was the current initialization; when not, nothing was touched
+     * <p>The cached policies cannot outlive the reader that read them. The next reader reads the compacted topic
+     * from the start and applies only the events it finds, so a policy that is deleted while the namespace has no
+     * reader, and whose tombstone compaction has dropped since, would stay cached: policy reads would return it, and
+     * the next update of the topic would write it back.
+     *
+     * <p>The topics loaded here get none of the events written until the next reader has caught up, and a new
+     * initialization only fills the caches. So that initialization also re-notifies the topic-policy listeners of
+     * the namespace, whatever {@code topicPolicyListenerReplayEnabled} says: without it a loaded topic would keep
+     * enforcing the policies it had when the reader was closed until its next policy update or reload. Listeners of
+     * a topic whose policies are gone get the {@code null} update that a delivered deletion gives them. The replay
+     * is requested here whether or not this broker owns a bundle of the namespace; the caller has that decided on
+     * the namespace's ordered executor ({@link #settleListenerReplayAfterDrop}).
+     *
+     * @return the listener replay request as it stands after this drop, or {@code null} when {@code initFuture} was
+     *         not the current initialization and nothing was touched
      */
-    private boolean dropInitializationIfCurrent(@NonNull NamespaceName namespace,
-                                                @NonNull CompletableFuture<Void> initFuture, boolean closeReader,
-                                                @Nullable Runnable insideStep) {
+    @Nullable
+    private TopicsWithPoliciesBeforeReplacement dropInitializationIfCurrent(
+            @NonNull NamespaceName namespace, @NonNull CompletableFuture<Void> initFuture) {
         // Capture the reader before dropping the init future so we only close the reader that belongs to this
         // initialization, never one a concurrent retry creates immediately afterwards.
-        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture =
-                closeReader ? readerCaches.get(namespace) : null;
+        CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.get(namespace);
 
-        AtomicBoolean dropped = new AtomicBoolean();
+        MutableObject<TopicsWithPoliciesBeforeReplacement> replayRequest = new MutableObject<>();
         AtomicBoolean readerRemoved = new AtomicBoolean();
         MutableObject<TopicPolicyMessageHandlerTracker> removedTracker = new MutableObject<>();
         policyCacheInitMap.compute(namespace, (__, currentInitFuture) -> {
@@ -1083,20 +1086,22 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 // Superseded by a retry or an unload; that owner is responsible for its own reader/state.
                 return currentInitFuture;
             }
-            if (insideStep != null) {
-                insideStep.run();
-            }
             readerRemoved.set(readerFuture != null && readerCaches.remove(namespace, readerFuture));
-            if (closeReader) {
-                // Whatever tracker is installed is this initialization's: a tracker is created and removed inside
-                // compute() on this key only, so no other initialization can have installed one meanwhile.
-                removedTracker.setValue(topicPolicyMessageHandlerTrackers.remove(namespace));
-            }
-            dropped.set(true);
+            // Whatever tracker is installed is this initialization's: a tracker is created and removed inside
+            // compute() on this key only, so no other initialization can have installed one meanwhile.
+            removedTracker.setValue(topicPolicyMessageHandlerTrackers.remove(namespace));
+            // The cached policies go in the same step as the initialization they belong to. A policy read takes its
+            // answer inside compute() on this key, from a completed initialization only, and the next
+            // initialization is installed through this map as well, so no read sees the namespace's cache while it
+            // is empty or half rebuilt. A late delivery of this reader cannot put a policy back after this step
+            // (applyEventIfCurrent). The replay is requested here too, so that the next initialization cannot reach
+            // the end of the topic without it.
+            replayRequest.setValue(listenerReplayPending.merge(namespace, removeCachedPolicies(namespace),
+                    TopicsWithPoliciesBeforeReplacement::mergedWith));
             return null;
         });
-        if (!dropped.get()) {
-            return false;
+        if (replayRequest.getValue() == null) {
+            return null;
         }
 
         // Complete the dropped future (a no-op if the caller already completed it) outside any map remapping function,
@@ -1108,7 +1113,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (removedTracker.getValue() != null) {
             removedTracker.getValue().close();
         }
-        return true;
+        return replayRequest.getValue();
     }
 
     private void closeReader(@NonNull NamespaceName namespace,
@@ -1168,9 +1173,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         log.debug()
                                 .attr("namespaceObject", namespaceObject)
                                 .log("Stop the first pass over the system topic: its initialization was superseded.");
-                        stageFuture.completeExceptionally(new BrokerServiceException(
-                                "Topic policies cache initialization for namespace " + namespaceObject
-                                        + " was superseded while reading " + reader.getSystemTopic().getTopicName()));
+                        stageFuture.completeExceptionally(supersededWhileReading(reader));
                         return;
                     }
                     log.debug()
@@ -1193,19 +1196,57 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 // Optionally re-notify the topic-policy listeners for this namespace with the cached policies.
                 // Topics load their own policies on load (AbstractTopic#initTopicPolicy), so this replay is only
                 // needed for custom plugins that register TopicPolicyListeners and rely on the broadcast; it is
-                // off by default (topicPolicyListenerReplayEnabled). A reader that replaces a stalled one replays
-                // regardless: the topics that are already loaded missed the events the stalled reader withheld.
-                TopicsWithPoliciesBeforeReplacement beforeReplacement = listenerReplayPending.remove(namespaceObject);
-                if (beforeReplacement != null) {
-                    FutureUtil.completeAfter(stageFuture,
-                            replayAfterReaderReplacement(namespaceObject, beforeReplacement));
-                } else if (pulsarService.getConfiguration().isTopicPolicyListenerReplayEnabled()) {
-                    FutureUtil.completeAfter(stageFuture, replayTopicPolicyListeners(namespaceObject));
-                } else {
-                    stageFuture.complete(null);
+                // off by default (topicPolicyListenerReplayEnabled). A reader that replaces one that was closed
+                // with its initialization replays regardless: the topics that are already loaded missed the events
+                // that no reader delivered.
+                //
+                // The notifications are queued here, each on the executor of its topic, and the pass ends without
+                // waiting for the listeners. The caches are complete, so the policy reads and topic loads that wait
+                // for the initialization get their answer, and a slow listener cannot run the initialization into
+                // its timeout, which would drop it and request the replay again. The events that the reader
+                // delivers from here on are queued behind (readMorePoliciesAsync starts when this pass has ended),
+                // so each listener still gets the replay before them.
+                //
+                // Only the first pass of the namespace's current initialization takes the request, in a compute()
+                // step like the one that records it (dropInitializationIfCurrent). A pass can get here after its
+                // initialization was dropped: the answer to a check for more events that the reader sent before it
+                // was closed still arrives. That pass would find the request of its own drop and the cache cleared
+                // with it, and tell the listeners of every topic that its policies are gone.
+                //
+                // What the listeners are told is read from the caches in that step too. The initialization can be
+                // dropped right after it, by its timeout for one, and the caches cleared with it: read then, they
+                // would make every topic of the request look as if its policies were gone.
+                boolean replayEnabled = pulsarService.getConfiguration().isTopicPolicyListenerReplayEnabled();
+                AtomicBoolean superseded = new AtomicBoolean();
+                MutableObject<ListenerReplay> listenerReplay = new MutableObject<>();
+                policyCacheInitMap.compute(namespaceObject, (__, currentInitFuture) -> {
+                    if (currentInitFuture == initFuture) {
+                        TopicsWithPoliciesBeforeReplacement beforeReplacement =
+                                listenerReplayPending.remove(namespaceObject);
+                        if (beforeReplacement != null || replayEnabled) {
+                            listenerReplay.setValue(listenerReplayOf(namespaceObject, beforeReplacement));
+                        }
+                    } else {
+                        superseded.set(true);
+                    }
+                    return currentInitFuture;
+                });
+                if (superseded.get()) {
+                    stageFuture.completeExceptionally(supersededWhileReading(reader));
+                    return;
                 }
+                if (listenerReplay.getValue() != null) {
+                    queueListenerReplay(listenerReplay.getValue());
+                }
+                stageFuture.complete(null);
             }
         });
+    }
+
+    private static BrokerServiceException supersededWhileReading(SystemTopicClient.Reader<PulsarEvent> reader) {
+        TopicName systemTopic = reader.getSystemTopic().getTopicName();
+        return new BrokerServiceException("Topic policies cache initialization for namespace "
+                + systemTopic.getNamespaceObject() + " was superseded while reading " + systemTopic);
     }
 
     /**
@@ -1213,52 +1254,92 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * cached policies (both local and global). Topics apply their own policies on load, so this is only needed for
      * custom plugins that register {@link TopicPolicyListener}s and rely on the broadcast when a namespace's policy
      * cache finishes loading (see {@code topicPolicyListenerReplayEnabled}).
+     *
+     * @return a future that completes when the listeners have handled the notifications, which are queued before
+     *         this method returns
      */
     @VisibleForTesting
     CompletableFuture<Void> replayTopicPolicyListeners(NamespaceName namespace) {
-        List<CompletableFuture<Void>> notifyFutures = new ArrayList<>();
-        addNamespacePolicyNotifications(policiesCache, namespace, notifyFutures);
-        addNamespacePolicyNotifications(globalPoliciesCache, namespace, notifyFutures);
-        return FutureUtil.waitForAll(notifyFutures);
+        return notifyOfCachedPolicies(cachedPoliciesOf(namespace));
     }
 
     /**
-     * The replay after a stalled reader was replaced. The listeners of a topic that had policies before and has none
-     * now get the {@code null} update that a delivered deletion gives them; then every topic gets its cached
-     * policies, as in {@link #replayTopicPolicyListeners(NamespaceName)}.
+     * What the first pass of an initialization re-notifies the listeners of, as the caches had it while that
+     * initialization was current.
+     *
+     * @param topicsWithoutPolicies the topics that had policies before the reader was replaced and have none now;
+     *                              a topic that lost its local and its global policies is in it twice
+     * @param cachedPolicies        the cached policies of the namespace, local and global
      */
-    private CompletableFuture<Void> replayAfterReaderReplacement(
-            NamespaceName namespace, TopicsWithPoliciesBeforeReplacement beforeReplacement) {
-        List<CompletableFuture<Void>> deletionFutures = new ArrayList<>();
-        addDeletionNotifications(beforeReplacement.localTopics(), policiesCache, deletionFutures);
-        addDeletionNotifications(beforeReplacement.globalTopics(), globalPoliciesCache, deletionFutures);
-        return FutureUtil.waitForAll(deletionFutures).thenCompose(__ -> replayTopicPolicyListeners(namespace));
+    record ListenerReplay(List<TopicName> topicsWithoutPolicies,
+                          List<Map.Entry<TopicName, TopicPolicies>> cachedPolicies) {
     }
 
-    private void addDeletionNotifications(Set<TopicName> topicsBeforeReplacement, Map<TopicName, TopicPolicies> cache,
-                                          List<CompletableFuture<Void>> notifyFutures) {
+    /**
+     * @param beforeReplacement the topics that had policies before a reader was closed with its initialization and
+     *                          replaced, or {@code null} for the replay of {@code topicPolicyListenerReplayEnabled}
+     */
+    private ListenerReplay listenerReplayOf(NamespaceName namespace,
+                                            @Nullable TopicsWithPoliciesBeforeReplacement beforeReplacement) {
+        List<TopicName> topicsWithoutPolicies = new ArrayList<>();
+        if (beforeReplacement != null) {
+            addTopicsWithoutPolicies(beforeReplacement.localTopics(), policiesCache, topicsWithoutPolicies);
+            addTopicsWithoutPolicies(beforeReplacement.globalTopics(), globalPoliciesCache, topicsWithoutPolicies);
+        }
+        return new ListenerReplay(topicsWithoutPolicies, cachedPoliciesOf(namespace));
+    }
+
+    private static void addTopicsWithoutPolicies(Set<TopicName> topicsBeforeReplacement,
+                                                 Map<TopicName, TopicPolicies> cache,
+                                                 List<TopicName> topicsWithoutPolicies) {
         for (TopicName topicName : topicsBeforeReplacement) {
             if (!cache.containsKey(topicName)) {
-                notifyFutures.add(notifyListenersForTopicAsync(topicName, null));
+                topicsWithoutPolicies.add(topicName);
             }
         }
     }
 
-    private void addNamespacePolicyNotifications(Map<TopicName, TopicPolicies> cache, NamespaceName namespace,
-                                                 List<CompletableFuture<Void>> notifyFutures) {
+    private List<Map.Entry<TopicName, TopicPolicies>> cachedPoliciesOf(NamespaceName namespace) {
+        List<Map.Entry<TopicName, TopicPolicies>> cachedPolicies = new ArrayList<>();
+        addNamespacePolicies(policiesCache, namespace, cachedPolicies);
+        addNamespacePolicies(globalPoliciesCache, namespace, cachedPolicies);
+        return cachedPolicies;
+    }
+
+    private static void addNamespacePolicies(Map<TopicName, TopicPolicies> cache, NamespaceName namespace,
+                                             List<Map.Entry<TopicName, TopicPolicies>> cachedPolicies) {
         for (Map.Entry<TopicName, TopicPolicies> entry : cache.entrySet()) {
             if (Objects.equals(entry.getKey().getNamespaceObject(), namespace)) {
-                notifyFutures.add(notifyListenersForTopicAsync(entry.getKey(), entry.getValue()));
+                cachedPolicies.add(Map.entry(entry.getKey(), entry.getValue()));
             }
         }
+    }
+
+    /**
+     * Queues the notifications of {@code replay}, each on the executor of its topic, and returns without waiting
+     * for the listeners. The listeners of a topic whose policies are gone get the {@code null} update that a
+     * delivered deletion gives them; then every topic gets its cached policies.
+     */
+    @VisibleForTesting
+    void queueListenerReplay(ListenerReplay replay) {
+        for (TopicName topicName : replay.topicsWithoutPolicies()) {
+            notifyListenersForTopic(topicName, null);
+        }
+        notifyOfCachedPolicies(replay.cachedPolicies());
+    }
+
+    private CompletableFuture<Void> notifyOfCachedPolicies(List<Map.Entry<TopicName, TopicPolicies>> cachedPolicies) {
+        List<CompletableFuture<Void>> notifyFutures = new ArrayList<>();
+        for (Map.Entry<TopicName, TopicPolicies> entry : cachedPolicies) {
+            notifyFutures.add(notifyListenersForTopicAsync(entry.getKey(), entry.getValue()));
+        }
+        return FutureUtil.waitForAll(notifyFutures);
     }
 
     // Full teardown of a namespace's topic-policies state: removes and closes the reader, the message-handler
     // tracker, the cached policies and the init future. Used when the whole namespace is unloaded.
     @VisibleForTesting
     void cleanPoliciesCacheInitMap(@NonNull NamespaceName namespace) {
-        listenerReplayPending.remove(namespace);
-
         MutableObject<CompletableFuture<Void>> removedInitFuture = new MutableObject<>();
         MutableObject<CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> removedReader = new MutableObject<>();
         MutableObject<TopicPolicyMessageHandlerTracker> removedTracker = new MutableObject<>();
@@ -1272,6 +1353,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             // untilMessageIdHasBeenRead for what the pairing guarantees.
             removedReader.setValue(readerCaches.remove(namespace));
             removedTracker.setValue(topicPolicyMessageHandlerTrackers.remove(namespace));
+            // In this step too, so that a drop that requests the replay (dropInitializationIfCurrent) either comes
+            // first and has its request removed here, or finds its initialization gone and requests nothing.
+            listenerReplayPending.remove(namespace);
             policiesCache.entrySet().removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
             globalPoliciesCache.entrySet()
                     .removeIf(entry -> Objects.equals(entry.getKey().getNamespaceObject(), namespace));
@@ -1327,7 +1411,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                        CompletableFuture<Void> initFuture) {
         NamespaceName namespaceObject = reader.getSystemTopic().getTopicName().getNamespaceObject();
         if (closed.get()) {
-            cleanupFailedPolicyCacheInit(namespaceObject, initFuture, true);
+            cleanupFailedPolicyCacheInit(namespaceObject, initFuture);
             return;
         }
         reader.readNextAsync()
@@ -1352,7 +1436,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         } finally {
                             // The listeners still get this event's policies when a replacement lands between the
                             // write above and here. The replay the replacement triggers
-                            // (replayAfterReaderReplacement) goes to the same per-topic executor and, dispatched
+                            // (queueListenerReplay) goes to the same per-topic executor and, dispatched
                             // after this in practice, brings them up to date.
                             notifyListener(msg.getKey(), value);
                         }
@@ -1375,7 +1459,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                             // generation and abort its init with "...aborted because the cached state was cleared",
                             // failing the reloading topic. cleanupFailedPolicyCacheInit only tears down state that
                             // still belongs to this initialization, so a superseded reader's late close is a no-op.
-                            cleanupFailedPolicyCacheInit(namespaceObject, initFuture, true);
+                            cleanupFailedPolicyCacheInit(namespaceObject, initFuture);
                         } else {
                             log.warn().exception(ex).log("Read more topic polices exception, read again.");
                             readMorePoliciesAsync(reader, initFuture);
@@ -1391,14 +1475,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     /**
      * Applies an event, already decoded into its {@code key} and {@code value}, to the policy caches, unless the
-     * initialization that delivered it has been superseded by a reader replacement ({@link #replaceStalledReader})
-     * or a namespace unload ({@link #cleanPoliciesCacheInitMap}). Both clear the namespace's cached policies inside
-     * {@code policyCacheInitMap.compute} on the namespace, and so does this check-and-write: it either lands before
-     * the clearing step, and is cleared with the rest, or finds the initialization superseded and writes nothing. A
-     * reader that is closed can still complete a receive it had already handed out, and a plain check before an
-     * unguarded write would let that delivery put a policy back into the cleared cache; the reader that replaced it
-     * reads the compacted topic, which no longer holds the tombstone of a policy deleted and compacted since, so
-     * nothing would remove it again.
+     * initialization that delivered it has been dropped together with its reader
+     * ({@link #dropInitializationIfCurrent}) or by a namespace unload ({@link #cleanPoliciesCacheInitMap}). Both
+     * clear the namespace's cached policies inside {@code policyCacheInitMap.compute} on the namespace, and so does
+     * this check-and-write: it either lands before the clearing step, and is cleared with the rest, or finds the
+     * initialization superseded and writes nothing. A reader that is closed can still complete a receive it had
+     * already handed out, and a plain check before an unguarded write would let that delivery put a policy back
+     * into the cleared cache; the reader that replaced it reads the compacted topic, which no longer holds the
+     * tombstone of a policy deleted and compacted since, so nothing would remove it again.
      *
      * <p>Nothing inside {@code compute} completes a future or writes to the system topic, since either could re-enter
      * this map on the same key (see #24977): the tracker update, the listener notification and the tombstone of a
