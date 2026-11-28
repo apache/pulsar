@@ -60,6 +60,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -174,6 +175,38 @@ public class NonPersistentDispatcherFailoverConsumerTest {
     private void assertNoActiveConsumerChanges() {
         assertTrue(consumerChanges.isEmpty(),
                 "unexpected ActiveConsumerChange notifications: " + consumerChanges);
+    }
+
+    @DataProvider
+    public Object[][] consistentHashingModes() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(dataProvider = "consistentHashingModes", timeOut = 10000)
+    public void testUnpartitionedSameNameSelectionIgnoresInstanceIds(boolean consistentHashing) throws Exception {
+        pulsarTestContext.getPulsarService().getConfiguration().setActiveConsumerFailoverConsistentHashing(
+                consistentHashing);
+        doReturn(new PartitionedTopicMetadata(0)).when(pulsarTestContext.getBrokerService())
+                .fetchPartitionedTopicMetadataIfCachedAndAsyncLoad(any(TopicName.class));
+        NonPersistentTopic topic = new NonPersistentTopic(TOPIC_NAME, pulsarTestContext.getBrokerService());
+        NonPersistentSubscription sub = new NonPersistentSubscription(topic, "sub-1", Collections.emptyMap());
+        Consumer incumbent = new Consumer(sub, SubType.Failover, TOPIC_NAME, 1, 0, "worker", true, serverCnx,
+                "role", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH, null, "c");
+        Consumer joiner = new Consumer(sub, SubType.Failover, TOPIC_NAME, 2, 0, "worker", true, serverCnx,
+                "role", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH, null, "a");
+        sub.addConsumer(incumbent).get();
+        var dispatcher = (NonPersistentDispatcherSingleActiveConsumer) sub.getDispatcher();
+        try {
+            assertSame(dispatcher.getActiveConsumer(), incumbent);
+            sub.addConsumer(joiner).get();
+            // Modulo selects slot zero. On the legacy hash ring the last same-name consumer owns the shared points.
+            assertSame(dispatcher.getActiveConsumer(), consistentHashing ? joiner : incumbent);
+        } finally {
+            for (Consumer consumer : List.copyOf(dispatcher.getConsumers())) {
+                dispatcher.removeConsumer(consumer);
+            }
+            dispatcher.close().get();
+        }
     }
 
     @Test(timeOut = 10000)

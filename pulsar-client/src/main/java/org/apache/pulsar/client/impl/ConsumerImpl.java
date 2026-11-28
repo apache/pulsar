@@ -443,8 +443,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (conf.getProperties().isEmpty()) {
             metadata = Collections.emptyMap();
         } else {
-            Map<String, String> consumerMetadata = new HashMap<>(conf.getProperties());
-            metadata = Collections.unmodifiableMap(consumerMetadata);
+            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
         this.connectionHandler = new ConnectionHandler(this,

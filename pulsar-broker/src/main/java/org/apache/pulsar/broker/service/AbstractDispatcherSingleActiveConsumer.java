@@ -65,6 +65,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     protected boolean isKeyHashRangeFiltered = false;
     protected CompletableFuture<Void> closeFuture = null;
     protected final int partitionIndex;
+    private final boolean partitionedTopic;
     protected final ManagedCursor cursor;
     // This dispatcher supports both the Exclusive and Failover subscription types
     protected final SubType subscriptionType;
@@ -95,6 +96,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         this.topicName = topicName;
         this.consumers = new CopyOnWriteArrayList<>();
         this.partitionIndex = partitionIndex;
+        // Non-persistent subscriptions also use selection index zero for unpartitioned topics.
+        this.partitionedTopic = TopicName.get(topicName).isPartitioned();
         this.subscriptionType = subscriptionType;
         this.cursor = cursor;
     }
@@ -135,7 +138,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                 return priority;
             }
             int name = c1.consumerName().compareTo(c2.consumerName());
-            if (name != 0 || partitionIndex < 0) {
+            if (name != 0 || !partitionedTopic) {
                 return name;
             }
             // A partition-local consumer id or arrival order cannot identify a logical consumer across partitions.
@@ -198,7 +201,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             boolean duplicateName = (i > 0 && consumers.get(i - 1).consumerName().equals(consumerName))
                     || (i + 1 < consumerSize && consumers.get(i + 1).consumerName().equals(consumerName));
             String keyPrefix = consumerName;
-            if (partitionIndex >= 0 && duplicateName && consumer.consumerInstanceId() != null) {
+            if (partitionedTopic && duplicateName && consumer.consumerInstanceId() != null) {
                 // Keep each logical consumer on its own ring points, including during metadata-cache misses.
                 keyPrefix += '\0' + consumer.consumerInstanceId() + '\0';
             }
