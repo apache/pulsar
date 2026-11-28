@@ -40,6 +40,7 @@ public class SubscriptionOption {
     private CommandSubscribe.SubType subType;
     private int priorityLevel;
     private String consumerName;
+    private String consumerInstanceId;
     private boolean isDurable;
     private MessageId startMessageId;
     private Map<String, String> metadata;

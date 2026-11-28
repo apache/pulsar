@@ -37,8 +37,10 @@ import io.netty.channel.ChannelHandlerContext;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -54,9 +56,12 @@ import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -171,6 +176,75 @@ public class NonPersistentDispatcherFailoverConsumerTest {
     private void assertNoActiveConsumerChanges() {
         assertTrue(consumerChanges.isEmpty(),
                 "unexpected ActiveConsumerChange notifications: " + consumerChanges);
+    }
+
+    @DataProvider
+    public Object[][] consistentHashingModes() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(dataProvider = "consistentHashingModes", timeOut = 10000)
+    public void testUnpartitionedSameNameSelectionIgnoresInstanceIds(boolean consistentHashing) throws Exception {
+        pulsarTestContext.getPulsarService().getConfiguration().setActiveConsumerFailoverConsistentHashing(
+                consistentHashing);
+        doReturn(new PartitionedTopicMetadata(0)).when(pulsarTestContext.getBrokerService())
+                .fetchPartitionedTopicMetadataIfCachedAndAsyncLoad(any(TopicName.class));
+        long selectedWithoutIds = selectUnpartitionedSameNameConsumer(null, null);
+        assertEquals(selectUnpartitionedSameNameConsumer("c", "a"), selectedWithoutIds);
+        assertEquals(selectUnpartitionedSameNameConsumer("a", "c"), selectedWithoutIds);
+    }
+
+    private long selectUnpartitionedSameNameConsumer(String incumbentId, String joinerId) throws Exception {
+        NonPersistentTopic topic = new NonPersistentTopic(TOPIC_NAME, pulsarTestContext.getBrokerService());
+        NonPersistentSubscription sub = new NonPersistentSubscription(topic, "sub-1", Collections.emptyMap());
+        Consumer incumbent = new Consumer(sub, SubType.Failover, TOPIC_NAME, 1, 0, "worker", true, serverCnx,
+                "role", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH,
+                null, incumbentId);
+        Consumer joiner = new Consumer(sub, SubType.Failover, TOPIC_NAME, 2, 0, "worker", true, serverCnx,
+                "role", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH,
+                null, joinerId);
+        sub.addConsumer(incumbent).get();
+        var dispatcher = (NonPersistentDispatcherSingleActiveConsumer) sub.getDispatcher();
+        try {
+            assertSame(dispatcher.getActiveConsumer(), incumbent);
+            sub.addConsumer(joiner).get();
+            return dispatcher.getActiveConsumer().consumerId();
+        } finally {
+            for (Consumer consumer : List.copyOf(dispatcher.getConsumers())) {
+                dispatcher.removeConsumer(consumer);
+            }
+            dispatcher.close().get();
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void testSameNameConsumersRemainDistinctInHashRingFallback() throws Exception {
+        pulsarTestContext.getPulsarService().getConfiguration().setActiveConsumerFailoverConsistentHashing(true);
+        doReturn(new PartitionedTopicMetadata(0)).when(pulsarTestContext.getBrokerService())
+                .fetchPartitionedTopicMetadataIfCachedAndAsyncLoad(any(TopicName.class));
+        Set<Long> owners = new HashSet<>();
+        for (int partition = 0; partition < 32; partition++) {
+            NonPersistentTopic topic = new NonPersistentTopic(TOPIC_NAME + "-partition-" + partition,
+                    pulsarTestContext.getBrokerService());
+            NonPersistentSubscription sub = new NonPersistentSubscription(topic, "sub-1", Collections.emptyMap());
+            var dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Failover, partition, topic, sub);
+            Consumer first = new Consumer(sub, SubType.Failover, topic.getName(), 1, 0, "worker", true, serverCnx,
+                    "role", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH,
+                    null, "000000000000000100000000000000000001");
+            Consumer second = new Consumer(sub, SubType.Failover, topic.getName(), 2, 0, "worker", true, serverCnx,
+                    "role", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH,
+                    null, "000000000000000200000000000000000002");
+            try {
+                dispatcher.addConsumer(first).get();
+                dispatcher.addConsumer(second).get();
+                owners.add(dispatcher.getActiveConsumer().consumerId());
+            } finally {
+                dispatcher.removeConsumer(first);
+                dispatcher.removeConsumer(second);
+                dispatcher.close().get();
+            }
+        }
+        assertThat(owners).containsExactlyInAnyOrder(1L, 2L);
     }
 
     @Test(timeOut = 10000)

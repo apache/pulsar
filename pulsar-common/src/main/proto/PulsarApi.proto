@@ -430,6 +430,9 @@ message CommandSubscribe {
 
     // The consumer epoch, when exclusive and failover consumer redeliver unack message will increase the epoch
     optional uint64 consumer_epoch = 19;
+
+    // Stable identity shared by the partition consumers of one logical Failover consumer.
+    optional string consumer_instance_id = 20;
 }
 
 message CommandPartitionedTopicMetadata {
