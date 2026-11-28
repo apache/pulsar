@@ -44,6 +44,13 @@ public class SystemResourceUsage {
         directMemory = new ResourceUsage(-1, -1);
     }
 
+    public static boolean isBelowLoadLevel(SystemResourceUsage usage, float thresholdPercentage) {
+        return (usage.bandwidthOut.percentUsage() < thresholdPercentage
+                && usage.bandwidthIn.percentUsage() < thresholdPercentage
+                && usage.cpu.percentUsage() < thresholdPercentage
+                && usage.directMemory.percentUsage() < thresholdPercentage);
+    }
+
     public ResourceUsage getBandwidthIn() {
         return bandwidthIn;
     }
