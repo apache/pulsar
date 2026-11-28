@@ -117,6 +117,16 @@ public interface PendingAckHandle {
     boolean checkIsCanDeleteConsumerPendingAck(Position position);
 
     /**
+     * Associates a transactional acknowledgment with the consumer delivery that charged it.
+     *
+     * @param txnID transaction ID
+     * @param position acknowledged position
+     * @param consumer consumer that owns the delivery
+     * @param delivery delivery identity, or {@code null} when no delivery is currently charged
+     */
+    void recordConsumerAck(TxnID txnID, Position position, Consumer consumer, Object delivery);
+
+    /**
      * When the position is actually deleted, we can use this method to clear the cache for individual ack messages.
      *
      * @param position {@link Position} which position need to clear

@@ -256,11 +256,8 @@ public class PendingAckInMemoryDeleteTest extends TransactionTestBase {
                             // and it won't clear the last message in cursor batch index ack set
                             consumer.acknowledgeAsync(messageIds[1], commitTwice).get();
                             assertEquals(batchDeletedIndexes.size(), 1);
-                            // the consumer pending ack is removed asynchronously on the broker after it processes
-                            // the transactional acknowledgement, so the client side future completing does not
-                            // guarantee the pending ack has been cleared yet; await instead of asserting immediately
-                            Awaitility.await().untilAsserted(() -> assertEquals(
-                                    testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 0));
+                            // The transactional ACK does not remove the consumer pending ack before commit.
+                            assertEquals(testPersistentSubscription.getConsumers().get(0).getPendingAcks().size(), 1);
 
                             // the messages has been produced were all acked,
                             // the memory in broker for the messages has been cleared.
