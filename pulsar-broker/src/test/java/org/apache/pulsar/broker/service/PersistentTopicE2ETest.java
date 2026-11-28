@@ -26,7 +26,6 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
@@ -1935,25 +1934,14 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
     private class PulsarChannelInitializerForTest extends PulsarChannelInitializer {
 
-        private final PulsarService pulsar;
-
-        private final PulsarChannelOptions opts;
-
         public PulsarChannelInitializerForTest(PulsarService pulsar, PulsarChannelOptions opts)
                 throws Exception {
             super(pulsar, opts);
-            this.pulsar = pulsar;
-            this.opts = opts;
         }
 
         @Override
-        protected void initChannel(SocketChannel ch) throws Exception {
-            super.initChannel(ch);
-            //remove parent
-            ch.pipeline().remove("handler");
-            PersistentTopicE2ETest.ServerCnxForTest serverCnxForTest =
-                    new PersistentTopicE2ETest.ServerCnxForTest(this.pulsar, this.opts.getListenerName());
-            ch.pipeline().addAfter("flowController", "testHandler", serverCnxForTest);
+        protected ServerCnx newServerCnx(PulsarService pulsar, String listenerName) {
+            return new ServerCnxForTest(pulsar, listenerName);
         }
 
     }
