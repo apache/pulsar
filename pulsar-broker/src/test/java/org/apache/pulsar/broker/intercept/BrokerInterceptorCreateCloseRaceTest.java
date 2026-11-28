@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.intercept;
 
 import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -112,7 +113,8 @@ public class BrokerInterceptorCreateCloseRaceTest extends ProducerConsumerBase {
             BlockingConsumerCreateInterceptor.unblockCreate.countDown();
             subscribeFuture.get(10, TimeUnit.SECONDS).close();
             Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                    .until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
+                    .untilAsserted(() ->
+                            assertEquals(counterBrokerInterceptor.getConsumerClosedInvocations().get(), 1));
         } finally {
             executor.shutdownNow();
         }

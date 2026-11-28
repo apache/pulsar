@@ -238,7 +238,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Producer<Boolean> producer = pulsarClient.newProducer(Schema.BOOL).topic("test").create();
         Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
         producer.close();
-        Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(counterBrokerInterceptor.getProducerClosedInvocations().get(), 1));
     }
 
     @Test
@@ -257,7 +258,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
                 .newConsumer(Schema.STRING).topic("test1").subscriptionName("test-sub").subscribe();
         Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
         consumer.close();
-        Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(counterBrokerInterceptor.getConsumerClosedInvocations().get(), 1));
     }
 
     @Test
@@ -271,7 +273,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
             org.apache.pulsar.broker.service.Producer brokerProducer =
                     brokerTopic.getProducers().values().iterator().next();
             brokerProducer.disconnect().get(10, TimeUnit.SECONDS);
-            Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 0);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(counterBrokerInterceptor.getProducerClosedInvocations().get(), 1));
         }
     }
 
@@ -282,7 +285,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         try (Producer<Boolean> clientProducer = pulsarClient.newProducer(Schema.BOOL).topic(topicName).create()) {
             Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
             admin.topics().unload(topicName);
-            Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 0);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(counterBrokerInterceptor.getProducerClosedInvocations().get(), 1));
         }
     }
 
@@ -295,7 +299,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
                 .topic(topicName).subscriptionName(subName).subscribe()) {
             Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
             admin.topics().unload(topicName);
-            Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(counterBrokerInterceptor.getConsumerClosedInvocations().get(), 1));
         }
     }
 
@@ -312,7 +317,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
                 .subscribe();
         Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
         consumer.unsubscribe();
-        Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(counterBrokerInterceptor.getConsumerClosedInvocations().get(), 1));
     }
 
     @Test
@@ -329,7 +335,8 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
                     (PersistentSubscription) brokerTopic.getSubscription(subName);
             org.apache.pulsar.broker.service.Consumer brokerConsumer = subscription.getConsumers().get(0);
             brokerConsumer.disconnect();
-            Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(counterBrokerInterceptor.getConsumerClosedInvocations().get(), 1));
         }
     }
 

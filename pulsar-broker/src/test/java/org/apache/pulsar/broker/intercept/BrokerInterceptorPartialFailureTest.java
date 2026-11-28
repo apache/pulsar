@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.intercept;
 
 import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.testng.Assert.assertEquals;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.HashMap;
@@ -100,8 +101,8 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
         Producer<Boolean> producer = pulsarClient.newProducer(Schema.BOOL).topic(topic).create();
         Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
         producer.close();
-        Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .until(() -> counterBrokerInterceptor.getProducerCount() == 0);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(counterBrokerInterceptor.getProducerClosedInvocations().get(), 1));
     }
 
     @Test(groups = CREATE_FAILURE)
@@ -114,8 +115,8 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
                 .subscribe();
         Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
         consumer.close();
-        Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(counterBrokerInterceptor.getConsumerClosedInvocations().get(), 1));
     }
 
     @Test(groups = CLOSE_FAILURE)
@@ -125,8 +126,8 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
         Producer<Boolean> producer = pulsarClient.newProducer(Schema.BOOL).topic(topic).create();
         Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
         producer.close();
-        Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .until(() -> counterBrokerInterceptor.getProducerCount() == 0);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(counterBrokerInterceptor.getProducerClosedInvocations().get(), 1));
     }
 
     @Test(groups = CLOSE_FAILURE)
@@ -139,8 +140,8 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
                 .subscribe();
         Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
         consumer.close();
-        Awaitility.await().atMost(10, TimeUnit.SECONDS)
-                .until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(counterBrokerInterceptor.getConsumerClosedInvocations().get(), 1));
     }
 
     /**
