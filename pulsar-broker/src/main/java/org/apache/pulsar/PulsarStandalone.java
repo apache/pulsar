@@ -25,6 +25,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -32,12 +33,15 @@ import java.util.List;
 import java.util.Optional;
 import lombok.CustomLog;
 import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -60,7 +64,6 @@ import picocli.CommandLine.ScopeType;
 @CustomLog
 @Command(name = "standalone", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class PulsarStandalone implements AutoCloseable {
-
     private static final String PULSAR_STANDALONE_USE_ZOOKEEPER = "PULSAR_STANDALONE_USE_ZOOKEEPER";
 
     PulsarService broker;
@@ -70,6 +73,7 @@ public class PulsarStandalone implements AutoCloseable {
 
     // This is used from Pulsar 2.11 on, with new default settings
     BKCluster bkCluster;
+    private Path tempBaseDir;
     MetadataStoreExtended metadataStore;
 
     ServiceConfiguration config;
@@ -214,6 +218,42 @@ public class PulsarStandalone implements AutoCloseable {
 
     public boolean isHelp() {
         return help;
+    }
+
+    void setTempBaseDir(Path tempBaseDir) {
+        this.tempBaseDir = tempBaseDir;
+    }
+
+    public Path getTempBaseDir() {
+        return this.tempBaseDir;
+    }
+
+    public void setMetadataDir(String metadataDir) {
+        this.metadataDir = metadataDir;
+    }
+
+    /**
+     * Builds a client connected to this standalone instance.
+     * <p>
+     * Must be called after {@link #start()}. Uses the plaintext broker URL and
+     * no authentication. The caller is responsible for closing the returned client.
+     */
+    public PulsarClient buildClient() throws PulsarClientException {
+        return PulsarClient.builder()
+                .serviceUrl(this.getBrokerServiceUrl())
+                .build();
+    }
+
+    /**
+     * Builds an admin client connected to this standalone instance.
+     * <p>
+     * Must be called after {@link #start()}. Uses the plaintext web service URL
+     * and no authentication. The caller is responsible for closing the returned admin.
+     */
+    public PulsarAdmin buildAdmin() throws PulsarClientException {
+        return PulsarAdmin.builder()
+                .serviceHttpUrl(this.getWebServiceUrl())
+                .build();
     }
 
     @Option(names = { "-c", "--config" }, description = "Configuration file path")
@@ -432,25 +472,64 @@ public class PulsarStandalone implements AutoCloseable {
         try {
             if (fnWorkerService != null) {
                 fnWorkerService.stop();
-                fnWorkerService = null;
-            }
-
-            if (broker != null) {
-                broker.close();
-                broker = null;
-            }
-
-            if (bkCluster != null) {
-                bkCluster.close();
-                bkCluster = null;
-            }
-
-            if (bkEnsemble != null) {
-                bkEnsemble.stop();
-                bkEnsemble = null;
             }
         } catch (Exception e) {
-            log.error().exception(e).log("Shutdown failed");
+            log.error().exception(e).log("Failed to stop function worker");
+        } finally {
+            fnWorkerService = null;
+        }
+
+        try {
+            if (broker != null) {
+                broker.close();
+            }
+        } catch (Exception e) {
+            log.error().exception(e).log("Failed to close broker");
+        } finally {
+            broker = null;
+        }
+
+        try {
+            if (bkCluster != null) {
+                bkCluster.close();
+            }
+        } catch (Exception e) {
+            log.error().exception(e).log("Failed to close bookkeeper cluster");
+        } finally {
+            bkCluster = null;
+        }
+
+        try {
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+            }
+        } catch (Exception e) {
+            log.error().exception(e).log("Failed to stop bookkeeper ensemble");
+        } finally {
+            bkEnsemble = null;
+        }
+
+        deleteTempBaseDir();
+    }
+
+    private void deleteTempBaseDir() {
+        if (tempBaseDir == null) {
+            return;
+        }
+        try {
+            FileUtils.deleteDirectory(tempBaseDir.toFile());
+        } catch (IOException e) {
+            log.error().attr("dir", tempBaseDir).exception(e).log("Failed to delete temp directory");
+        } finally {
+            tempBaseDir = null;
+        }
+    }
+
+    private void applyBookieConfigFile(ServerConfiguration bkServerConf) throws Exception {
+        if (StringUtils.isNotBlank(configFile)) {
+            bkServerConf.loadConf(new File(configFile).toURI().toURL());
+        } else {
+            bkServerConf.setAllowLoopback(true);
         }
     }
 
@@ -469,7 +548,7 @@ public class PulsarStandalone implements AutoCloseable {
         }
 
         ServerConfiguration bkServerConf = new ServerConfiguration();
-        bkServerConf.loadConf(new File(configFile).toURI().toURL());
+        applyBookieConfigFile(bkServerConf);
         calculateCacheSize(bkServerConf);
         bkCluster = BKCluster.builder()
                 .baseServerConfiguration(bkServerConf)
@@ -487,7 +566,7 @@ public class PulsarStandalone implements AutoCloseable {
     private void startBookieWithZookeeper() throws Exception {
         log.info("Starting BK & ZK cluster");
         ServerConfiguration bkServerConf = new ServerConfiguration();
-        bkServerConf.loadConf(new File(configFile).toURI().toURL());
+        applyBookieConfigFile(bkServerConf);
         calculateCacheSize(bkServerConf);
         // Start LocalBookKeeper.
         bkEnsemble = new LocalBookkeeperEnsemble(

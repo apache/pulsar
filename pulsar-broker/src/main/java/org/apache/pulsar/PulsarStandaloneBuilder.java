@@ -19,17 +19,37 @@
 package org.apache.pulsar;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 
 public final class PulsarStandaloneBuilder {
-
     private PulsarStandalone pulsarStandalone;
 
     private PulsarStandaloneBuilder() {
         pulsarStandalone = new PulsarStandalone();
         pulsarStandalone.setWipeData(true);
         pulsarStandalone.setNoFunctionsWorker(true);
+    }
+
+    public PulsarStandaloneBuilder withTempDirectory() {
+        if (pulsarStandalone.getTempBaseDir() != null) {
+            return this;
+        }
+        Path tempBaseDir;
+        try {
+            tempBaseDir = Files.createTempDirectory("pulsar-standalone");
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        pulsarStandalone.setZkDir(tempBaseDir.resolve("zookeeper").toString());
+        pulsarStandalone.setBkDir(tempBaseDir.resolve("bookkeeper").toString());
+        pulsarStandalone.setMetadataDir(tempBaseDir.resolve("metadata").toString());
+        pulsarStandalone.setTempBaseDir(tempBaseDir);
+        return this;
     }
 
     public static PulsarStandaloneBuilder instance() {
@@ -94,6 +114,9 @@ public final class PulsarStandaloneBuilder {
     public PulsarStandalone build() {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName("standalone");
+        config.setManagedLedgerDefaultEnsembleSize(1);
+        config.setManagedLedgerDefaultWriteQuorum(1);
+        config.setManagedLedgerDefaultAckQuorum(1);
         pulsarStandalone.setConfig(config);
 
         if (pulsarStandalone.getAdvertisedAddress() != null) {
