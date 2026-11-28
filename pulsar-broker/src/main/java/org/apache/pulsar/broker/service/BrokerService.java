@@ -100,12 +100,14 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -2672,6 +2674,7 @@ public class BrokerService implements Closeable {
                                                         .attr("topic", topic)
                                                         .exceptionMessage(ex)
                                                         .log("Topic initialization failed. Removing topic from cache");
+                                                requireFreshOwnershipAfterFailedLoad(topic, topicFuture, ex);
                                                 executor().submit(() -> {
                                                     persistentTopic.close().whenComplete((ignore, closeEx) -> {
                                                         topics.remove(topic, topicFuture);
@@ -2700,6 +2703,7 @@ public class BrokerService implements Closeable {
                                     topicFuture.complete(Optional.empty());
                                 } else {
                                     context.finishTrace(openMlTracePoint, exception);
+                                    requireFreshOwnershipAfterFailedLoad(topic, topicFuture, exception);
                                     failTopicFuture(topic, topicFuture, new PersistenceException(exception));
                                 }
                             }
@@ -3059,19 +3063,43 @@ public class BrokerService implements Closeable {
 
     /** Install the reload gate before the fenced topic can remove its cache entry. */
     public void requireFreshOwnershipBeforeTopicReadmission(PersistentTopic failedTopic) {
+        // The topic may still be loading: a fence seen while it initializes also closes it and removes its load.
+        requireFreshOwnershipBeforeReload(failedTopic.getName(), future -> future == failedTopic.getCreateFuture()
+                || (future.isDone() && !future.isCompletedExceptionally()
+                    && future.join().orElse(null) == failedTopic));
+    }
+
+    /**
+     * A load that failed because another broker opened the topic's managed ledger must not be retried on the cached
+     * ownership. Install the reload gate while the failed load is still cached.
+     */
+    private void requireFreshOwnershipAfterFailedLoad(String topic, CompletableFuture<Optional<Topic>> topicFuture,
+                                                     Throwable error) {
+        if (isOwnershipConflict(error)) {
+            requireFreshOwnershipBeforeReload(topic, future -> future == topicFuture);
+        }
+    }
+
+    private void requireFreshOwnershipBeforeReload(String topic,
+                                                   Predicate<CompletableFuture<Optional<Topic>>> isFailedEntry) {
         try {
-            topics.computeIfPresent(failedTopic.getName(), (topic, future) -> {
-                if (future.isDone() && !future.isCompletedExceptionally()
-                        && future.join().orElse(null) == failedTopic) {
-                    pulsar.getNamespaceService().requireFreshOwnershipBeforeReadmission(TopicName.get(topic));
+            topics.computeIfPresent(topic, (name, future) -> {
+                if (isFailedEntry.test(future)) {
+                    pulsar.getNamespaceService().requireFreshOwnershipBeforeReadmission(TopicName.get(name));
                 }
                 return future;
             });
         } catch (RuntimeException e) {
             // The caller must still close the fenced topic. Without the gate, a reload uses the cached ownership.
-            log.warn().attr("topic", failedTopic.getName()).exception(e)
+            log.warn().attr("topic", topic).exception(e)
                     .log("Failed to require fresh namespace ownership before reloading the fenced topic");
         }
+    }
+
+    // A fence, or a version conflict on the managed-ledger metadata, shows that another broker opened the ledger.
+    private static boolean isOwnershipConflict(Throwable error) {
+        return ExceptionUtils.indexOfType(error, ManagedLedgerFencedException.class) >= 0
+                || ExceptionUtils.indexOfType(error, ManagedLedgerException.BadVersionException.class) >= 0;
     }
 
     private void onTopicCacheEntryAdded(String name, CompletableFuture<Optional<Topic>> future) {
