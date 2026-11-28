@@ -1974,7 +1974,12 @@ public class BrokerService implements Closeable {
                         .attr("topic", topic)
                         .exceptionMessage(ex.getCause())
                         .log("Non-persistent topic initialization failed. Closing topic");
-                nonPersistentTopic.close(true, true).whenComplete((v, closeException) -> {
+                // A retry uses the same remote producer names. Wait before close evicts the failed load.
+                nonPersistentTopic.stopReplProducers().exceptionally(stopException -> {
+                    log.warn().attr("topic", topic).exception(stopException)
+                            .log("Failed to stop replicators for partially initialized non-persistent topic");
+                    return null;
+                }).thenCompose(__ -> nonPersistentTopic.close(true, true)).whenComplete((v, closeException) -> {
                     if (closeException != null) {
                         log.warn().attr("topic", topic).exception(closeException)
                                 .log("Failed to close partially initialized non-persistent topic");
