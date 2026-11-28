@@ -536,7 +536,7 @@ public class Consumer {
         try {
             subscription.removeConsumer(this, isResetCursor);
             cnx.removedConsumer(this);
-            cnx.notifyConsumerClosed(this);
+            cnx.scheduleNotifyConsumerClosed(this);
         } catch (BrokerServiceException e) {
             synchronized (this) {
                 cleanupStarted = false;
@@ -571,7 +571,7 @@ public class Consumer {
         }
         if (brokerInterceptorClosePendingDuringCreate.getAndSet(false)
                 && hasBrokerInterceptorCreateNotifications()) {
-            transportCnx.notifyConsumerClosed(this);
+            transportCnx.scheduleNotifyConsumerClosed(this);
         }
     }
 
@@ -604,7 +604,7 @@ public class Consumer {
             log.info("Unsubscribed successfully");
             cnx.removedConsumer(this);
             // Idempotent: subscription doUnsubscribe already calls close() on the success path.
-            cnx.notifyConsumerClosed(this);
+            cnx.scheduleNotifyConsumerClosed(this);
             cnx.getCommandSender().sendSuccessResponse(requestId);
         }).exceptionally(exception -> {
             log.warn().exception(exception).log("Unsubscribe failed");

@@ -62,6 +62,10 @@ public interface TransportCnx {
 
     void notifyProducerClosed(Producer producer);
 
+    default void scheduleNotifyProducerClosed(Producer producer) {
+        execute(() -> notifyProducerClosed(producer));
+    }
+
     void closeProducer(Producer producer);
     void closeProducer(Producer producer, Optional<BrokerLookupData> assignedBrokerLookupData);
 
@@ -70,6 +74,10 @@ public interface TransportCnx {
     void removedConsumer(Consumer consumer);
 
     void notifyConsumerClosed(Consumer consumer);
+
+    default void scheduleNotifyConsumerClosed(Consumer consumer) {
+        execute(() -> notifyConsumerClosed(consumer));
+    }
 
     void closeConsumer(Consumer consumer, Optional<BrokerLookupData> assignedBrokerLookupData);
 

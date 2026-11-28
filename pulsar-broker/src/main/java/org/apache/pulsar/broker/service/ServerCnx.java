@@ -5057,13 +5057,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
         Map<String, String> metadata = consumer.getMetadata();
-        execute(() -> {
-            try {
-                brokerInterceptor.consumerClosed(this, consumer, metadata);
-            } catch (Throwable t) {
-                log.error().exception(t).log("Exception occur when intercept consumer closed.");
-            }
-        });
+        try {
+            brokerInterceptor.consumerClosed(this, consumer, metadata);
+        } catch (Throwable t) {
+            log.error().exception(t).log("Exception occur when intercept consumer closed.");
+        }
     }
 
     @Override
@@ -5084,13 +5082,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             return;
         }
         Map<String, String> metadata = producer.getMetadata();
-        execute(() -> {
-            try {
-                brokerInterceptor.producerClosed(this, producer, metadata);
-            } catch (Throwable t) {
-                log.error().exception(t).log("Exception occur when intercept producer closed.");
-            }
-        });
+        try {
+            brokerInterceptor.producerClosed(this, producer, metadata);
+        } catch (Throwable t) {
+            log.error().exception(t).log("Exception occur when intercept producer closed.");
+        }
     }
 
     private void safelyRemoveProducer(Producer producer) {

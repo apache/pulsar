@@ -847,7 +847,7 @@ public class Producer {
         cnx.removedProducer(this);
 
         log.debug("Removed producer");
-        cnx.notifyProducerClosed(this);
+        cnx.scheduleNotifyProducerClosed(this);
         closeFuture.complete(null);
         isDisconnecting.set(false);
     }
@@ -878,7 +878,7 @@ public class Producer {
         }
         if (brokerInterceptorClosePendingDuringCreate.getAndSet(false)
                 && hasBrokerInterceptorCreateNotifications()) {
-            transportCnx.notifyProducerClosed(this);
+            transportCnx.scheduleNotifyProducerClosed(this);
         }
     }
 
