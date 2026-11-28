@@ -31,7 +31,9 @@ including the v4 partitioned-topic compatibility path — routes a key identical
    splits it.
 2. **Keyless:** round-robin across the active segments.
 3. **Migration (all-legacy layout):** when every active segment is legacy, route a keyed message by
-   `signSafeMod(Murmur3_32(key_utf8), N)` over the `N` legacy segments (v4 partitioned-topic routing).
+   `signSafeMod(JavaStringHash(key), N)` over the `N` legacy segments, as defined in
+   [Wire Protocol](wire-protocol.md) §5: the routing of a Java v4 partitioned-topic producer with its
+   default hashing scheme.
 
 A client MUST maintain at most one underlying producer per active segment, created **lazily** on first
 send to that segment. Under an *exclusive* access mode, a client MUST eagerly attach to every active

@@ -134,8 +134,13 @@ client-side router and produces to it with the standard `CommandProducer`/`Comma
    the key's *entry-bucket* hash — [Key-Shared](key-shared.md) §2 — so the two routings are
    independent.)
 2. **Keyless:** round-robin across the active segments.
-3. **All-legacy (synthetic) layout:** `signSafeMod(Murmur3_32(key_utf8), N)` over the `N` legacy
-   segments (identical to v4 partitioned-topic routing, preserving key→partition while migrating).
+3. **All-legacy (synthetic) layout:** `signSafeMod(JavaStringHash(key), N)` over the `N` legacy
+   segments. `JavaStringHash(key)` is Java's `String.hashCode()` with the sign bit cleared: start with
+   `h = 0`, set `h = 31 * h + c` in 32-bit wrapping arithmetic for each UTF-16 code unit `c` of the
+   key, then take `h & 0x7FFFFFFF`. This is the routing of a Java v4 partitioned-topic producer with
+   its default hashing scheme, so such a topic keeps its key→partition mapping while migrating. A v4
+   producer with another hashing scheme does not route this way; that includes the C++ client and the
+   clients built on it, whose default is `BoostHash`.
 
 The per-segment `CommandProducer` is opened lazily on first send to a segment (named
 `<producerName>-seg-<segment_id>`), against the owning broker from `segment_brokers`. When a pushed
