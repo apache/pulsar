@@ -40,6 +40,7 @@ import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -63,6 +64,7 @@ import java.util.stream.IntStream;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor.CursorStatsSummaryUnsupportedException;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
@@ -104,6 +106,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -133,8 +136,10 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
+import org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
@@ -171,6 +176,8 @@ public class PersistentTopicsBase extends AdminResource {
             io.github.merlimat.slog.Logger.get(PersistentTopicsBase.class);
 
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
+    static final String INCLUDE_RANGES_OPTION =
+            "includeIndividualDeletedMessages=true (--include-individual-deleted-messages in the CLI).";
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.of(1, 21);
 
@@ -1575,6 +1582,128 @@ public class PersistentTopicsBase extends AdminResource {
         })
         .thenCompose(__ -> getTopicReferenceAsync(topicName))
         .thenCompose(topic -> topic.getInternalStats(metadata));
+    }
+
+    protected CompletableFuture<CursorStats> internalGetSubscriptionCursorInternalStats(
+            boolean authoritative, String subName, boolean includeIndividualDeletedMessages, boolean localOnly) {
+        var topicLookup = validateSubscriptionCursorStatsRequest(subName, localOnly)
+                .thenCompose(__ -> {
+                    if (topicName.isPartitioned()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName)
+                            .thenAccept(metadata -> {
+                                if (metadata.partitions > 0) {
+                                    throw new RestException(Status.PRECONDITION_FAILED,
+                                            "Specify a physical partition or use partitioned-internalStats");
+                                }
+                            });
+                })
+                .thenCompose(__ -> validateSubscriptionCursorTopicExists())
+                .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+                .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(topicName.toString()));
+        return readCursorStatsDependency(topicLookup).thenApply(topic -> {
+            if (topic.isEmpty()) {
+                throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
+            }
+            CursorStats stats;
+            try {
+                stats = ((PersistentTopic) topic.get()).getSubscriptionCursorInternalStats(
+                        subName, includeIndividualDeletedMessages);
+            } catch (CursorStatsSummaryUnsupportedException e) {
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "The storage cursor cannot omit individually deleted message ranges. Retry with "
+                                + INCLUDE_RANGES_OPTION);
+            }
+            if (stats == null) {
+                throw new RestException(Status.NOT_FOUND, "Subscription not found");
+            }
+            return stats;
+        });
+    }
+
+    private CompletableFuture<Void> validateSubscriptionCursorTopicExists() {
+        if (pulsar().getBrokerService().getTopicReference(topicName.toString()).isPresent()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        // A normal ownership lookup may acquire an unowned bundle. Do not do that for a missing topic.
+        return pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName)
+                .thenAccept(exists -> {
+                    if (!exists) {
+                        throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
+                    }
+                });
+    }
+
+    protected CompletableFuture<PartitionedSubscriptionCursorInternalStats>
+            internalGetPartitionedSubscriptionCursorInternalStats(String subName,
+                                                                  boolean includeIndividualDeletedMessages) {
+        var metadataLookup = validateSubscriptionCursorStatsRequest(subName, false)
+                .thenCompose(__ -> {
+                    if (topicName.isPartitioned()) {
+                        throw new RestException(Status.PRECONDITION_FAILED, "Specify a partitioned base topic");
+                    }
+                    // The caller was already authorized for GET_STATS. Only read the partition metadata here.
+                    return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
+                });
+        return readCursorStatsDependency(metadataLookup).thenCompose(metadata -> {
+            if (metadata.partitions == 0) {
+                return readCursorStatsDependency(
+                        pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName))
+                        .thenApply(exists -> {
+                            if (exists) {
+                                throw new RestException(Status.PRECONDITION_FAILED,
+                                        "Specify a partitioned base topic");
+                            }
+                            throw new RestException(Status.NOT_FOUND, "Partitioned topic metadata not found");
+                        });
+            }
+            if (metadata.deleted) {
+                throw new RestException(Status.NOT_FOUND, "Partitioned topic metadata not found");
+            }
+            var snapshot = new PartitionedTopicMetadata(metadata.partitions);
+            // Bound the diagnostic by one metadata operation's timeout. A cold partition can finish loading
+            // after the response and be available on the next request.
+            Duration timeout = Duration.ofSeconds(
+                    Math.max(1, config().getMetadataStoreOperationTimeoutSeconds()));
+            return PartitionedSubscriptionCursorStats.collect(topicName, snapshot, includeIndividualDeletedMessages,
+                    deadline -> pulsar().getAdminClientAsync(deadline).exceptionally(error -> {
+                        throw new RestException(Status.SERVICE_UNAVAILABLE, "Broker admin client unavailable");
+                    }).thenApply(admin -> {
+                        TopicsImpl topics = (TopicsImpl) admin.topics();
+                        return (partition, result) -> topics.getLocalSubscriptionCursorInternalStatsAsync(
+                                partition, subName, includeIndividualDeletedMessages, result);
+                    }), pulsar().getExecutor(), timeout);
+        });
+    }
+
+    private CompletableFuture<Void> validateSubscriptionCursorStatsRequest(String subName, boolean localOnly) {
+        var authorized = FutureUtil.supplySafely(
+                () -> validateTopicOperationAsync(topicName, TopicOperation.GET_STATS, subName));
+        return authorized.thenCompose(__ -> {
+            if (!localOnly) {
+                return validateGlobalNamespaceOwnershipAsync(namespaceName);
+            }
+            // The coordinator already routed the base request. Only follow partition redirects within this cluster.
+            return checkLocalOrGetPeerReplicationCluster(pulsar(), namespaceName).thenAccept(peerCluster -> {
+                if (peerCluster != null) {
+                    throw new RestException(Status.SERVICE_UNAVAILABLE,
+                            "Partition is no longer served by this cluster");
+                }
+            });
+        });
+    }
+
+    private static <T> CompletableFuture<T> readCursorStatsDependency(CompletableFuture<T> dependency) {
+        return dependency.exceptionally(error -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(error);
+            if (cause instanceof WebApplicationException webException
+                    && webException.getResponse().getStatus() < 500) {
+                throw webException;
+            }
+            throw new RestException(Status.SERVICE_UNAVAILABLE,
+                    "Topic authorization, metadata or ownership is unavailable");
+        });
     }
 
     protected void internalGetManagedLedgerInfo(AsyncResponse asyncResponse, boolean authoritative) {

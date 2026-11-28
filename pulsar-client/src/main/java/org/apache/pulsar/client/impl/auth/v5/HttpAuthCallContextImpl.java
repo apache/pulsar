@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl.auth.v5;
 
 import java.net.URI;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthCallContext;
 import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
@@ -40,11 +42,19 @@ import org.apache.pulsar.client.api.v5.auth.HttpAuthHeaders;
 final class HttpAuthCallContextImpl implements HttpAuthCallContext {
 
     private final URI requestUri;
+    private final CompletableFuture<?> requestLifetime;
     private final ConcurrentHashMap<Class<?>, Object> stateSlot = new ConcurrentHashMap<>();
     private volatile HttpAuthHeaders serverChallengeHeaders;
 
-    HttpAuthCallContextImpl(URI requestUri) {
+    HttpAuthCallContextImpl(URI requestUri, CompletableFuture<?> requestLifetime) {
         this.requestUri = requestUri;
+        this.requestLifetime = requestLifetime;
+    }
+
+    void checkRequestActive() {
+        if (requestLifetime != null && requestLifetime.isDone()) {
+            throw new CancellationException("HTTP authentication request has ended");
+        }
     }
 
     @Override
@@ -71,6 +81,9 @@ final class HttpAuthCallContextImpl implements HttpAuthCallContext {
 
     @Override
     public <T> Optional<T> getStateObject(Class<T> clazz) {
+        // SASL looks up its per-request conversation on the blocking executor before acquiring credentials.
+        // The request can end while that work is queued.
+        checkRequestActive();
         return Optional.ofNullable(clazz.cast(stateSlot.get(clazz)));
     }
 

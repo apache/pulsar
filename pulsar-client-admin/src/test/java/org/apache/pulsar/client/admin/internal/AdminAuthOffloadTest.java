@@ -19,9 +19,21 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.RETURNS_SELF;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import jakarta.ws.rs.client.AsyncInvoker;
+import jakarta.ws.rs.client.Invocation.Builder;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URI;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,9 +45,12 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException.GettingAuthenticationDataException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
+import org.mockito.ArgumentMatchers;
 import org.testng.annotations.Test;
 
 /**
@@ -56,7 +71,7 @@ public class AdminAuthOffloadTest {
      */
     private static class ThreadRecordingAuthentication implements Authentication {
 
-        private final AtomicReference<Thread> getAuthDataThread = new AtomicReference<>();
+        final AtomicReference<Thread> getAuthDataThread = new AtomicReference<>();
 
         @Override
         public String getAuthMethodName() {
@@ -270,5 +285,77 @@ public class AdminAuthOffloadTest {
         } finally {
             lentPool.shutdownNow();
         }
+    }
+
+    @Test
+    public void subscriptionCursorStatsReturnsBeforeAuthenticationCompletes() throws Exception {
+        AsyncStageAuthentication auth = new AsyncStageAuthentication();
+        ExecutorService caller = Executors.newSingleThreadExecutor();
+        try (PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl("http://broker.example:8080")
+                .authentication(auth)
+                .build()) {
+            var call = caller.submit(() -> admin.topics().getSubscriptionCursorInternalStatsAsync(
+                    "persistent://tenant/ns/physical-topic", "sub"));
+            CompletableFuture<Map<String, String>> stage = auth.stage.get(10, TimeUnit.SECONDS);
+            try {
+                var request = call.get(5, TimeUnit.SECONDS);
+                assertThat(request).isNotDone();
+
+                stage.completeExceptionally(new PulsarClientException("Authentication failed"));
+                assertThatThrownBy(() -> request.get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(GettingAuthenticationDataException.class);
+            } finally {
+                stage.cancel(false);
+            }
+        } finally {
+            caller.shutdownNow();
+        }
+    }
+
+    @Test
+    public void subscriptionCursorStatsCancellationSkipsQueuedAuthHooks() throws Exception {
+        var queued = new ArrayDeque<Runnable>();
+        var auth = new AsyncStageAuthentication();
+        WebTarget target = mock(WebTarget.class, RETURNS_SELF);
+        when(target.getUri()).thenReturn(URI.create("http://broker.example:8080/admin/v2"));
+        var topics = new TopicsImpl(target, auth, 30_000L);
+        topics.setBlockingAuthExecutor(queued::add);
+        String topic = "persistent://tenant/ns/physical-topic";
+        var first = topics.getLocalSubscriptionCursorInternalStatsAsync(topic, "sub", false);
+        var second = topics.getLocalSubscriptionCursorInternalStatsAsync(topic, "sub", false);
+
+        assertThat(queued).hasSize(2);
+        assertThat(first.cancel(false)).isTrue();
+        queued.remove().run();
+        assertThat(auth.getAuthDataThread.get()).isNull();
+
+        queued.remove().run();
+        auth.stage.get(5, TimeUnit.SECONDS).complete(Map.of());
+        assertThat(queued).hasSize(1);
+        assertThat(second.cancel(false)).isTrue();
+        queued.remove().run();
+        assertThat(auth.newRequestHeaderThread.get()).isNull();
+    }
+
+    @Test
+    public void cancellingPartitionRequestWhileGetStartsCancelsJerseyInvocation() {
+        var builderReady = new CompletableFuture<Builder>();
+        var topics = spy(new TopicsImpl(mock(WebTarget.class, RETURNS_SELF), null, 30_000L));
+        doReturn(builderReady).when(topics).requestAsync(any(WebTarget.class), any());
+        var request = topics.getLocalSubscriptionCursorInternalStatsAsync(
+                "persistent://tenant/ns/physical-topic-partition-0", "sub", false);
+
+        var builder = mock(Builder.class);
+        var invoker = mock(AsyncInvoker.class);
+        var invocation = new CompletableFuture<CursorStats>();
+        when(builder.async()).thenReturn(invoker);
+        when(invoker.get(ArgumentMatchers.<InvocationCallback<CursorStats>>any())).thenAnswer(ignored -> {
+            request.cancel(false);
+            return invocation;
+        });
+
+        builderReady.complete(builder);
+        assertThat(invocation).isCancelled();
     }
 }

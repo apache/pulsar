@@ -112,7 +112,14 @@ public class OpenApiSchemaNamesTest {
     public void testNoSchemaNameIsSharedByTwoClasses(String specification, Set<Class<?>> resources) {
         recorder.classesBySchemaName.clear();
 
-        new Reader(new OpenAPI()).read(resources);
+        OpenAPI api = new Reader(new OpenAPI()).read(resources);
+        if (resources.contains(PersistentTopics.class)) {
+            String prefix = "/{tenant}/{namespace}/{topic}/subscription/{subName}/";
+            for (String resource : Set.of("internalStats", "partitioned-internalStats")) {
+                assertThat(api.getPaths().get("/persistent" + prefix + resource).getGet()).isNotNull();
+                assertThat(api.getPaths()).doesNotContainKey("/non-persistent" + prefix + resource);
+            }
+        }
 
         assertThat(recorder.classesBySchemaName).as("schemas recorded for %s", specification).isNotEmpty();
         Map<String, Set<String>> shared = new TreeMap<>(recorder.classesBySchemaName);

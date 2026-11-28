@@ -3678,41 +3678,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 stats.compactedLedger = info;
 
                 stats.cursors = new HashMap<>();
-                ledger.getCursors().forEach(c -> {
-                    CursorStats cs = new CursorStats();
-
-                    CursorStats cursorInternalStats = c.getCursorStats();
-                    cs.markDeletePosition = cursorInternalStats.getMarkDeletePosition();
-                    cs.readPosition = cursorInternalStats.getReadPosition();
-                    cs.waitingReadOp = cursorInternalStats.isWaitingReadOp();
-                    cs.pendingReadOps = cursorInternalStats.getPendingReadOps();
-                    cs.messagesConsumedCounter = cursorInternalStats.getMessagesConsumedCounter();
-                    cs.cursorLedger = cursorInternalStats.getCursorLedger();
-                    cs.cursorLedgerLastEntry = cursorInternalStats.getCursorLedgerLastEntry();
-                    cs.individuallyDeletedMessages = cursorInternalStats.getIndividuallyDeletedMessages();
-                    cs.lastLedgerSwitchTimestamp = cursorInternalStats.getLastLedgerSwitchTimestamp();
-                    cs.state = cursorInternalStats.getState();
-                    cs.active = cursorInternalStats.isActive();
-                    cs.numberOfEntriesSinceFirstNotAckedMessage =
-                        cursorInternalStats.getNumberOfEntriesSinceFirstNotAckedMessage();
-                    cs.totalNonContiguousDeletedMessagesRange =
-                        cursorInternalStats.getTotalNonContiguousDeletedMessagesRange();
-                    cs.properties = cursorInternalStats.getProperties();
-                    // subscription metrics
-                    PersistentSubscription sub = subscriptions.get(Codec.decode(c.getName()));
-                    if (sub != null) {
-                        if (sub.getDispatcher() instanceof AbstractPersistentDispatcherMultipleConsumers) {
-                            AbstractPersistentDispatcherMultipleConsumers dispatcher =
-                                (AbstractPersistentDispatcherMultipleConsumers) sub.getDispatcher();
-                            cs.subscriptionHavePendingRead = dispatcher.isHavePendingRead();
-                            cs.subscriptionHavePendingReplayRead = dispatcher.isHavePendingReplayRead();
-                        } else if (sub.getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
-                            PersistentDispatcherSingleActiveConsumer dispatcher =
-                                (PersistentDispatcherSingleActiveConsumer) sub.getDispatcher();
-                            cs.subscriptionHavePendingRead = dispatcher.havePendingRead;
-                        }
-                    }
-                    stats.cursors.put(c.getName(), cs);
+                ledger.getCursors().forEach(cursor -> {
+                    CursorStats cursorStats = cursor.getCursorStats();
+                    PersistentSubscription sub = subscriptions.get(Codec.decode(cursor.getName()));
+                    stats.cursors.put(cursor.getName(), buildSubscriptionAwareCursorStats(cursorStats, sub, true));
                 });
 
                 //Schema store ledgers
@@ -3802,6 +3771,52 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return null;
             });
         return statFuture;
+    }
+
+    /**
+     * Get the internal stats of the cursor backing the given subscription, enriched with the state of
+     * the subscription dispatcher. Returns null if the subscription does not exist.
+     */
+    public CursorStats getSubscriptionCursorInternalStats(String subName, boolean includeIndividualDeletedMessages) {
+        PersistentSubscription sub = getSubscription(subName);
+        if (sub == null) {
+            return null;
+        }
+        ManagedCursor cursor = sub.getCursor();
+        // Complete snapshots honor the same storage plugin overrides as topic-level internal stats.
+        CursorStats cursorStats = includeIndividualDeletedMessages
+                ? cursor.getCursorStats() : cursor.getCursorStatsWithoutIndividuallyDeletedMessages();
+        return buildSubscriptionAwareCursorStats(cursorStats, sub, includeIndividualDeletedMessages);
+    }
+
+    private static CursorStats buildSubscriptionAwareCursorStats(CursorStats cursor, PersistentSubscription sub,
+                                                                  boolean includeIndividualDeletedMessages) {
+        CursorStats stats = new CursorStats();
+        stats.markDeletePosition = cursor.getMarkDeletePosition();
+        stats.readPosition = cursor.getReadPosition();
+        stats.waitingReadOp = cursor.isWaitingReadOp();
+        stats.pendingReadOps = cursor.getPendingReadOps();
+        stats.messagesConsumedCounter = cursor.getMessagesConsumedCounter();
+        stats.cursorLedger = cursor.getCursorLedger();
+        stats.cursorLedgerLastEntry = cursor.getCursorLedgerLastEntry();
+        if (includeIndividualDeletedMessages) {
+            stats.individuallyDeletedMessages = cursor.getIndividuallyDeletedMessages();
+        }
+        stats.lastLedgerSwitchTimestamp = cursor.getLastLedgerSwitchTimestamp();
+        stats.state = cursor.getState();
+        stats.active = cursor.isActive();
+        stats.numberOfEntriesSinceFirstNotAckedMessage = cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
+        stats.totalNonContiguousDeletedMessagesRange = cursor.getTotalNonContiguousDeletedMessagesRange();
+        stats.properties = cursor.getProperties();
+
+        Dispatcher dispatcher = sub == null ? null : sub.getDispatcher();
+        if (dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers multipleConsumers) {
+            stats.subscriptionHavePendingRead = multipleConsumers.isHavePendingRead();
+            stats.subscriptionHavePendingReplayRead = multipleConsumers.isHavePendingReplayRead();
+        } else if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer singleActiveConsumer) {
+            stats.subscriptionHavePendingRead = singleActiveConsumer.havePendingRead;
+        }
+        return stats;
     }
 
     public Optional<CompactedTopicContext> getCompactedTopicContext() {

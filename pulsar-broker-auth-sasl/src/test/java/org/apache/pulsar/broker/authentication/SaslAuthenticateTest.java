@@ -18,10 +18,17 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -32,15 +39,22 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.ImmutableSet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.ws.rs.client.ClientBuilder;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -54,6 +68,7 @@ import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -63,6 +78,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
 import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -237,6 +254,68 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         ServiceConfiguration defaultConf = new ServiceConfiguration();
         conf.setInflightSaslContextExpiryMs(defaultConf.getInflightSaslContextExpiryMs());
         conf.setMaxInflightSaslContext(defaultConf.getMaxInflightSaslContext());
+    }
+
+    @Test
+    public void expiredPartitionRequestSkipsQueuedSaslCredentialLookup() throws Exception {
+        var queue = new ArrayDeque<Runnable>();
+        var services = mock(ClientAuthenticationServices.class);
+        when(services.blockingExecutor()).thenReturn(queue::add);
+        // This unconfigured, unstarted shim owns no JAAS credentials or HTTP client. Its close() would
+        // release the static JAAS credentials used by the suite's running broker.
+        var auth = spy(new AuthenticationSasl());
+        try (var client = ClientBuilder.newClient()) {
+            auth.bindClientAuthenticationServices(services);
+            var failure = new PulsarClientException("Credential lookup failed");
+            doThrow(failure).when(auth).getAuthData(anyString());
+            var topics = new TopicsImpl(client.target(lookupUrl), auth, 30_000L);
+            String topic = "persistent://my-property/my-ns/topic";
+            var expired = topics.getLocalSubscriptionCursorInternalStatsAsync(topic, "sub", false);
+            var active = topics.getLocalSubscriptionCursorInternalStatsAsync(topic, "sub", false);
+            assertThat(queue).hasSize(2);
+            assertThat(expired.cancel(false)).isTrue();
+            queue.remove().run();
+            verify(auth, never()).getAuthData(anyString());
+
+            queue.remove().run();
+            assertThatThrownBy(() -> active.get(5, TimeUnit.SECONDS)).hasRootCause(failure);
+            verify(auth).getAuthData(anyString());
+        }
+    }
+
+    @Test
+    public void testExpiredRoleTokenOnSubscriptionCursorStats() throws Exception {
+        var signer = new SaslRoleTokenSigner(Files.readAllBytes(secretKeyFile.toPath()));
+        String token = signer.sign(new SaslRoleToken("client", "1", 1L).toString());
+        URI topic = lookupUrl.resolve("/admin/v2/persistent/public/default/topic/");
+        URI subscription = topic.resolve("subscription/sub/");
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            for (var response : List.of(
+                    requestWithRoleToken(client, subscription.resolve("internalStats"), token,
+                            SaslConstants.SASL_STATE_COMPLETE),
+                    requestWithRoleToken(client, subscription.resolve("partitioned-internalStats"), token,
+                            SaslConstants.SASL_STATE_COMPLETE),
+                    requestWithRoleToken(client, subscription.resolve("internalStats"), token,
+                            SaslConstants.SASL_STATE_SERVER_CHECK_TOKEN))) {
+                assertThat(response.statusCode()).isEqualTo(401);
+                assertThat(response.headers().firstValue(SaslConstants.SASL_HEADER_TYPE))
+                        .hasValue(SaslConstants.SASL_TYPE_VALUE);
+                assertThat(response.headers().firstValue(SaslConstants.SASL_HEADER_STATE))
+                        .hasValue(SaslConstants.SASL_AUTH_ROLE_TOKEN_EXPIRED);
+                assertThat(response.body()).contains("Role token expired");
+            }
+        }
+    }
+
+    private static HttpResponse<String> requestWithRoleToken(HttpClient client, URI uri, String token, String state)
+            throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofSeconds(10))
+                .header(SaslConstants.SASL_HEADER_TYPE, SaslConstants.SASL_TYPE_VALUE)
+                .header(SaslConstants.SASL_HEADER_STATE, state)
+                .header(SaslConstants.SASL_AUTH_ROLE_TOKEN, token)
+                .GET().build();
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     // Test could verify with kerberos configured.

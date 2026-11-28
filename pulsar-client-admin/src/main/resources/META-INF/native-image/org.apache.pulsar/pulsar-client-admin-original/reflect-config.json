@@ -423,6 +423,12 @@
     "allDeclaredConstructors": true
   },
   {
+    "name": "org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats$CursorStats",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
     "name": "org.apache.pulsar.common.policies.data.NamespaceIsolationData",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
@@ -478,6 +484,18 @@
   },
   {
     "name": "org.apache.pulsar.common.policies.data.OffloadPolicies",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats",
+    "allDeclaredFields": true,
+    "allDeclaredMethods": true,
+    "allDeclaredConstructors": true
+  },
+  {
+    "name": "org.apache.pulsar.common.policies.data.PartitionedSubscriptionCursorInternalStats$PartitionError",
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allDeclaredConstructors": true
