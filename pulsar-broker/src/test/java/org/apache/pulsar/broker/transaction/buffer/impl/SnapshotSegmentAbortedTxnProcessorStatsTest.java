@@ -216,10 +216,12 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
                     statsExecutor.submit(() -> recoveringProcessor.generateSnapshotStats(true));
             try {
                 // Recovery either adds the last segment and finishes, or it waits for the lock the stats call holds.
-                Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                // Only this wait reports a stall: the gates of the pausing position stay closed for longer.
+                Awaitility.await("recovery finished or waiting for the paused stats call")
+                        .atMost(10, TimeUnit.SECONDS)
                         .until(() -> recovery.isDone() || isBlockedBy(recoveryThread.get(), statsThread));
             } finally {
-                firstMarker.resume();
+                firstMarker.release();
             }
 
             assertThatCode(() -> statsDuringRecovery.get(5, TimeUnit.SECONDS))
@@ -244,7 +246,7 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
                     .as("last aborted transactions of the recovered segments")
                     .containsExactlyElementsOf(expectedLastTxnIds);
         } finally {
-            firstMarker.resume();
+            firstMarker.release();
             statsExecutor.shutdownNow();
             try {
                 if (processor != null) {
@@ -283,6 +285,8 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
 
     /** A position whose {@code toString} can be held, to pause the thread that formats it. */
     private static final class PausingPosition implements Position {
+        // Longer than the wait in the test, so that a stall is reported there and not by one of these gates.
+        private static final int GATE_TIMEOUT_SECONDS = 30;
         private final long ledgerId;
         private final long entryId;
         private final AtomicBoolean pauseNext = new AtomicBoolean();
@@ -299,10 +303,12 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
         }
 
         boolean awaitPaused() throws InterruptedException {
-            return paused.await(10, TimeUnit.SECONDS);
+            return paused.await(GATE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         }
 
-        void resume() {
+        /** Lets the paused {@code toString} continue, and any thread that still waits for the pause. */
+        void release() {
+            paused.countDown();
             resumed.countDown();
         }
 
@@ -321,8 +327,8 @@ public class SnapshotSegmentAbortedTxnProcessorStatsTest {
             if (pauseNext.compareAndSet(true, false)) {
                 paused.countDown();
                 try {
-                    if (!resumed.await(10, TimeUnit.SECONDS)) {
-                        throw new IllegalStateException("The paused toString was not resumed");
+                    if (!resumed.await(GATE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("The paused toString was not released");
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
