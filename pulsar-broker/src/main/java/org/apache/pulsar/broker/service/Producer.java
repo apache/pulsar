@@ -647,11 +647,13 @@ public class Producer {
             if (this.chunked) {
                 producer.stats.recordChunkedMsgIn();
             }
-            producer.publishOperationCompleted();
             if (producer.brokerInterceptor != null) {
                 producer.brokerInterceptor.messageProduced(
                         (ServerCnx) producer.cnx, producer, startTimeNs, ledgerId, entryId, this);
             }
+            // After the last ack, closeNow schedules producerClosed on the connection executor; run it only after
+            // messageProduced for this publish.
+            producer.publishOperationCompleted();
             recycle();
         }
 
