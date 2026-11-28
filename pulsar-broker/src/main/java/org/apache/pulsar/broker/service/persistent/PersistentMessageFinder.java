@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats.FindReason
 import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats.FindResult;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.util.Codec;
+import org.jspecify.annotations.Nullable;
 
 /**
  * given a timestamp find the first message (position) (published) at or before the timestamp.
@@ -84,6 +85,18 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
     }
 
     public void findMessages(final long timestamp, AsyncCallbacks.FindEntryCallback callback) {
+        findMessages(timestamp, null, callback);
+    }
+
+    /**
+     * Finds the newest entry after {@code searchAfter} that was published before the timestamp, without reading the
+     * entries up to {@code searchAfter}. The find completes with null when the first entry after {@code searchAfter}
+     * was not published before the timestamp.
+     *
+     * @param searchAfter the position after which the search starts, or null to search all available entries
+     */
+    public void findMessages(final long timestamp, @Nullable Position searchAfter,
+                             AsyncCallbacks.FindEntryCallback callback) {
         if (MESSAGE_FIND_IN_PROGRESS.compareAndSet(this, FALSE, TRUE)) {
             this.timestamp = timestamp;
             log.debug()
@@ -93,6 +106,14 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     getFindPositionRange(cursor.getManagedLedger().getLedgersInfo().values(),
                             cursor.getManagedLedger().getLastConfirmedEntry(), timestamp,
                             ledgerCloseTimestampMaxClockSkewMillis);
+            Position start = range.getLeft();
+            if (searchAfter != null) {
+                Position firstPositionToSearch = cursor.getManagedLedger().getNextValidPosition(searchAfter);
+                if (start == null || start.compareTo(firstPositionToSearch) < 0) {
+                    // When this start is after the end of the range, the find completes with null without a read.
+                    start = firstPositionToSearch;
+                }
+            }
             FindProgress progress = new FindProgress(range.getLeft() != null || range.getRight() != null);
             currentFind = progress;
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries, entry -> {
@@ -109,7 +130,7 @@ public class PersistentMessageFinder implements AsyncCallbacks.FindEntryCallback
                     entry.release();
                 }
                 return false;
-            }, range.getLeft(), range.getRight(), this, callback, true);
+            }, start, range.getRight(), this, callback, true);
         } else {
             log.debug("Ignore message position find scheduled task, last find is still running");
             callback.findEntryFailed(

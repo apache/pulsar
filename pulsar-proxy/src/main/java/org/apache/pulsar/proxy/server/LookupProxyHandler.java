@@ -21,7 +21,6 @@ package org.apache.pulsar.proxy.server;
 import static org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil.acquireDirectMemoryPermitsAndWriteAndFlush;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.util.ReferenceCountUtil;
 import io.prometheus.metrics.core.metrics.Counter;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -32,16 +31,19 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.impl.BinaryProtoLookupService;
+import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -137,15 +139,14 @@ public class LookupProxyHandler {
                 .log("Received Lookup from");
         long clientRequestId = lookup.getRequestId();
         if (lookupRequestSemaphore.tryAcquire()) {
-            try {
+            runWithLookupPermit(BaseCommand.Type.LOOKUP, clientRequestId, () -> {
                 LOOKUP_REQUESTS.inc();
                 String serviceUrl = getBrokerServiceUrl(lookupErrorResponse(clientRequestId));
-                if (serviceUrl != null) {
-                    performLookup(clientRequestId, lookup.getTopic(), serviceUrl, false, 10);
+                if (serviceUrl == null) {
+                    return CompletableFuture.completedFuture(null);
                 }
-            } finally {
-                lookupRequestSemaphore.release();
-            }
+                return performLookup(clientRequestId, lookup.getTopic(), serviceUrl, false, 10);
+            });
         } else {
             REJECTED_LOOKUP_REQUESTS.inc();
             log.debug()
@@ -159,72 +160,78 @@ public class LookupProxyHandler {
 
     }
 
-    private void performLookup(long clientRequestId, String topic, String brokerServiceUrl, boolean authoritative,
-            int numberOfRetries) {
+    private CompletableFuture<Void> performLookup(long clientRequestId, String topic, String brokerServiceUrl,
+            boolean authoritative, int numberOfRetries) {
         if (numberOfRetries == 0) {
             writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
                     "Reached max number of redirections", clientRequestId));
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
         InetSocketAddress addr = getAddr(brokerServiceUrl, lookupErrorResponse(clientRequestId));
         if (addr == null) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         log.debug()
                 .attr("addr", addr)
                 .attr("topic", topic)
                 .attr("clientRequestId", clientRequestId)
                 .log("Getting connection for topic lookup");
-        proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
-            // Connected to backend broker
-            long requestId = proxyConnection.newRequestId();
-            ByteBuf command;
-            command = Commands.newLookup(topic, authoritative, requestId);
-
-            clientCnx.newLookup(command, requestId).whenComplete((r, t) -> {
-                if (t != null) {
-                    log.warn()
-                            .attr("clientAddress", clientAddress)
-                            .attr("topic", topic)
-                            .exceptionMessage(t)
-                            .log("Failed to lookup topic");
-                    writeAndFlush(
-                        Commands.newLookupErrorResponse(getServerError(t), t.getMessage(), clientRequestId));
-                } else {
-                    String brokerUrl = resolveBrokerUrlFromLookupDataResult(r);
-                    if (r.redirect) {
-                        // Need to try the lookup again on a different broker
-                        performLookup(clientRequestId, topic, brokerUrl, r.authoritative, numberOfRetries - 1);
-                    } else {
-                        // Reply the same address for both TLS non-TLS. The reason
-                        // is that whether we use TLS
-                        // and broker is independent of whether the client itself
-                        // uses TLS, but we need to force the
-                        // client
-                        // to use the appropriate target broker (and port) when it
-                        // will connect back.
+        ConnectionPool connectionPool = proxyConnection.getConnectionPool();
+        return FutureUtil.supplySafely(() -> connectionPool.getConnection(addr))
+                .<CompletableFuture<Void>>handle((clientCnx, connectionError) -> {
+                    if (connectionError != null) {
                         log.debug()
                                 .attr("addr", addr)
-                                .attr("topic", topic)
                                 .attr("clientRequestId", clientRequestId)
-                                .attr("brokerUrl", brokerUrl)
-                                .log("Successfully performed lookup");
-                        writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
-                            LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
+                                .exceptionMessage(connectionError)
+                                .log("Failed to connect for topic lookup");
+                        // A dependent stage previously wrapped connection failures before reporting their message.
+                        String message = connectionError instanceof CompletionException
+                                ? connectionError.getMessage() : connectionError.toString();
+                        writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+                                message, clientRequestId));
+                        return CompletableFuture.completedFuture(null);
                     }
-                }
-                proxyConnection.getConnectionPool().releaseConnection(clientCnx);
-            });
-        }).exceptionally(ex -> {
-            // Failed to connect to backend broker
-            writeAndFlush(
-                    Commands.newLookupErrorResponse(getServerError(ex), ex.getMessage(), clientRequestId));
-            return null;
-        });
+                    return FutureUtil.supplySafely(() -> {
+                        long requestId = proxyConnection.newRequestId();
+                        return clientCnx.newLookup(Commands.newLookup(topic, authoritative, requestId), requestId);
+                    }).<CompletableFuture<Void>>handle((result, error) -> {
+                        releaseLookupConnection(connectionPool, clientCnx, clientRequestId);
+                        if (error != null) {
+                            log.warn()
+                                    .attr("clientAddress", clientAddress)
+                                    .attr("topic", topic)
+                                    .exceptionMessage(error)
+                                    .log("Failed to lookup topic");
+                            writeAndFlush(Commands.newLookupErrorResponse(
+                                    getServerError(error), error.getMessage(), clientRequestId));
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        return handleLookupResult(clientRequestId, topic, addr, result, numberOfRetries);
+                    }).thenCompose(Function.identity());
+                }).thenCompose(Function.identity());
     }
 
-    protected String resolveBrokerUrlFromLookupDataResult(BinaryProtoLookupService.LookupDataResult r) {
+    private CompletableFuture<Void> handleLookupResult(long clientRequestId, String topic, InetSocketAddress addr,
+                                                       LookupDataResult result, int numberOfRetries) {
+        String brokerUrl = resolveBrokerUrlFromLookupDataResult(result);
+        if (result.redirect) {
+            return performLookup(clientRequestId, topic, brokerUrl, result.authoritative, numberOfRetries - 1);
+        }
+        // The backend transport is independent of the client's transport, so advertise the same URL for both.
+        log.debug()
+                .attr("addr", addr)
+                .attr("topic", topic)
+                .attr("clientRequestId", clientRequestId)
+                .attr("brokerUrl", brokerUrl)
+                .log("Successfully performed lookup");
+        writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
+                LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
+        return CompletableFuture.completedFuture(null);
+    }
+
+    protected String resolveBrokerUrlFromLookupDataResult(LookupDataResult r) {
         return connectWithTLS ? r.brokerUrlTls : r.brokerUrl;
     }
 
@@ -235,11 +242,11 @@ public class LookupProxyHandler {
                 .log("Received PartitionMetadataLookup");
         final long clientRequestId = partitionMetadata.getRequestId();
         if (lookupRequestSemaphore.tryAcquire()) {
-            try {
-                handlePartitionMetadataResponse(partitionMetadata, clientRequestId);
-            } finally {
-                lookupRequestSemaphore.release();
-            }
+            runWithLookupPermit(BaseCommand.Type.PARTITIONED_METADATA, clientRequestId, () -> {
+                String topicName = TopicName.toFullTopicName(partitionMetadata.getTopic());
+                return performPartitionMetadataLookup(topicName, partitionMetadata.isMetadataAutoCreationEnabled(),
+                        clientRequestId);
+            });
         } else {
             REJECTED_PARTITIONS_METADATA_REQUESTS.inc();
             log.debug()
@@ -247,30 +254,23 @@ public class LookupProxyHandler {
                     .attr("clientAddress", clientAddress)
                     .attr("throttlingErrorMessage", throttlingErrorMessage)
                     .log("PartitionMetaData Request ID rejected");
-            writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
+            writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TooManyRequests,
                     throttlingErrorMessage, clientRequestId));
         }
     }
 
-    /**
-     *   Always get partition metadata from broker service.
-     *
-     *
-     **/
-    private void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata,
-            long clientRequestId) {
-        String topicName = TopicName.toFullTopicName(partitionMetadata.getTopic());
-        boolean metadataAutoCreationEnabled = partitionMetadata.isMetadataAutoCreationEnabled();
+    private CompletableFuture<Void> performPartitionMetadataLookup(String topicName,
+            boolean metadataAutoCreationEnabled, long clientRequestId) {
         BiConsumer<ServerError, String> onError = (error, message) ->
                 writeAndFlush(Commands.newPartitionMetadataResponse(error, message, clientRequestId));
 
         String serviceUrl = getBrokerServiceUrl(onError);
         if (serviceUrl == null) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         InetSocketAddress addr = getAddr(serviceUrl, onError);
         if (addr == null) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
         log.debug()
@@ -280,29 +280,29 @@ public class LookupProxyHandler {
                 .log("Getting connection for partition metadata lookup");
         // The frontend connection can clear its pool while the backend request is pending.
         ConnectionPool connectionPool = proxyConnection.getConnectionPool();
-        FutureUtil.supplySafely(() -> connectionPool.getConnection(addr)).whenComplete((clientCnx, connectionError) -> {
-            if (connectionError != null) {
-                writePartitionMetadataError(connectionError, clientRequestId, ServerError.ServiceNotReady);
-                return;
-            }
-            FutureUtil.supplySafely(() -> {
-                long requestId = proxyConnection.newRequestId();
-                ByteBuf command = Commands.newPartitionMetadataRequest(topicName, requestId,
-                        metadataAutoCreationEnabled);
-                return clientCnx.newLookup(command, requestId);
-            }).whenComplete((result, error) -> connectionPool.releaseConnection(clientCnx))
-                    .whenComplete((result, error) -> {
+        return FutureUtil.supplySafely(() -> connectionPool.getConnection(addr))
+                .<CompletableFuture<Void>>handle((clientCnx, connectionError) -> {
+                    if (connectionError != null) {
+                        writePartitionMetadataError(connectionError, clientRequestId, ServerError.ServiceNotReady);
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return FutureUtil.supplySafely(() -> {
+                        long requestId = proxyConnection.newRequestId();
+                        ByteBuf command = Commands.newPartitionMetadataRequest(topicName, requestId,
+                                metadataAutoCreationEnabled);
+                        return clientCnx.newLookup(command, requestId);
+                    }).handle((result, error) -> {
+                        releaseLookupConnection(connectionPool, clientCnx, clientRequestId);
                         if (error != null) {
-                            log.warn()
-                                    .attr("topic", topicName)
-                                    .exception(error)
-                                    .log("failed to get Partitioned");
+                            log.warn().attr("topic", topicName).exception(error)
+                                    .log("Failed to look up partition metadata");
                             writePartitionMetadataError(error, clientRequestId, ServerError.UnknownError);
                         } else {
                             writeAndFlush(Commands.newPartitionMetadataResponse(result.partitions, clientRequestId));
                         }
+                        return null;
                     });
-        });
+                }).thenCompose(Function.identity());
     }
 
     private BiConsumer<ServerError, String> lookupErrorResponse(long clientRequestId) {
@@ -339,11 +339,8 @@ public class LookupProxyHandler {
         final long requestId = commandGetTopicsOfNamespace.getRequestId();
 
         if (lookupRequestSemaphore.tryAcquire()) {
-            try {
-                handleGetTopicsOfNamespace(commandGetTopicsOfNamespace, requestId);
-            } finally {
-                lookupRequestSemaphore.release();
-            }
+            runWithLookupPermit(BaseCommand.Type.GET_TOPICS_OF_NAMESPACE, requestId,
+                    () -> getTopicsOfNamespace(commandGetTopicsOfNamespace, requestId));
         } else {
             REJECTED_GET_TOPICS_OF_NAMESPACE_REQUESTS.inc();
             log.debug()
@@ -351,18 +348,43 @@ public class LookupProxyHandler {
                     .attr("clientAddress", clientAddress)
                     .attr("throttlingErrorMessage", throttlingErrorMessage)
                     .log("GetTopicsOfNamespace Request ID rejected");
-            writeAndFlush(Commands.newError(
-                requestId, ServerError.ServiceNotReady, throttlingErrorMessage
-            ));
+            writeAndFlush(Commands.newError(requestId, ServerError.TooManyRequests, throttlingErrorMessage));
         }
     }
 
-    private void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace,
-                                            long clientRequestId) {
+    private void runWithLookupPermit(BaseCommand.Type requestType, long clientRequestId,
+                                     Supplier<CompletableFuture<Void>> request) {
+        try {
+            // A backend lookup queued in ClientCnx must also complete or fail on disconnect to return this permit.
+            request.get().whenComplete((ignored, error) -> {
+                lookupRequestSemaphore.release();
+                if (error != null) {
+                    log.warn().attr("requestType", requestType).attr("clientRequestId", clientRequestId)
+                            .attr("clientAddress", clientAddress).exception(FutureUtil.unwrapCompletionException(error))
+                            .log("Unexpected failure handling proxy lookup request");
+                }
+            });
+        } catch (Throwable t) {
+            lookupRequestSemaphore.release();
+            throw t;
+        }
+    }
+
+    private void releaseLookupConnection(ConnectionPool connectionPool, ClientCnx clientCnx, long clientRequestId) {
+        try {
+            connectionPool.releaseConnection(clientCnx);
+        } catch (RuntimeException e) {
+            // Cleanup can close an unpooled connection. The broker's response is still valid if cleanup fails.
+            log.warn().attr("clientRequestId", clientRequestId).exception(e).log("Failed to release lookup connection");
+        }
+    }
+
+    private CompletableFuture<Void> getTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace,
+            long clientRequestId) {
         String serviceUrl = getBrokerServiceUrl(clientRequestId);
 
-        if (!StringUtils.isNotBlank(serviceUrl)) {
-            return;
+        if (serviceUrl == null) {
+            return CompletableFuture.completedFuture(null);
         }
         String topicsPattern = commandGetTopicsOfNamespace.hasTopicsPattern()
                 ? commandGetTopicsOfNamespace.getTopicsPattern() : null;
@@ -374,28 +396,17 @@ public class LookupProxyHandler {
         for (KeyValue kv : commandGetTopicsOfNamespace.getPropertiesList()) {
             properties.put(kv.getKey(), kv.getValue());
         }
-        performGetTopicsOfNamespace(clientRequestId, commandGetTopicsOfNamespace.getNamespace(), serviceUrl,
-                10, topicsPattern, topicsHash, commandGetTopicsOfNamespace.getMode(), properties);
+        return performGetTopicsOfNamespace(clientRequestId, commandGetTopicsOfNamespace.getNamespace(), serviceUrl,
+                topicsPattern, topicsHash, commandGetTopicsOfNamespace.getMode(), properties);
     }
 
-    private void performGetTopicsOfNamespace(long clientRequestId,
-                                             String namespaceName,
-                                             String brokerServiceUrl,
-                                             int numberOfRetries,
-                                             String topicsPattern,
-                                             String topicsHash,
-                                             CommandGetTopicsOfNamespace.Mode mode,
-                                             Map<String, String> properties) {
-        if (numberOfRetries == 0) {
-            writeAndFlush(Commands.newError(clientRequestId, ServerError.ServiceNotReady,
-                    "Reached max number of redirections"));
-            return;
-        }
-
+    private CompletableFuture<Void> performGetTopicsOfNamespace(long clientRequestId, String namespaceName,
+            String brokerServiceUrl, String topicsPattern, String topicsHash, CommandGetTopicsOfNamespace.Mode mode,
+            Map<String, String> properties) {
         InetSocketAddress addr = getAddr(brokerServiceUrl, clientRequestId);
 
         if (addr == null) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
         log.debug()
@@ -403,35 +414,33 @@ public class LookupProxyHandler {
                 .attr("namespaceName", namespaceName)
                 .attr("clientRequestId", clientRequestId)
                 .log("Getting connection for TopicsOfNamespace");
-        proxyConnection.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
-            // Connected to backend broker
-            long requestId = proxyConnection.newRequestId();
-            ByteBuf command;
-            command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId, mode,
-                    topicsPattern, topicsHash, properties);
-
-            internalPerformGetTopicsOfNamespace(clientRequestId, namespaceName, mode, properties, clientCnx,
-                    command, requestId);
-            proxyConnection.getConnectionPool().releaseConnection(clientCnx);
-        }).exceptionally(ex -> {
-            // Failed to connect to backend broker
-            writeAndFlush(
-                    Commands.newError(clientRequestId, getServerError(ex), ex.getMessage()));
-            return null;
-        });
+        ConnectionPool connectionPool = proxyConnection.getConnectionPool();
+        return FutureUtil.supplySafely(() -> connectionPool.getConnection(addr))
+                .thenCompose(clientCnx -> FutureUtil.supplySafely(() ->
+                        internalPerformGetTopicsOfNamespace(clientRequestId, namespaceName, mode, properties, clientCnx,
+                                topicsPattern, topicsHash))
+                        .whenComplete((result, error) ->
+                                releaseLookupConnection(connectionPool, clientCnx, clientRequestId)))
+                .exceptionally(ex -> {
+                    writeAndFlush(Commands.newError(clientRequestId, getServerError(ex), ex.getMessage()));
+                    return null;
+                });
     }
 
-    private void internalPerformGetTopicsOfNamespace(long clientRequestId, String namespaceName,
-                                                     CommandGetTopicsOfNamespace.Mode mode,
-                                                     Map<String, String> properties, ClientCnx clientCnx,
-                                                     ByteBuf command, long requestId) {
+    private CompletableFuture<Void> internalPerformGetTopicsOfNamespace(long clientRequestId, String namespaceName,
+            CommandGetTopicsOfNamespace.Mode mode, Map<String, String> properties, ClientCnx clientCnx,
+            String topicsPattern, String topicsHash) {
         BooleanSupplier isPermitRequestCancelled = () -> !proxyConnection.ctx().channel().isActive();
         TopicListSizeResultCache.ResultHolder
                 listSizeHolder = topicListSizeResultCache.getTopicListSize(namespaceName, mode, properties);
-        listSizeHolder.getSizeAsync().thenAccept(initialSize -> {
+        return listSizeHolder.getSizeAsync().thenCompose(initialSize ->
             maxTopicListInFlightLimiter.withAcquiredPermits(initialSize,
                     AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled, initialPermits -> {
-                        return clientCnx.newGetTopicsOfNamespace(command, requestId).handle((r, t) -> {
+                        long requestId = proxyConnection.newRequestId();
+                        ByteBuf command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId, mode,
+                                topicsPattern, topicsHash, properties);
+                        return clientCnx.newGetTopicsOfNamespace(command, requestId)
+                                .<CompletableFuture<Void>>handle((r, t) -> {
                             if (t != null) {
                                 log.warn()
                                         .attr("clientAddress", clientAddress)
@@ -442,39 +451,38 @@ public class LookupProxyHandler {
                                 writeAndFlush(Commands.newError(clientRequestId, getTopicListServerError(t),
                                         t.getMessage()));
                                 return CompletableFuture.completedFuture(null);
-                            } else {
-                                long actualSize = TopicListMemoryLimiter.estimateTopicListSize(
-                                        r.getNonPartitionedOrPartitionTopics());
-                                listSizeHolder.updateSize(actualSize);
-                                return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
-                                        isPermitRequestCancelled, permits -> {
-                                            return handleWritingGetTopicsResponse(clientRequestId, r,
-                                                    isPermitRequestCancelled);
-                                        }, t2 -> {
-                                            if (!isTopicListRequestCancelled(t2,
-                                                    "Failed to acquire actual heap memory permits for "
-                                                            + "GetTopicsOfNamespace")) {
-                                                writeTopicListPermitsError(clientRequestId, t2, true, "heap");
-                                            }
-                                            return CompletableFuture.completedFuture(null);
-                                        });
                             }
+                            long actualSize = TopicListMemoryLimiter.estimateTopicListSize(
+                                    r.getNonPartitionedOrPartitionTopics());
+                            listSizeHolder.updateSize(actualSize);
+                            return maxTopicListInFlightLimiter.withUpdatedPermits(initialPermits, actualSize,
+                                    isPermitRequestCancelled,
+                                    permits -> handleWritingGetTopicsResponse(clientRequestId, r,
+                                            isPermitRequestCancelled),
+                                    t2 -> {
+                                        if (!isTopicListRequestCancelled(t2,
+                                                "Failed to acquire actual heap memory permits for "
+                                                        + "GetTopicsOfNamespace")) {
+                                            writeTopicListPermitsError(clientRequestId, t2, true, "heap");
+                                        }
+                                        return CompletableFuture.completedFuture(null);
+                                    });
                         });
                     }, t -> {
-                        // the command wasn't sent to the broker, release it
-                        ReferenceCountUtil.safeRelease(command);
                         listSizeHolder.resetIfInitializing();
                         if (!isTopicListRequestCancelled(t,
                                 "Failed to acquire initial heap memory permits for GetTopicsOfNamespace")) {
                             writeTopicListPermitsError(clientRequestId, t, listSizeHolder.isMeasured(), "heap");
                         }
-                        return CompletableFuture.completedFuture(null);
-                    }).exceptionally(ex -> {
-                listSizeHolder.resetIfInitializing();
-                writeAndFlush(Commands.newError(clientRequestId, getServerError(ex), ex.getMessage()));
-                return null;
-            });
-        });
+                        return CompletableFuture.completedFuture(CompletableFuture.completedFuture(null));
+                    }))
+                // Release the initial heap permit when the resize is queued so earlier waiters can proceed.
+                .thenCompose(Function.identity())
+                .whenComplete((ignored, error) -> {
+                    if (error != null) {
+                        listSizeHolder.resetIfInitializing();
+                    }
+                });
     }
 
     private CompletableFuture<Void> handleWritingGetTopicsResponse(long clientRequestId, GetTopicsResult r,

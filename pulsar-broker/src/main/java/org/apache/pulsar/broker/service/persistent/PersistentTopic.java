@@ -2677,18 +2677,47 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @VisibleForTesting
     void checkMessageExpiryWithoutSharedPosition(int messageTtlInSeconds) {
-        subscriptions.forEach((__, sub) -> {
+        subscriptions.forEach((subscriptionName, sub) -> {
             // TTL must not advance non-durable reader cursors past unread retained messages.
             if (sub.getCursor().isDurable() && !isCompactionSubscription(sub.getName())
                     && (additionalSystemCursorNames.isEmpty()
                     || !additionalSystemCursorNames.contains(sub.getName()))) {
-                sub.expireMessagesAsync(messageTtlInSeconds);
+                FutureUtil.supplySafely(() -> sub.expireMessagesAsync(messageTtlInSeconds))
+                        .whenComplete((ignored, error) -> {
+                            if (error != null) {
+                                log.warn()
+                                        .attr("subscription", subscriptionName)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
+                                        .exception(error)
+                                        .log("Failed to start message expiry check");
+                            }
+                        });
             }
         });
-        replicators.forEach((__, replicator)
-                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
-        shadowReplicators.forEach((__, replicator)
-                -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds));
+        replicators.forEach((remoteCluster, replicator)
+                -> FutureUtil.supplySafely(
+                        () -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds))
+                        .whenComplete((ignored, error) -> {
+                            if (error != null) {
+                                log.warn()
+                                        .attr("remoteCluster", remoteCluster)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
+                                        .exception(error)
+                                        .log("Failed to start message expiry check");
+                            }
+                        }));
+        shadowReplicators.forEach((shadowTopic, replicator)
+                -> FutureUtil.supplySafely(
+                        () -> ((PersistentReplicator) replicator).expireMessagesAsync(messageTtlInSeconds))
+                        .whenComplete((ignored, error) -> {
+                            if (error != null) {
+                                log.warn()
+                                        .attr("shadowTopic", shadowTopic)
+                                        .attr("messageTTLInSeconds", messageTtlInSeconds)
+                                        .exception(error)
+                                        .log("Failed to start message expiry check");
+                            }
+                        }));
     }
 
     private void checkMessageExpiryWithSharedPosition(ManagedLedgerImpl ml, int messageTtlInSeconds) {
@@ -2705,7 +2734,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         // Find the target position.
         long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTtlInSeconds);
         CompletableFuture<Position> positionToMarkDelete = new CompletableFuture<>();
-        finder.findMessages(expiredMessageTimestamp, new AsyncCallbacks.FindEntryCallback() {
+        // The expiry only moves mark-delete positions forward, so the find does not read the entries up to the
+        // oldest mark-delete position of the cursors that it moves. The cursor container orders only the durable
+        // cursors, and a shadow replicator has a non-durable cursor.
+        Position searchAfter = cursorWithOldestPosition.getPosition();
+        for (Replicator shadowReplicator : shadowReplicators.values()) {
+            Position shadowMarkDelete =
+                    ((PersistentReplicator) shadowReplicator).getCursor().getMarkDeletedPosition();
+            if (shadowMarkDelete.compareTo(searchAfter) < 0) {
+                searchAfter = shadowMarkDelete;
+            }
+        }
+        finder.findMessages(expiredMessageTimestamp, searchAfter, new AsyncCallbacks.FindEntryCallback() {
             @Override
             public void findEntryComplete(Position position, Object ctx) {
                 positionToMarkDelete.complete(position);
