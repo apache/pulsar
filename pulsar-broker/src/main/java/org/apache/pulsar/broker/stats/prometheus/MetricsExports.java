@@ -18,13 +18,10 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
-import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.prometheus.metrics.core.metrics.Gauge;
-import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
 
 public class MetricsExports {
     private static boolean initialized = false;
@@ -41,27 +38,31 @@ public class MetricsExports {
     }
 
     public static void register(PrometheusRegistry registry) {
-        GaugeWithCallback.builder()
-                .name("jvm_memory_direct_bytes_used")
-                .help("-")
-                .callback(callback -> callback.call(getJvmDirectMemoryUsed()))
-                .register(registry);
+        NettyDirectMemoryGauges directMemoryGauges = null;
+        if (registry == PrometheusRegistry.defaultRegistry) {
+            // The broker exports the gauges for the life of the JVM, so this registration is closed only if this
+            // call fails
+            directMemoryGauges = NettyDirectMemoryGauges.register();
+        } else {
+            NettyDirectMemoryGauges.registerOn(registry);
+        }
 
-        GaugeWithCallback.builder()
-                .name("jvm_memory_direct_bytes_max")
-                .help("-")
-                .callback(callback -> callback.call(DirectMemoryUtils.jvmMaxDirectMemory()))
-                .register(registry);
-
-        // metric to export pulsar version info. Nothing exports exemplars, so the gauge skips the sampling that
-        // 1.x gauges do by default.
-        Gauge.builder()
-                .name("pulsar_version_info")
-                .help("-")
-                .labelNames("version", "commit")
-                .withoutExemplars()
-                .register(registry)
-                .labelValues(PulsarVersion.getVersion(), PulsarVersion.getGitSha())
-                .set(1);
+        try {
+            // metric to export pulsar version info. Nothing exports exemplars, so the gauge skips the sampling that
+            // 1.x gauges do by default.
+            Gauge.builder()
+                    .name("pulsar_version_info")
+                    .help("-")
+                    .labelNames("version", "commit")
+                    .withoutExemplars()
+                    .register(registry)
+                    .labelValues(PulsarVersion.getVersion(), PulsarVersion.getGitSha())
+                    .set(1);
+        } catch (RuntimeException e) {
+            if (directMemoryGauges != null) {
+                directMemoryGauges.close();
+            }
+            throw e;
+        }
     }
 }

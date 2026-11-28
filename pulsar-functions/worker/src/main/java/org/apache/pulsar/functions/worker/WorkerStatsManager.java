@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.Meter;
 import io.prometheus.metrics.core.datapoints.DistributionDataPoint;
 import io.prometheus.metrics.core.datapoints.GaugeDataPoint;
 import io.prometheus.metrics.core.metrics.Gauge;
-import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.core.metrics.Summary;
 import io.prometheus.metrics.expositionformats.PrometheusTextFormatWriter;
 import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
@@ -38,7 +36,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Setter;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.broker.stats.prometheus.NettyDirectMemoryGauges;
 import org.apache.pulsar.functions.proto.FunctionMetaData;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
@@ -85,6 +83,9 @@ public class WorkerStatsManager implements AutoCloseable {
   private final PrometheusRegistry registry = new PrometheusRegistry();
 
   private final OpenTelemetryWorkerStats openTelemetryWorkerStats;
+
+  // null unless the worker runs as standalone
+  private final NettyDirectMemoryGauges directMemoryGauges;
 
   @PulsarDeprecatedMetric(newMetricName = OpenTelemetryWorkerStats.STARTUP_DURATION)
   private final Summary statWorkerStartupTime;
@@ -172,19 +173,7 @@ public class WorkerStatsManager implements AutoCloseable {
         "Total execution time of a drain in milliseconds.");
     drainTotalExecutionTimeChild = drainTotalExecutionTime.labelValues(metricsLabels);
 
-    if (runAsStandalone) {
-      GaugeWithCallback.builder()
-          .name("jvm_memory_direct_bytes_used")
-          .help("-")
-          .callback(callback -> callback.call(getJvmDirectMemoryUsed()))
-          .register();
-
-      GaugeWithCallback.builder()
-          .name("jvm_memory_direct_bytes_max")
-          .help("-")
-          .callback(callback -> callback.call(DirectMemoryUtils.jvmMaxDirectMemory()))
-          .register();
-    }
+    directMemoryGauges = runAsStandalone ? NettyDirectMemoryGauges.register() : null;
   }
 
   /** Millisecond duration summary with the median, p90 and max over the quantile window. */
@@ -322,7 +311,13 @@ public class WorkerStatsManager implements AutoCloseable {
 
   @Override
   public void close() {
-    openTelemetryWorkerStats.close();
+    try {
+      openTelemetryWorkerStats.close();
+    } finally {
+      if (directMemoryGauges != null) {
+        directMemoryGauges.close();
+      }
+    }
   }
 
   public String getStatsAsString() throws IOException {

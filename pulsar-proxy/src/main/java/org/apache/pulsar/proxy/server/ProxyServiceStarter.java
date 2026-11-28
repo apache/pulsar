@@ -22,11 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
 import com.google.common.annotations.VisibleForTesting;
-import io.prometheus.metrics.core.metrics.GaugeWithCallback;
 import io.prometheus.metrics.instrumentation.jvm.JvmMetrics;
-import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import jakarta.servlet.Servlet;
 import java.io.IOException;
 import java.text.DateFormat;
@@ -37,7 +34,6 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import java.util.function.LongSupplier;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
@@ -45,6 +41,7 @@ import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.stats.prometheus.NettyDirectMemoryGauges;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletUtils;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
@@ -55,7 +52,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.proxy.stats.ProxyStats;
@@ -292,8 +288,7 @@ public class ProxyServiceStarter {
             JvmMetrics.builder().register();
 
             // Report direct memory from Netty counters
-            registerGaugeUnlessNameIsTaken("jvm_memory_direct_bytes_used", () -> getJvmDirectMemoryUsed());
-            registerGaugeUnlessNameIsTaken("jvm_memory_direct_bytes_max", DirectMemoryUtils::jvmMaxDirectMemory);
+            NettyDirectMemoryGauges.register();
 
             metricsInitialized = true;
         }
@@ -305,19 +300,6 @@ public class ProxyServiceStarter {
 
         // start web-service
         server.start();
-    }
-
-    private static void registerGaugeUnlessNameIsTaken(String name, LongSupplier currentValue) {
-        try {
-            GaugeWithCallback.builder()
-                    .name(name)
-                    .help("-")
-                    .callback(callback -> callback.call(currentValue.getAsLong()))
-                    .register(PrometheusRegistry.defaultRegistry);
-        } catch (IllegalArgumentException nameIsTakenByABrokerInThisJvm) {
-            log.debug().attr("gauge", name).exceptionMessage(nameIsTakenByABrokerInThisJvm)
-                    .log("Prometheus gauge is already registered");
-        }
     }
 
     public void close() {
