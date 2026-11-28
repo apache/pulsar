@@ -101,7 +101,7 @@ public class BrokerInterceptorCreateCloseRaceTest extends ProducerConsumerBase {
                     throw new RuntimeException(e);
                 }
             });
-            assertTrue(BlockingConsumerCreateInterceptor.CREATE_ENTERED
+            assertTrue(BlockingConsumerCreateInterceptor.createEntered
                     .await(10, TimeUnit.SECONDS));
             PersistentTopic brokerTopic = (PersistentTopic) pulsar.getBrokerService()
                     .getTopic(topic, false).get().orElseThrow();
@@ -109,7 +109,7 @@ public class BrokerInterceptorCreateCloseRaceTest extends ProducerConsumerBase {
                     (PersistentSubscription) brokerTopic.getSubscription(subName);
             org.apache.pulsar.broker.service.Consumer brokerConsumer = subscription.getConsumers().get(0);
             brokerConsumer.disconnect();
-            BlockingConsumerCreateInterceptor.UNBLOCK_CREATE.countDown();
+            BlockingConsumerCreateInterceptor.unblockCreate.countDown();
             subscribeFuture.get(10, TimeUnit.SECONDS).close();
             Awaitility.await().atMost(10, TimeUnit.SECONDS)
                     .until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
@@ -121,18 +121,13 @@ public class BrokerInterceptorCreateCloseRaceTest extends ProducerConsumerBase {
     private static final class BlockingConsumerCreateInterceptor implements BrokerInterceptor {
 
         private static final Object LOCK = new Object();
-        private static CountDownLatch createEntered = new CountDownLatch(1);
-        private static CountDownLatch unblockCreate = new CountDownLatch(1);
-
-        static CountDownLatch CREATE_ENTERED = createEntered;
-        static CountDownLatch UNBLOCK_CREATE = unblockCreate;
+        static CountDownLatch createEntered = new CountDownLatch(1);
+        static CountDownLatch unblockCreate = new CountDownLatch(1);
 
         static void reset() {
             synchronized (LOCK) {
                 createEntered = new CountDownLatch(1);
                 unblockCreate = new CountDownLatch(1);
-                CREATE_ENTERED = createEntered;
-                UNBLOCK_CREATE = unblockCreate;
             }
         }
 

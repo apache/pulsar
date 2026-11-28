@@ -81,15 +81,15 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
 
     @BeforeGroups(CREATE_FAILURE)
     public void configureCreateFailure() {
-        SelectiveFailingInterceptor.failCreate.set(true);
-        SelectiveFailingInterceptor.failClose.set(false);
+        SelectiveFailingInterceptor.FAIL_CREATE.set(true);
+        SelectiveFailingInterceptor.FAIL_CLOSE.set(false);
         counterBrokerInterceptor.reset();
     }
 
     @BeforeGroups(CLOSE_FAILURE)
     public void configureCloseFailure() {
-        SelectiveFailingInterceptor.failCreate.set(false);
-        SelectiveFailingInterceptor.failClose.set(true);
+        SelectiveFailingInterceptor.FAIL_CREATE.set(false);
+        SelectiveFailingInterceptor.FAIL_CLOSE.set(true);
         counterBrokerInterceptor.reset();
     }
 
@@ -148,14 +148,14 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
      */
     static final class SelectiveFailingInterceptor implements BrokerInterceptor {
 
-        static final AtomicBoolean failCreate = new AtomicBoolean(true);
-        static final AtomicBoolean failClose = new AtomicBoolean(false);
+        static final AtomicBoolean FAIL_CREATE = new AtomicBoolean(true);
+        static final AtomicBoolean FAIL_CLOSE = new AtomicBoolean(false);
 
         @Override
         public void producerCreated(org.apache.pulsar.broker.service.ServerCnx cnx,
                                     org.apache.pulsar.broker.service.Producer producer,
                                     Map<String, String> metadata) {
-            if (failCreate.get()) {
+            if (FAIL_CREATE.get()) {
                 throw new RuntimeException("fail producer create");
             }
         }
@@ -164,7 +164,7 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
         public void producerClosed(org.apache.pulsar.broker.service.ServerCnx cnx,
                                    org.apache.pulsar.broker.service.Producer producer,
                                    Map<String, String> metadata) {
-            if (failClose.get()) {
+            if (FAIL_CLOSE.get()) {
                 throw new RuntimeException("fail producer close");
             }
         }
@@ -173,7 +173,7 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
         public void consumerCreated(org.apache.pulsar.broker.service.ServerCnx cnx,
                                     org.apache.pulsar.broker.service.Consumer consumer,
                                     Map<String, String> metadata) {
-            if (failCreate.get()) {
+            if (FAIL_CREATE.get()) {
                 throw new RuntimeException("fail consumer create");
             }
         }
@@ -182,7 +182,7 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
         public void consumerClosed(org.apache.pulsar.broker.service.ServerCnx cnx,
                                    org.apache.pulsar.broker.service.Consumer consumer,
                                    Map<String, String> metadata) {
-            if (failClose.get()) {
+            if (FAIL_CLOSE.get()) {
                 throw new RuntimeException("fail consumer close");
             }
         }
