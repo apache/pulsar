@@ -120,6 +120,13 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
      */
     private final LinkedMap<Position, TransactionBufferSnapshotIndex> indexes = new LinkedMap<>();
 
+    /**
+     * Held while snapshot recovery writes {@link #unsealedTxnIds}, {@link #segmentIndex}, {@link #aborts} and
+     * {@link #indexes}, and while {@link #generateSnapshotStats(boolean)} reads them. Recovery runs on the recovery
+     * executor without the transaction buffer's monitor, and stats can be requested before recovery finishes.
+     */
+    private final Object recoveryLock = new Object();
+
     private final PersistentTopic topic;
 
     private volatile long lastSnapshotTimestamps;
@@ -250,7 +257,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
         final var snapshot = indexes.getSnapshot();
         final var startReadCursorPosition = PositionFactory.create(snapshot.getMaxReadPositionLedgerId(),
                 snapshot.getMaxReadPositionEntryId());
-        this.unsealedTxnIds = convertTypeToTxnID(snapshot.getAborts());
+        synchronized (recoveryLock) {
+            this.unsealedTxnIds = convertTypeToTxnID(snapshot.getAborts());
+        }
         // Read snapshot segment to recover aborts
         final var snapshotSegmentTopicName = TopicName.get(TopicDomain.persistent.toString(),
                 TopicName.get(topic.getName()).getNamespaceObject(),
@@ -263,7 +272,9 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
             // If there is no segment index, the persistent worker will write segment begin from 0.
             persistentWorker.sequenceID.set(this.indexes.get(this.indexes.lastKey()).sequenceID + 1);
         }
-        unsealedTxnIds.forEach(txnID -> aborts.put(txnID, txnID));
+        synchronized (recoveryLock) {
+            unsealedTxnIds.forEach(txnID -> aborts.put(txnID, txnID));
+        }
         return startReadCursorPosition;
     }
 
@@ -282,8 +293,10 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
             try {
                 final var entry = readEntry(managedLedger, position);
                 try {
-                    handleSnapshotSegmentEntry(entry);
-                    this.indexes.put(abortedPosition, index);
+                    synchronized (recoveryLock) {
+                        handleSnapshotSegmentEntry(entry);
+                        this.indexes.put(abortedPosition, index);
+                    }
                 } finally {
                     entry.release();
                 }
@@ -382,13 +395,15 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
     // This method will be deprecated and removed in version 4.x.0
     private void handleOldSnapshot(TransactionBufferSnapshot snapshot) {
         if (snapshot.getAborts() != null) {
-            snapshot.getAborts().forEach(abortTxnMetadata -> {
-                TxnID txnID = new TxnID(abortTxnMetadata.getTxnIdMostBits(),
-                        abortTxnMetadata.getTxnIdLeastBits());
-                aborts.put(txnID, txnID);
-                //The old data will be written into the first segment.
-                unsealedTxnIds.add(txnID);
-            });
+            synchronized (recoveryLock) {
+                snapshot.getAborts().forEach(abortTxnMetadata -> {
+                    TxnID txnID = new TxnID(abortTxnMetadata.getTxnIdMostBits(),
+                            abortTxnMetadata.getTxnIdLeastBits());
+                    aborts.put(txnID, txnID);
+                    //The old data will be written into the first segment.
+                    unsealedTxnIds.add(txnID);
+                });
+            }
         }
     }
 
@@ -399,24 +414,26 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
     }
 
     public TransactionBufferStats generateSnapshotStats(boolean segmentStats) {
-        TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
-        transactionBufferStats.totalAbortedTransactions = this.aborts.size();
-        transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
-        SegmentsStats segmentsStats = new SegmentsStats();
-        segmentsStats.currentSegmentCapacity = this.snapshotSegmentCapacity;
-        segmentsStats.lastTookSnapshotSegmentTimestamp = this.lastTakedSnapshotSegmentTimestamp;
-        segmentsStats.unsealedAbortTxnIDSize = this.unsealedTxnIds.size();
-        segmentsStats.segmentsSize = indexes.size();
-        if (segmentStats) {
-            List<SegmentStats> statsList = new ArrayList<>();
-            segmentIndex.forEach((position, txnID) -> {
-                SegmentStats stats = new SegmentStats(txnID.toString(), position.toString());
-                statsList.add(stats);
-            });
-            segmentsStats.segmentStats = statsList;
+        synchronized (recoveryLock) {
+            TransactionBufferStats transactionBufferStats = new TransactionBufferStats();
+            transactionBufferStats.totalAbortedTransactions = this.aborts.size();
+            transactionBufferStats.lastSnapshotTimestamps = this.lastSnapshotTimestamps;
+            SegmentsStats segmentsStats = new SegmentsStats();
+            segmentsStats.currentSegmentCapacity = this.snapshotSegmentCapacity;
+            segmentsStats.lastTookSnapshotSegmentTimestamp = this.lastTakedSnapshotSegmentTimestamp;
+            segmentsStats.unsealedAbortTxnIDSize = this.unsealedTxnIds.size();
+            segmentsStats.segmentsSize = indexes.size();
+            if (segmentStats) {
+                List<SegmentStats> statsList = new ArrayList<>();
+                segmentIndex.forEach((position, txnID) -> {
+                    SegmentStats stats = new SegmentStats(txnID.toString(), position.toString());
+                    statsList.add(stats);
+                });
+                segmentsStats.segmentStats = statsList;
+            }
+            transactionBufferStats.segmentsStats = segmentsStats;
+            return transactionBufferStats;
         }
-        transactionBufferStats.segmentsStats = segmentsStats;
-        return transactionBufferStats;
     }
 
     @Override
