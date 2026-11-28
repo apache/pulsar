@@ -48,6 +48,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -99,6 +100,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // A close waits for child construction and publication, independently of the broker's subscribe reply.
     private final Set<CompletableFuture<Void>> partitionPublications = new HashSet<>();
     private volatile CompletableFuture<Void> closeCompletion = CompletableFuture.completedFuture(null);
+
+    // Topics whose per-topic unsubscribe is still waiting on its child RPCs. While a topic is
+    // marked, re-subscribing it is rejected and partition refreshes skip it, so a subscribe that
+    // lands mid-unsubscribe cannot reuse a child that cleanup is about to remove. The entry is
+    // kept until cleanup finishes and cleared once the children are gone.
+    private final Set<String> unsubscribingTopics = ConcurrentHashMap.newKeySet();
 
     // Queue of partition consumers on which we have stopped calling receiveAsync() because the
     // shared incoming queue was full
@@ -1119,7 +1126,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private void removeTopic(String topic) {
         String fullTopicName = getFullTopicName(topic);
         if (fullTopicName != null) {
+        if (fullTopicName != null) {
             topicsForPartitionUpdate.remove(fullTopicName);
+            partitionedTopics.remove(fullTopicName);
+        }
             partitionedTopics.remove(fullTopicName);
         }
     }
@@ -1148,7 +1158,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         String fullTopicName = topicNameInstance.toString();
         if (consumers.containsKey(fullTopicName)
-                || partitionedTopics.containsKey(topicNameInstance.getPartitionedTopicName())) {
+                || partitionedTopics.containsKey(topicNameInstance.getPartitionedTopicName())
+                || unsubscribingTopics.contains(topicNameInstance.getPartitionedTopicName())) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.AlreadyClosedException("Already subscribed to " + topicName));
         }
@@ -1226,7 +1237,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     new PulsarClientException.AlreadyClosedException("Already subscribed to " + topicName));
         }
         if (!topicNameInstance.isPartitioned()
-                && partitionedTopics.containsKey(topicNameInstance.getPartitionedTopicName())) {
+                && (partitionedTopics.containsKey(topicNameInstance.getPartitionedTopicName())
+                || unsubscribingTopics.contains(topicNameInstance.getPartitionedTopicName()))) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.AlreadyClosedException("Already subscribed to " + topicName));
         }
@@ -1466,6 +1478,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
         String topicPartName = TopicName.get(topicName).getPartitionedTopicName();
 
+        // Mark the topic before taking the child snapshot: a re-subscribe or a partition
+        // refresh that lands while the child RPCs are still in flight must not resurrect it.
+        // The reservation is kept until cleanup finishes.
+        unsubscribingTopics.add(topicPartName);
+
         List<ConsumerImpl<T>> consumersToUnsub = consumers.values().stream()
             .filter(consumer -> {
                 String consumerTopicName = consumer.getTopic();
@@ -1486,12 +1503,17 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
                     removeTopic(topicName);
                     removeTopicMessagesFromUnackedTracker(topicName);
+                    // Cleanup is finished: only now may the topic be subscribed again.
+                    unsubscribingTopics.remove(topicPartName);
 
                     unsubscribeFuture.complete(null);
                     log.info().attr("topic", topicName)
                             .attr("allTopicPartitionsNumber", allTopicPartitionsNumber)
                             .log("Unsubscribed Topics Consumer");
                 } else {
+                    // The topic stays subscribed, so drop the marker; the failure already puts
+                    // the consumer into Failed state.
+                    unsubscribingTopics.remove(topicPartName);
                     unsubscribeFuture.completeExceptionally(ex);
                     setState(State.Failed);
                     log.error().attr("topic", topicName)
@@ -1586,6 +1608,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         if (oldPartitionNumber == null || !topicsForPartitionUpdate.contains(topicName)) {
             return CompletableFuture.completedFuture(null);
         }
+        // A topic whose unsubscribe is still in flight must not gain partitions: a refresh
+        // that started before the unsubscribe may complete after it.
+        if (unsubscribingTopics.contains(topicName)) {
+            return CompletableFuture.completedFuture(null);
+        }
 
         return client.getPartitionsForTopic(topicName, false).thenCompose(list -> {
             if (getState() != State.Ready || !topicsForPartitionUpdate.contains(topicName)) {
@@ -1621,15 +1648,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return FutureUtil.waitForAll(futures)
                         .thenRun(() -> removeTopicMessagesFromUnackedTracker(topicName));
             } else if (oldPartitionNumber <= currentPartitionNumber) {
-                if (oldPartitionNumber < currentPartitionNumber) {
-                    allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
-                    partitionedTopics.put(topicName, currentPartitionNumber);
-                }
-                // Publish all children before starting any receive loop.
-                CompletableFuture<Void> childrenPublished = new CompletableFuture<>();
-                try {
-                    // Retry failed subscriptions as well as subscribing to newly discovered partitions.
-                    List<CompletableFuture<Consumer<T>>> futureList = list
+                // Retry failed subscriptions as well as subscribing to newly discovered partitions.
+                List<String> partitionsToSubscribe = list
                         .stream()
                         .filter(partitionName -> {
                             ConsumerImpl<T> existingConsumer = consumers.get(partitionName);
@@ -1637,16 +1657,87 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                     || (existingConsumer != null
                                     && existingConsumer.subscribeFuture().isCompletedExceptionally());
                         })
-                        .map(partitionName -> subscribePartitionDuringUpdate(
-                                topicName, partitionName, childrenPublished))
                         .collect(Collectors.toList());
-                    if (oldPartitionNumber < currentPartitionNumber) {
-                        onPartitionsChange(topicName, currentPartitionNumber);
-                    }
-                    return FutureUtil.waitForAll(futureList);
-                } finally {
-                    childrenPublished.complete(null);
+                if (partitionsToSubscribe.isEmpty()) {
+                    return CompletableFuture.completedFuture(null);
                 }
+                // Pre-process the schema first, mirroring the initial subscription path, so that
+                // new partitions get a SchemaInfoProvider for versioned schemas such as AUTO_CONSUME.
+                // Otherwise the new partition consumers are created with the raw schema and decoding
+                // their messages fails with "SchemaInfoProvider is not set yet".
+                return client.preProcessSchemaBeforeSubscribe(client, schema, topicName)
+                        .handle((processedSchema, ex) -> {
+                            if (ex != null) {
+                                // A schema lookup failure is not a partition-metadata failure:
+                                // name the topic so a persistent failure is not mistaken for one.
+                                log.warn().attr("topic", topicName).exception(ex)
+                                        .log("Failed to get schema for topic to determine"
+                                                + " if new partitions are added");
+                                return null;
+                            }
+                            return processedSchema;
+                        })
+                        .thenCompose(processedSchema -> {
+                            // A failed lookup leaves no schema to subscribe with; the counts stay
+                            // put so the next refresh retries. (processedSchema is only null here
+                            // when the lookup failed: the pre-processing never returns null for a
+                            // non-null schema.)
+                            if (processedSchema == null && schema != null) {
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            // The consumer may have been closed or unsubscribed while the lookup
+                            // was in flight. Only subscribe new partitions while it is Ready;
+                            // otherwise the new child would never be closed.
+                            if (getState() != State.Ready) {
+                                closeUnusedSchema(processedSchema);
+                                log.debug().attr("topic", topicName)
+                                        .log("Topics consumer is no longer ready, skipping new partitions");
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            // The topic may have been unsubscribed while the lookup was in
+                            // flight. Only subscribe new partitions while it is not being
+                            // unsubscribed; otherwise the new child would be removed by the
+                            // pending cleanup right after creation.
+                            if (unsubscribingTopics.contains(topicName)) {
+                                closeUnusedSchema(processedSchema);
+                                log.debug().attr("topic", topicName)
+                                        .log("Topic is being unsubscribed, skipping new partitions");
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            // Only advance the partition counts once the schema is ready. If the
+                            // lookup fails, the counts stay put so the next refresh sees the
+                            // growth again and retries instead of skipping the new partition.
+                            // The topic may have been unsubscribed while the lookup was in
+                            // flight, so only proceed when the entry still holds the partition
+                            // number this refresh started from. An unconditional put would
+                            // resurrect a removed topic and subscribe its new partition.
+                            if (!partitionedTopics.replace(topicName, oldPartitionNumber,
+                                    currentPartitionNumber)) {
+                                closeUnusedSchema(processedSchema);
+                                log.debug().attr("topic", topicName)
+                                        .log("Topic was removed while preparing the schema for its"
+                                                + " new partitions, skipping");
+                                return CompletableFuture.completedFuture(null);
+                            }
+                            if (oldPartitionNumber < currentPartitionNumber) {
+                                allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
+                            }
+                            // Publish all children before starting any receive loop.
+                            CompletableFuture<Void> childrenPublished = new CompletableFuture<>();
+                            try {
+                                List<CompletableFuture<Consumer<T>>> futureList = partitionsToSubscribe
+                                        .stream()
+                                        .map(partitionName -> subscribePartitionDuringUpdate(
+                                                topicName, partitionName, childrenPublished, processedSchema))
+                                        .collect(Collectors.toList());
+                                if (oldPartitionNumber < currentPartitionNumber) {
+                                    onPartitionsChange(topicName, currentPartitionNumber);
+                                }
+                                return FutureUtil.waitForAll(futureList);
+                            } finally {
+                                childrenPublished.complete(null);
+                            }
+                        });
             } else {
                 log.error().attr("topic", topicName)
                         .attr("old", oldPartitionNumber)
@@ -1655,15 +1746,26 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return FutureUtil.failedFuture(new NotSupportedException("not support shrink topic partitions"));
             }
         }).exceptionally(throwable -> {
-            log.warn().exception(throwable)
+            log.warn().attr("topic", topicName).exception(throwable)
                     .log("Failed to get partitions for topic to determine"
                             + " if new partitions are added");
             return null;
         });
     }
 
+    // A versioned schema lookup returns a clone that only the new child would own. If the new
+    // partitions are skipped, close the clone so a custom resource-owning schema is not leaked.
+    // Built-in schemas have a no-op closeAsync, and a non-versioned lookup returns the shared
+    // schema itself, which must not be closed here.
+    private void closeUnusedSchema(Schema<T> processedSchema) {
+        if (processedSchema != null && processedSchema != schema) {
+            processedSchema.closeAsync();
+        }
+    }
+
     private CompletableFuture<Consumer<T>> subscribePartitionDuringUpdate(
-            String topicName, String partitionName, CompletableFuture<Void> childrenPublished) {
+            String topicName, String partitionName, CompletableFuture<Void> childrenPublished,
+            Schema<T> processedSchema) {
         CompletableFuture<Void> publication = new CompletableFuture<>();
         synchronized (partitionPublications) {
             if (getState() != State.Ready) {
@@ -1675,7 +1777,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             int partitionIndex = TopicName.getPartitionIndex(partitionName);
             return addNewConsumerIfNotExists(partitionName,
                     () -> createInternalConsumer(getInternalConsumerConfig(topicName), partitionName,
-                            partitionIndex, new CompletableFuture<>(), true, schema), childrenPublished);
+                            partitionIndex, new CompletableFuture<>(), true, processedSchema), childrenPublished);
         } finally {
             synchronized (partitionPublications) {
                 partitionPublications.remove(publication);
@@ -1692,6 +1794,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private CompletableFuture<Consumer<T>> addNewConsumerIfNotExists(String internalTopicName,
             Supplier<ConsumerImpl<T>> newConsumerSupplier, CompletableFuture<Void> childrenPublished) {
         AtomicBoolean created = new AtomicBoolean();
+        AtomicReference<ConsumerImpl<T>> replacedConsumer = new AtomicReference<>();
         ConsumerImpl<T> consumer = consumers.compute(internalTopicName, (__, existingConsumer) -> {
             if (existingConsumer != null) {
                 if (existingConsumer.subscribeFuture().isCompletedExceptionally()) {
@@ -1699,8 +1802,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                 .log("Closing and replacing existing consumer"
                                         + " that wasn't completed successfully"
                                         + " for");
-                    // Other partitions can still be using the parent's shared schema.
-                    existingConsumer.closeAsync(existingConsumer.schema != schema);
+                    // Close after the map update, once the replacement is published:
+                    // the failed child's prepared schema may still be held by a
+                    // healthy sibling from the same refresh.
+                    replacedConsumer.set(existingConsumer);
                 } else {
                         log.debug().attr("internalTopicName", internalTopicName)
                                 .log("Reusing existing consumer for");
@@ -1713,6 +1818,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             created.set(true);
             return newConsumerSupplier.get();
         });
+        ConsumerImpl<T> replaced = replacedConsumer.get();
+        if (replaced != null) {
+            // A refresh hands the same prepared schema instance to every new child,
+            // so a failed child's schema can still be in use by a healthy sibling.
+            // Close it only once no other registered child holds the same instance.
+            replaced.closeAsync(!sharesSchemaWithSibling(replaced));
+        }
         // Reconcile after compute publishes the child, without holding a map lock together with pauseMutex.
         synchronizeConsumerPauseState(consumer);
         if (childrenPublished != null && created.get()) {
@@ -1724,6 +1836,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             });
         }
         return consumer.subscribeFuture();
+    }
+
+    // A refresh hands the same prepared schema instance to every new child, so a failed
+    // child's schema may still be held by a healthy sibling; closing it would break
+    // decoding on that sibling. The parent's own schema is never closed from a child,
+    // and a schema owned by no other registered child is safe to close.
+    private boolean sharesSchemaWithSibling(ConsumerImpl<T> consumer) {
+        Schema<T> consumerSchema = consumer.schema;
+        if (consumerSchema == null || consumerSchema == schema) {
+            return true;
+        }
+        return consumers.values().stream()
+                .anyMatch(sibling -> sibling != consumer && sibling.schema == consumerSchema);
     }
 
     private TimerTask partitionsAutoUpdateTimerTask = new TimerTask() {
