@@ -60,6 +60,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
 
 public class NamespacesImpl extends BaseResource implements Namespaces {
@@ -121,6 +122,17 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
                 .queryParam("includeSystemTopic", options.isIncludeSystemTopic());
         return asyncGetRequest(path, new FutureCallback<List<String>>() {
         });
+    }
+
+    @Override
+    public Map<String, TopicStats> getTopicsStats(String namespace) throws PulsarAdminException {
+        return sync(() -> getTopicsStatsAsync(namespace));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, TopicStats>> getTopicsStatsAsync(String namespace) {
+        return asyncGetNamespaceParts(new FutureCallback<Map<String, TopicStats>>() {
+        }, namespace, "stats");
     }
 
     @Override

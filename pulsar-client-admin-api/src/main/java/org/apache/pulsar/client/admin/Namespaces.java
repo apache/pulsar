@@ -49,6 +49,7 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
+import org.apache.pulsar.common.policies.data.TopicStats;
 
 /**
  * Admin interface for namespaces management.
@@ -183,6 +184,50 @@ public interface Namespaces {
      *            List namespace topics options
      */
     CompletableFuture<List<String>> getTopicsAsync(String namespace, ListNamespaceTopicsOptions options);
+
+    /**
+     * Get the stats for all topics in a namespace.
+     * <p/>
+     * Returns a map from topic name to the topic stats for every topic in the namespace that is
+     * currently loaded on a broker. Topics that are not loaded, or whose stats cannot be retrieved,
+     * are omitted from the result.
+     * <p/>
+     * Response Example:
+     *
+     * <pre>
+     * <code>{
+     *   "persistent://my-tenant/use/namespace1/my-topic-1" : { ... },
+     *   "persistent://my-tenant/use/namespace1/my-topic-2" : { ... }
+     * }</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @return a map from topic name to topic stats
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Map<String, TopicStats> getTopicsStats(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get the stats for all topics in a namespace asynchronously.
+     * <p/>
+     * Returns a map from topic name to the topic stats for every topic in the namespace that is
+     * currently loaded on a broker. Topics that are not loaded, or whose stats cannot be retrieved,
+     * are omitted from the result.
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @return a map from topic name to topic stats
+     */
+    CompletableFuture<Map<String, TopicStats>> getTopicsStatsAsync(String namespace);
 
     /**
      * Get the list of bundles.
