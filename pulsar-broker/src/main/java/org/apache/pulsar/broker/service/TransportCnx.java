@@ -63,6 +63,7 @@ public interface TransportCnx {
     default void notifyProducerClosed(Producer producer) {
     }
 
+    /** Run {@link #notifyProducerClosed} on the connection event loop (not under topic/subscription locks). */
     default void scheduleNotifyProducerClosed(Producer producer) {
         execute(() -> notifyProducerClosed(producer));
     }
@@ -77,6 +78,7 @@ public interface TransportCnx {
     default void notifyConsumerClosed(Consumer consumer) {
     }
 
+    /** Run {@link #notifyConsumerClosed} on the connection event loop (not under topic/subscription locks). */
     default void scheduleNotifyConsumerClosed(Consumer consumer) {
         execute(() -> notifyConsumerClosed(consumer));
     }

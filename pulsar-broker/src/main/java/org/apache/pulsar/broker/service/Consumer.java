@@ -536,6 +536,7 @@ public class Consumer {
         try {
             subscription.removeConsumer(this, isResetCursor);
             cnx.removedConsumer(this);
+            // Broker-initiated close can run under dispatcher/subscription locks; notify off the connection thread.
             cnx.scheduleNotifyConsumerClosed(this);
         } catch (BrokerServiceException e) {
             synchronized (this) {
@@ -606,9 +607,7 @@ public class Consumer {
     public void doUnsubscribe(final long requestId, boolean force) {
         subscription.doUnsubscribe(this, force).thenAccept(v -> {
             log.info("Unsubscribed successfully");
-            cnx.removedConsumer(this);
-            // Idempotent: subscription doUnsubscribe already calls close() on the success path.
-            cnx.scheduleNotifyConsumerClosed(this);
+            // close() on the doUnsubscribe path already scheduled consumerClosed on the connection thread.
             cnx.getCommandSender().sendSuccessResponse(requestId);
         }).exceptionally(exception -> {
             log.warn().exception(exception).log("Unsubscribe failed");

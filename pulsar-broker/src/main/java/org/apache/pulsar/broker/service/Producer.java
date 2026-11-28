@@ -848,6 +848,7 @@ public class Producer {
         cnx.removedProducer(this);
 
         log.debug("Removed producer");
+        // closeNow is often reached under the topic write lock; run interceptor callbacks on the connection thread.
         cnx.scheduleNotifyProducerClosed(this);
         closeFuture.complete(null);
         isDisconnecting.set(false);
