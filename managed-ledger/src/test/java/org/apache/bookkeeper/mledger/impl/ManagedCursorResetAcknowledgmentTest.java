@@ -300,14 +300,7 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
 
             Map<String, Long> expected = Map.of("CompactedTopicLedger", 11L, "added", 2L);
             assertThat(cursor.getProperties()).isEqualTo(expected);
-            ManagedCursorImpl recovered = new ManagedCursorImpl(bkc, ledger, cursor.getName());
-            try {
-                recoverCursor(recovered);
-                assertThat(recovered.getMarkDeletedPosition()).isEqualTo(committed);
-                assertThat(recovered.getProperties()).isEqualTo(expected);
-            } finally {
-                recovered.closeReadOnlyCursorLedger();
-            }
+            assertRecoveredCompactionCheckpoint(ledger, cursor, committed, expected);
         } finally {
             releaseRead.complete(null);
             bkc.setReadHandleInterceptor(null);
@@ -385,18 +378,64 @@ public class ManagedCursorResetAcknowledgmentTest extends MockedBookKeeperTestCa
             } else {
                 cursor.close();
             }
-            ManagedCursorImpl recovered = new ManagedCursorImpl(bkc, ledger, cursorName);
-            try {
-                recoverCursor(recovered);
-                assertThat(recovered.getMarkDeletedPosition()).isEqualTo(committed);
-                assertThat(recovered.getProperties()).isEqualTo(expected);
-            } finally {
-                recovered.closeReadOnlyCursorLedger();
-            }
+            assertRecoveredCompactionCheckpoint(ledger, cursor, committed, expected);
         } finally {
             releaseRead.complete(null);
             failCheckpoint.completeExceptionally(failure);
             bkc.setReadHandleInterceptor(null);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void retriedCompactionResetKeepsCheckpointAfterCursorLedgerPublicationFails() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("failed-compaction-cursor-ledger-publication",
+                defaultConfig().setThrottleMarkDelete(0));
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("__compaction");
+        Position committed = ledger.addEntry(new byte[] {0});
+        Position candidate = ledger.addEntry(new byte[] {1});
+        ledger.addEntry(new byte[] {2});
+        Map<String, Long> properties = Map.of("CompactedTopicLedger", 11L);
+        cursor.markDelete(committed, properties);
+
+        CompletableFuture<Void> releaseSeed = bkc.addEntryResponseGate();
+        try {
+            cursor.startCreatingNewMetadataLedger();
+            await().atMost(5, TimeUnit.SECONDS).until(() -> releaseSeed.getNumberOfDependents() > 0);
+            CompletableFuture<Void> ack = ManagedLedgerUtils.markDelete(cursor, candidate,
+                    Map.of("CompactedTopicLedger", 22L));
+            CompletableFuture<Void> reset = resetCursor(cursor, committed);
+            ledger.getExecutor().submit(() -> { }).get(5, TimeUnit.SECONDS);
+            synchronized (cursor.pendingMarkDeleteOps) {
+                assertThat(cursor.pendingMarkDeleteOps).hasSize(2);
+            }
+
+            String cursorPath = "/managed-ledgers/" + ledger.getName() + "/" + cursor.getName();
+            metadataStore.failConditional(new MetadataStoreException.BadVersionException("cursor ledger publication"),
+                    (op, path) -> op == OperationType.PUT && path.equals(cursorPath));
+            releaseSeed.complete(null);
+            assertThatThrownBy(() -> ack.get(5, TimeUnit.SECONDS)).hasCauseInstanceOf(MetaStoreException.class);
+            assertThatThrownBy(() -> reset.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(InvalidCursorPositionException.class);
+        } finally {
+            releaseSeed.complete(null);
+        }
+
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(committed);
+        assertThat(cursor.getNumberOfEntriesInBacklog(false)).isEqualTo(2);
+        // A retry inherits the live horizon. Recover before close can write another checkpoint.
+        resetCursor(cursor, committed).get(5, TimeUnit.SECONDS);
+        assertRecoveredCompactionCheckpoint(ledger, cursor, committed, properties);
+    }
+
+    private void assertRecoveredCompactionCheckpoint(ManagedLedgerImpl ledger, ManagedCursorImpl writer,
+            Position position, Map<String, Long> properties) throws Exception {
+        ManagedCursorImpl recovered = new ManagedCursorImpl(bkc, ledger, writer.getName());
+        try {
+            recoverCursor(recovered);
+            assertThat(recovered.getMarkDeletedPosition()).isEqualTo(position);
+            assertThat(recovered.getProperties()).isEqualTo(properties);
+        } finally {
+            recovered.closeReadOnlyCursorLedger();
         }
     }
 

@@ -2051,7 +2051,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         List<MarkDeleteEntry> pending;
         ResetOperation reset;
         synchronized (pendingMarkDeleteOps) {
-            pending = drainPendingMarkDeletes();
+            pending = drainFailedMarkDeletes();
             reset = activeReset;
             activeReset = null;
         }
@@ -3227,20 +3227,25 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             return last;
         });
-        if (!persisted && previous instanceof PendingCompactionCheckpoint pending
-                && pending.previous.newPosition.compareTo(pending.newPosition) < 0) {
-            // ACK admission already moved the live horizon. A later seek or ledger rollover must not persist it
-            // with the old compacted ledger. Reads that finished independently keep their progress.
-            lock.writeLock().lock();
-            try {
-                if (markDeletePosition.equals(pending.newPosition)) {
-                    MSG_CONSUMED_COUNTER_UPDATER.addAndGet(this, -getNumberOfEntries(
-                            Range.openClosed(pending.previous.newPosition, pending.newPosition)));
-                    markDeletePosition = pending.previous.newPosition;
-                }
-            } finally {
-                lock.writeLock().unlock();
+        if (!persisted && previous instanceof PendingCompactionCheckpoint pending) {
+            restoreCompactionHorizon(pending.previous.newPosition, pending.newPosition);
+        }
+    }
+
+    private void restoreCompactionHorizon(Position previous, Position failed) {
+        if (previous.compareTo(failed) >= 0) {
+            return;
+        }
+        // ACK admission already moved the live horizon. Keep independent read progress and only undo
+        // the failed advance so that a later seek cannot pair it with the old compacted ledger.
+        lock.writeLock().lock();
+        try {
+            if (markDeletePosition.equals(failed)) {
+                MSG_CONSUMED_COUNTER_UPDATER.addAndGet(this, -getNumberOfEntries(Range.openClosed(previous, failed)));
+                markDeletePosition = previous;
             }
+        } finally {
+            lock.writeLock().unlock();
         }
     }
 
@@ -4055,7 +4060,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         List<MarkDeleteEntry> remaining;
         synchronized (pendingMarkDeleteOps) {
             // The switch has drained its writes. Any remaining ACKs were waiting for a read to finish.
-            remaining = drainPendingMarkDeletes();
+            remaining = drainFailedMarkDeletes();
         }
         try {
             persistCloseCheckpoint(lastMarkDeleteEntry, callback, ctx);
@@ -4278,7 +4283,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     if (!(exception instanceof MetaStoreException) && !state.isClosed()) {
                         flushPendingMarkDeletes();
                     } else {
-                        failedMarkDeletes = drainPendingMarkDeletes();
+                        failedMarkDeletes = drainFailedMarkDeletes();
                     }
                     if (ledgerSwitchFuture == switchFuture) {
                         ledgerSwitchPhase = LedgerSwitchPhase.DRAINING_QUEUED_WRITES;
@@ -4293,9 +4298,19 @@ public class ManagedCursorImpl implements ManagedCursor {
         });
     }
 
-    private List<MarkDeleteEntry> drainPendingMarkDeletes() {
+    // Called under pendingMarkDeleteOps before notifying failed requests or admitting another ACK.
+    private List<MarkDeleteEntry> drainFailedMarkDeletes() {
         List<MarkDeleteEntry> entries = new ArrayList<>(pendingMarkDeleteOps);
         pendingMarkDeleteOps.clear();
+        if (isCompactionCursor()) {
+            // The queued ACK advanced the live position, but its properties never reached lastMarkDeleteEntry.
+            for (MarkDeleteEntry entry : entries.reversed()) {
+                if (!entry.resetsCursor) {
+                    restoreCompactionHorizon(lastMarkDeleteEntry.newPosition, entry.newPosition);
+                    break;
+                }
+            }
+        }
         return entries;
     }
 
@@ -4903,7 +4918,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         ledgerSwitchPhase = LedgerSwitchPhase.CREATING_LEDGER;
                         createLedger = true;
                     } else {
-                        failedMarkDeletes = drainPendingMarkDeletes();
+                        failedMarkDeletes = drainFailedMarkDeletes();
                         completedSwitch = ledgerSwitchFuture;
                     }
                     break;
