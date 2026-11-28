@@ -188,19 +188,26 @@ public class NonPersistentDispatcherFailoverConsumerTest {
                 consistentHashing);
         doReturn(new PartitionedTopicMetadata(0)).when(pulsarTestContext.getBrokerService())
                 .fetchPartitionedTopicMetadataIfCachedAndAsyncLoad(any(TopicName.class));
+        long selectedWithoutIds = selectUnpartitionedSameNameConsumer(null, null);
+        assertEquals(selectUnpartitionedSameNameConsumer("c", "a"), selectedWithoutIds);
+        assertEquals(selectUnpartitionedSameNameConsumer("a", "c"), selectedWithoutIds);
+    }
+
+    private long selectUnpartitionedSameNameConsumer(String incumbentId, String joinerId) throws Exception {
         NonPersistentTopic topic = new NonPersistentTopic(TOPIC_NAME, pulsarTestContext.getBrokerService());
         NonPersistentSubscription sub = new NonPersistentSubscription(topic, "sub-1", Collections.emptyMap());
         Consumer incumbent = new Consumer(sub, SubType.Failover, TOPIC_NAME, 1, 0, "worker", true, serverCnx,
-                "role", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH, null, "c");
+                "role", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH,
+                null, incumbentId);
         Consumer joiner = new Consumer(sub, SubType.Failover, TOPIC_NAME, 2, 0, "worker", true, serverCnx,
-                "role", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH, null, "a");
+                "role", Collections.emptyMap(), false, null, MessageId.latest, DEFAULT_CONSUMER_EPOCH,
+                null, joinerId);
         sub.addConsumer(incumbent).get();
         var dispatcher = (NonPersistentDispatcherSingleActiveConsumer) sub.getDispatcher();
         try {
             assertSame(dispatcher.getActiveConsumer(), incumbent);
             sub.addConsumer(joiner).get();
-            // Modulo selects slot zero. On the legacy hash ring the last same-name consumer owns the shared points.
-            assertSame(dispatcher.getActiveConsumer(), consistentHashing ? joiner : incumbent);
+            return dispatcher.getActiveConsumer().consumerId();
         } finally {
             for (Consumer consumer : List.copyOf(dispatcher.getConsumers())) {
                 dispatcher.removeConsumer(consumer);
