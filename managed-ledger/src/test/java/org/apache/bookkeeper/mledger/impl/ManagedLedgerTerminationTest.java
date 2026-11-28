@@ -41,14 +41,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedCursor.FindPositionConstraint;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -200,23 +203,63 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         reopened.close();
     }
 
-    @Test(timeOut = 20000)
-    public void openEarliestCursorOnReopenedEmptyTerminatedLedger() throws Exception {
-        String name = "empty-terminated-fresh-earliest";
+    @DataProvider(name = "cursorDurability")
+    public Object[][] cursorDurability() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(timeOut = 20000, dataProvider = "cursorDurability")
+    public void openEarliestCursorOnReopenedEmptyTerminatedLedger(boolean durable) throws Exception {
+        String name = "empty-terminated-fresh-earliest-" + durable;
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
-        Position terminatedPosition = ledger.terminate();
+        Position terminatedPosition;
+        try {
+            terminatedPosition = ledger.terminate();
+        } finally {
+            ledger.close();
+        }
         assertEquals(terminatedPosition.getEntryId(), -1L);
-        ledger.close();
 
+        @Cleanup
         ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory.open(name, config);
         assertTrue(reopened.isTerminated());
         // Recovery discards the empty data ledger and creates no new ledger after termination.
         assertTrue(reopened.getLedgersInfo().isEmpty());
-        ManagedCursor cursor = reopened.openCursor("fresh-earliest", InitialPosition.Earliest);
+        @Cleanup
+        ManagedCursor cursor = durable ? reopened.openCursor("fresh-earliest", InitialPosition.Earliest)
+                : reopened.newNonDurableCursor(PositionFactory.EARLIEST, "fresh-earliest");
+        assertEquals(cursor.isDurable(), durable);
         assertEquals(reopened.getFirstPosition(), terminatedPosition);
         assertEquals(cursor.getMarkDeletedPosition(), terminatedPosition);
         assertEquals(cursor.getReadPosition(), terminatedPosition.getNext());
+
+        Object findContext = new Object();
+        CompletableFuture<Position> foundPosition = new CompletableFuture<>();
+        AtomicInteger callbackCount = new AtomicInteger();
+        AtomicReference<Object> callbackContext = new AtomicReference<>();
+        cursor.asyncFindNewestMatching(FindPositionConstraint.SearchAllAvailableEntries, entry -> {
+            entry.release();
+            throw new AssertionError("Searching an empty ledger must not read an entry");
+        }, new FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                callbackCount.incrementAndGet();
+                callbackContext.set(ctx);
+                foundPosition.complete(position);
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition,
+                                        Object ctx) {
+                callbackCount.incrementAndGet();
+                foundPosition.completeExceptionally(exception);
+            }
+        }, findContext);
+        assertThat(foundPosition.get(5, TimeUnit.SECONDS)).isNull();
+        assertThat(callbackContext.get()).isSameAs(findContext);
+        assertThat(callbackCount.get()).isOne();
+
         assertFalse(cursor.hasMoreEntries());
         assertEquals(cursor.readEntries(1), Collections.emptyList());
         try {
@@ -225,8 +268,6 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         } catch (NoMoreEntriesToReadException expected) {
             // The fresh cursor must complete normally before reporting terminal exhaustion.
         }
-        cursor.close();
-        reopened.close();
     }
 
     @Test(timeOut = 20000)

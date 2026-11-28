@@ -1727,7 +1727,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         Position startPosition;
         switch (constraint) {
             case SearchAllAvailableEntries ->
-                    startPosition = start == null ?  getFirstPosition() : start;
+                    startPosition = start == null ? getFirstPosition() : start;
             case SearchActiveEntries -> {
                 if (start == null) {
                     startPosition = ledger.getNextValidPosition(markDeletePosition);
@@ -1743,10 +1743,9 @@ public class ManagedCursorImpl implements ManagedCursor {
                 return;
             }
         }
-        // startPosition can't be null, should never go here.
+        // A reopened, empty terminated ledger has no first data ledger.
         if (startPosition == null) {
-            callback.findEntryFailed(new ManagedLedgerException("Couldn't find start position"),
-                    Optional.empty(), ctx);
+            callback.findEntryComplete(null, ctx);
             return;
         }
         // Calculate the end position
@@ -1815,8 +1814,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public Position getFirstPosition() {
-        Long firstLedgerId = ledger.getLedgersInfo().firstKey();
-        return firstLedgerId == null ? null : PositionFactory.create(firstLedgerId, 0);
+        Map.Entry<Long, LedgerInfo> firstLedger = ledger.getLedgersInfo().firstEntry();
+        return firstLedger == null ? null : PositionFactory.create(firstLedger.getKey(), 0);
     }
 
     protected void internalResetCursor(Position proposedReadPosition,
