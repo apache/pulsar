@@ -814,6 +814,14 @@ public class MLPendingAckStore implements PendingAckStore {
         // reject any name with extra dashes appended. Map to a flat persistent topic in the same
         // namespace, encoding the segment descriptor into the local name.
         if (origin.isSegment()) {
+            if (origin.getLocalName().contains("/")) {
+                // Legacy names end in the encoded subscription immediately before the suffix.
+                // A literal ':' cannot end that encoding, so even a flat parent named "a%2Fb"
+                // cannot share the ledger of the slash-containing parent "a/b".
+                return String.format("persistent://%s/%s/%s:%s:%s:%s",
+                        origin.getTenant(), origin.getNamespacePortion(), origin.getEncodedLocalName(),
+                        origin.getSegmentDescriptor(), encodedSubName, SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
+            }
             return String.format("persistent://%s/%s/%s-%s-%s%s",
                     origin.getTenant(), origin.getNamespacePortion(),
                     origin.getLocalName(), origin.getSegmentDescriptor(),

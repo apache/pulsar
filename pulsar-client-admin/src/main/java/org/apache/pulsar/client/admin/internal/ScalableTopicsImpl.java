@@ -42,6 +42,7 @@ import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.glassfish.jersey.uri.UriComponent;
 
 public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     private final WebTarget adminScalable;
@@ -58,7 +59,16 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     }
 
     private WebTarget topicPath(TopicName tn) {
-        return adminScalable.path(tn.getTenant()).path(tn.getNamespacePortion()).path(tn.getLocalName());
+        return topicPath(adminScalable, tn);
+    }
+
+    private static WebTarget topicPath(WebTarget root, TopicName tn) {
+        return root.path(tn.getTenant()).path(tn.getNamespacePortion())
+                .path(UriComponent.encode(tn.getLocalName(), UriComponent.Type.PATH_SEGMENT));
+    }
+
+    private WebTarget segmentPath(TopicName tn) {
+        return topicPath(adminSegments, tn).path(tn.getSegmentDescriptor());
     }
 
     // --- List ---
@@ -417,9 +427,7 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     @Override
     public CompletableFuture<Void> createSegmentAsync(String segmentTopic, List<String> subscriptions) {
         TopicName tn = TopicName.get(segmentTopic);
-        WebTarget path = adminSegments
-                .path(tn.getTenant()).path(tn.getNamespacePortion())
-                .path(tn.getLocalName()).path(tn.getSegmentDescriptor());
+        WebTarget path = segmentPath(tn);
         Entity<?> entity = (subscriptions != null && !subscriptions.isEmpty())
                 ? Entity.entity(subscriptions, MediaType.APPLICATION_JSON)
                 : Entity.entity("", MediaType.APPLICATION_JSON);
@@ -434,9 +442,7 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     @Override
     public CompletableFuture<Void> terminateSegmentAsync(String segmentTopic) {
         TopicName tn = TopicName.get(segmentTopic);
-        WebTarget path = adminSegments
-                .path(tn.getTenant()).path(tn.getNamespacePortion())
-                .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
+        WebTarget path = segmentPath(tn)
                 .path("terminate");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
@@ -449,9 +455,7 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     @Override
     public CompletableFuture<Void> deleteSegmentAsync(String segmentTopic, boolean force) {
         TopicName tn = TopicName.get(segmentTopic);
-        WebTarget path = adminSegments
-                .path(tn.getTenant()).path(tn.getNamespacePortion())
-                .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
+        WebTarget path = segmentPath(tn)
                 .queryParam("force", force);
         return asyncDeleteRequest(path);
     }
@@ -466,9 +470,7 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<Void> createSegmentSubscriptionAsync(String segmentTopic, String subscription,
                                                                    Map<String, String> subscriptionProperties) {
         TopicName tn = TopicName.get(segmentTopic);
-        WebTarget path = adminSegments
-                .path(tn.getTenant()).path(tn.getNamespacePortion())
-                .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
+        WebTarget path = segmentPath(tn)
                 .path("subscription").path("{subscription}")
                 .resolveTemplate("subscription", subscription, true);
         Entity<?> entity = (subscriptionProperties != null && !subscriptionProperties.isEmpty())
@@ -481,9 +483,7 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<Void> deleteSegmentSubscriptionAsync(String segmentTopic,
                                                                    String subscription) {
         TopicName tn = TopicName.get(segmentTopic);
-        WebTarget path = adminSegments
-                .path(tn.getTenant()).path(tn.getNamespacePortion())
-                .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
+        WebTarget path = segmentPath(tn)
                 .path("subscription").path("{subscription}")
                 .resolveTemplate("subscription", subscription, true);
         return asyncDeleteRequest(path);
@@ -493,9 +493,7 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<Long> getSegmentSubscriptionBacklogAsync(String segmentTopic,
                                                                       String subscription) {
         TopicName tn = TopicName.get(segmentTopic);
-        WebTarget path = adminSegments
-                .path(tn.getTenant()).path(tn.getNamespacePortion())
-                .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
+        WebTarget path = segmentPath(tn)
                 .path("subscription").path("{subscription}")
                 .resolveTemplate("subscription", subscription, true)
                 .path("backlog");
@@ -507,9 +505,7 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
                                                                  String subscription,
                                                                  long timestampMs) {
         TopicName tn = TopicName.get(segmentTopic);
-        WebTarget path = adminSegments
-                .path(tn.getTenant()).path(tn.getNamespacePortion())
-                .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
+        WebTarget path = segmentPath(tn)
                 .path("subscription").path("{subscription}")
                 .resolveTemplate("subscription", subscription, true)
                 .path("seek")
@@ -521,9 +517,7 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<Void> clearSegmentSubscriptionBacklogAsync(String segmentTopic,
                                                                         String subscription) {
         TopicName tn = TopicName.get(segmentTopic);
-        WebTarget path = adminSegments
-                .path(tn.getTenant()).path(tn.getNamespacePortion())
-                .path(tn.getLocalName()).path(tn.getSegmentDescriptor())
+        WebTarget path = segmentPath(tn)
                 .path("subscription").path("{subscription}")
                 .resolveTemplate("subscription", subscription, true)
                 .path("skip-all");

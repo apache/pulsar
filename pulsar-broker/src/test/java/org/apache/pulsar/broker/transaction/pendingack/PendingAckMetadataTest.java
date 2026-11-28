@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.pendingack;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
 import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.fail;
 import io.netty.util.HashedWheelTimer;
@@ -44,6 +45,8 @@ import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.testng.annotations.Test;
 
@@ -51,6 +54,19 @@ public class PendingAckMetadataTest extends MockedBookKeeperTestCase {
 
     public PendingAckMetadataTest() {
         super(3);
+    }
+
+    @Test
+    public void testSegmentPendingAckLedgerNames() {
+        String descriptor = "0000-ffff-0";
+        String flat = MLPendingAckStore.getTransactionPendingAckStoreSuffix(
+                "segment://t/ns/a%2Fb/" + descriptor, "sub");
+        String nested = MLPendingAckStore.getTransactionPendingAckStoreSuffix(
+                "segment://t/ns/a/b/" + descriptor, "sub");
+        assertThat(flat).isEqualTo("persistent://t/ns/a%2Fb-" + descriptor + "-sub"
+                + SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
+        assertThat(TopicName.get(nested).getPersistenceNamingEncoding())
+                .isNotEqualTo(TopicName.get(flat).getPersistenceNamingEncoding());
     }
 
     @Test

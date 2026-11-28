@@ -80,9 +80,9 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
-import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.glassfish.jersey.uri.UriComponent;
 
 /**
  * Admin REST API for scalable topics (topic:// domain).
@@ -98,6 +98,10 @@ public class ScalableTopics extends AdminResource {
 
     private ScalableTopicResources resources() {
         return pulsar().getPulsarResources().getScalableTopicResources();
+    }
+
+    private static String decodeTopic(String encodedTopic) {
+        return UriComponent.decode(encodedTopic, UriComponent.Type.PATH_SEGMENT);
     }
 
     // --- List ---
@@ -195,7 +199,7 @@ public class ScalableTopics extends AdminResource {
             @RequestBody(description = "Key value pair properties for the topic metadata")
             Map<String, String> properties) {
         validateNamespaceName(tenant, namespace);
-        String decodedTopic = Codec.decode(encodedTopic);
+        String decodedTopic = decodeTopic(encodedTopic);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodedTopic);
         validateCreateTopic(tn);
         try {
@@ -300,7 +304,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Migrate even if legacy v4 clients are still connected to the topic")
             @QueryParam("force") @DefaultValue("false") boolean force) {
         validateNamespaceName(tenant, namespace);
-        String decodedTopic = Codec.decode(encodedTopic);
+        String decodedTopic = decodeTopic(encodedTopic);
         // The scalable topic's canonical identity uses the topic:// domain; the migration
         // source is the same name in the persistent:// domain.
         TopicName scalableName = TopicName.get(TopicDomain.topic.value(), namespaceName, decodedTopic);
@@ -531,7 +535,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateTopicOperationAsync(tn, TopicOperation.GET_METADATA)
                 .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
@@ -574,7 +578,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateTopicPolicyOperationAsync(tn, PolicyName.SCALABLE_TOPIC_AUTO_SCALE, PolicyOperation.READ)
                 .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
@@ -617,7 +621,7 @@ public class ScalableTopics extends AdminResource {
             @RequestBody(description = "Auto split/merge policy override", required = true)
             AutoScalePolicyOverride override) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
         internalSetAutoScalePolicy(asyncResponse, tn, override);
     }
 
@@ -640,7 +644,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
         internalSetAutoScalePolicy(asyncResponse, tn, null);
     }
 
@@ -728,7 +732,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, Codec.decode(encodedTopic));
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateAdminAccessForTenantAsync(tenant)
                 .thenCompose(__ -> checkTopicExistsForPermissionsAsync(tn))
@@ -770,7 +774,7 @@ public class ScalableTopics extends AdminResource {
                     content = @Content(schema = @Schema(allowableValues = {"produce", "functions", "consume"})))
                     Set<AuthAction> actions) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, Codec.decode(encodedTopic));
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateAdminAccessForTenantAsync(tenant)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
@@ -811,7 +815,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Client role to which revoke permissions", required = true)
             @PathParam("role") String role) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, Codec.decode(encodedTopic));
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateAdminAccessForTenantAsync(tenant)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
@@ -870,7 +874,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Force deletion even if topic has active subscriptions")
             @QueryParam("force") @DefaultValue("false") boolean force) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         // Served by the controller leader, so the broker holding the elected controller is the
         // one that stops it below.
@@ -971,7 +975,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Specify topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         // Served by the controller leader: the STREAM consumer sessions (connected state,
         // segment assignment) only exist in the leader's memory.
@@ -1015,7 +1019,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateTopicOperationAsync(tn, TopicOperation.GET_STATS)
                 .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
@@ -1084,7 +1088,7 @@ public class ScalableTopics extends AdminResource {
             @QueryParam("type") @DefaultValue("STREAM")
                     org.apache.pulsar.broker.resources.SubscriptionType type) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateTopicOperationAsync(tn, TopicOperation.SUBSCRIBE, subscription)
                 .thenCompose(__ -> onControllerLeader(tn,
@@ -1125,7 +1129,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateTopicOperationAsync(tn, TopicOperation.UNSUBSCRIBE, subscription)
                 .thenCompose(__ -> onControllerLeader(tn,
@@ -1170,7 +1174,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Wall-clock millis since the unix epoch", required = true)
             @QueryParam("timestamp") long timestampMs) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateTopicOperationAsync(tn, TopicOperation.RESET_CURSOR, subscription)
                 .thenCompose(__ -> onControllerLeader(tn,
@@ -1213,7 +1217,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateTopicOperationAsync(tn, TopicOperation.SKIP, subscription)
                 .thenCompose(__ -> onControllerLeader(tn,
@@ -1257,7 +1261,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Segment ID to split", required = true)
             @PathParam("segmentId") long segmentId) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateSegmentLayoutOperationAsync(tn)
                 .thenCompose(__ -> onControllerLeader(tn, svc -> svc.splitSegment(tn, segmentId)))
@@ -1302,7 +1306,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Entry-bucket count for the successor segment", required = true)
             @QueryParam("bucketCount") int bucketCount) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateSegmentLayoutOperationAsync(tn)
                 .thenCompose(__ -> onControllerLeader(tn,
@@ -1358,7 +1362,7 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Second segment ID to merge", required = true)
             @PathParam("segmentId2") long segmentId2) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodeTopic(encodedTopic));
 
         validateSegmentLayoutOperationAsync(tn)
                 .thenCompose(__ -> onControllerLeader(tn,

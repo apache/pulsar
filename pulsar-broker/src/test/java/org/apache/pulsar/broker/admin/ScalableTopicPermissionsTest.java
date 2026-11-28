@@ -123,6 +123,22 @@ public class ScalableTopicPermissionsTest extends AuthZTest {
     }
 
     @Test
+    public void testLiteralPlusAndSpaceHaveSeparatePermissions() throws Exception {
+        String base = NAMESPACE + "/perm-" + UUID.randomUUID();
+        String plus = base + "+east";
+        String space = base + " east";
+        var topics = superUserAdmin.scalableTopics();
+        topics.createScalableTopic(plus, 1);
+        topics.createScalableTopic(space, 1);
+        topics.grantPermission(space, CLIENT_ROLE, Set.of(AuthAction.consume));
+        topics.grantPermission(plus, CLIENT_ROLE, Set.of(AuthAction.produce));
+        assertThat(topics.getPermissions(plus)).containsEntry(CLIENT_ROLE, Set.of(AuthAction.produce));
+        topics.revokePermissions(plus, CLIENT_ROLE);
+        assertThat(topics.getPermissions(plus)).doesNotContainKey(CLIENT_ROLE);
+        assertThat(topics.getPermissions(space)).containsEntry(CLIENT_ROLE, Set.of(AuthAction.consume));
+    }
+
+    @Test
     public void testTopicPermissionsAuthorizeProduceAndConsume() throws Exception {
         String topic = newScalableTopic();
         superUserAdmin.scalableTopics().grantPermission(topic, CLIENT_ROLE,

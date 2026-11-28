@@ -54,6 +54,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.glassfish.jersey.uri.UriComponent;
 
 /**
  * Admin REST API for segment topic operations.
@@ -76,7 +77,7 @@ public class Segments extends AdminResource {
     private TopicName segmentTopicName(String tenant, String namespace,
                                        String encodedTopic, String descriptor) {
         return TopicName.get(TopicDomain.segment.value() + "://" + tenant + "/" + namespace + "/"
-                + encodedTopic + "/" + descriptor);
+                + UriComponent.decode(encodedTopic, UriComponent.Type.PATH_SEGMENT) + "/" + descriptor);
     }
 
     @PUT
