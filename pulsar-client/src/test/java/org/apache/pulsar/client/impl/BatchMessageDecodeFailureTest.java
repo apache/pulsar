@@ -20,7 +20,10 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -31,6 +34,7 @@ import io.netty.channel.ChannelHandlerContext;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -40,9 +44,11 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
@@ -106,6 +112,10 @@ public class BatchMessageDecodeFailureTest {
             sentCommands.add(decodeAndRelease(invocation.getArgument(0)));
             return null;
         }).when(ctx).writeAndFlush(any());
+        doAnswer(invocation -> {
+            sentCommands.add(decodeAndRelease(invocation.getArgument(0)));
+            return CompletableFuture.completedFuture(null);
+        }).when(cnx).newAckForReceipt(any(), anyLong());
 
         PulsarClientImpl client = ClientTestFixtures.createPulsarClientMockWithMockedClientCnx(
                 executorProvider, internalExecutor, cnx);
@@ -271,6 +281,96 @@ public class BatchMessageDecodeFailureTest {
         consumer.acknowledge(second);
         acks = sentAcks();
         assertNull(ackSetOf(acks.get(acks.size() - 1), 6), "the last ack must ack the whole entry");
+    }
+
+    /**
+     * With client batch index ack disabled, no ack is sent when the tail is discarded. A transactional ack of a
+     * delivered message must ack the discarded indexes too, or they stay unacknowledged after the transaction commits.
+     */
+    @Test
+    public void testTransactionalAckAcksTheDiscardedTail() throws Exception {
+        createConsumer(false);
+        receiveBatch(8, 3, null, batchPayload(3, 2, Corruption.MISSING_REQUIRED_FIELD));
+        assertEquals(consumer.numMessagesInQueue(), 2);
+        assertTrue(sentAcks().isEmpty());
+
+        Message<byte[]> first = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> second = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(first);
+        assertNotNull(second);
+
+        acknowledgeInTransaction(first, 1);
+        CommandAck firstAck = sentAcks().get(0);
+        // index 0 is acked by the transaction, index 1 stays unacked until its own transaction commits, and index 2
+        // was discarded so the transaction acks it as well
+        assertEquals(ackSetOf(firstAck, 8), bits(1));
+        assertEquals(firstAck.getTxnidMostBits(), 7);
+        assertEquals(firstAck.getTxnidLeastBits(), 1);
+
+        acknowledgeInTransaction(second, 2);
+        CommandAck secondAck = sentAcks().get(1);
+        assertEquals(ackSetOf(secondAck, 8), bits(0));
+    }
+
+    /**
+     * When the only index left unacked is the discarded tail, the transaction ack is encoded as a whole-entry ack.
+     */
+    @Test
+    public void testTransactionalAckAcksTheWholeBatchWhenOnlyTheDiscardedTailIsLeft() throws Exception {
+        createConsumer(false);
+        receiveBatch(9, 2, null, batchPayload(2, 1, Corruption.MISSING_REQUIRED_FIELD));
+        assertEquals(consumer.numMessagesInQueue(), 1);
+
+        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(message);
+        acknowledgeInTransaction(message, 1);
+
+        assertNull(ackSetOf(sentAcks().get(0), 9));
+    }
+
+    /**
+     * The transaction mask only clears the indexes the client discarded. Indexes the broker already acked stay set,
+     * because the broker rejects a transaction ack that clears an index it already deleted.
+     */
+    @Test
+    public void testTransactionalAckKeepsTheIndexesAlreadyAckedByTheBroker() throws Exception {
+        createConsumer(false);
+        receiveBatch(10, 5, bits(2, 3, 4).toLongArray(), batchPayload(5, 3, Corruption.MISSING_REQUIRED_FIELD));
+        assertEquals(consumer.numMessagesInQueue(), 1);
+
+        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(message);
+        acknowledgeInTransaction(message, 1);
+
+        assertEquals(ackSetOf(sentAcks().get(0), 10), bits(0, 1));
+    }
+
+    /**
+     * When batch index ack is enabled, the tail is acked when it is discarded, so the transaction ack leaves it out
+     * of its mask.
+     */
+    @Test
+    public void testTransactionalAckDoesNotAckTheTailAlreadyAckedByBatchIndex() throws Exception {
+        createConsumer(true);
+        receiveBatch(11, 3, null, batchPayload(3, 2, Corruption.MISSING_REQUIRED_FIELD));
+        assertEquals(consumer.numMessagesInQueue(), 2);
+
+        Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(message);
+        acknowledgeInTransaction(message, 1);
+
+        List<CommandAck> acks = sentAcks();
+        assertEquals(acks.size(), 2);
+        assertEquals(ackSetOf(acks.get(0), 11), bits(0, 1));
+        assertEquals(ackSetOf(acks.get(1), 11), bits(1, 2));
+    }
+
+    private void acknowledgeInTransaction(Message<byte[]> message, long leastBits) throws Exception {
+        TransactionImpl transaction = mock(TransactionImpl.class);
+        when(transaction.getTxnIdMostBits()).thenReturn(7L);
+        when(transaction.getTxnIdLeastBits()).thenReturn(leastBits);
+        consumer.doAcknowledge(message.getMessageId(), AckType.Individual, Collections.emptyMap(), transaction)
+                .get(1, TimeUnit.SECONDS);
     }
 
     @Test

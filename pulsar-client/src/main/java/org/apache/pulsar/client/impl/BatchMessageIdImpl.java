@@ -28,6 +28,12 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     private final int batchSize;
 
     private final BitSet ackSet;
+    /**
+     * The indexes discarded from this batch because they could not be deserialized and still have to be acknowledged,
+     * shared by the ids of the batch. Null when the batch wasn't received through the consumer's batch receive path or
+     * when client batch index ack is enabled.
+     */
+    private final BitSet discardedBatchIndexes;
 
     // Private constructor used only for json deserialization
     @SuppressWarnings("unused")
@@ -41,15 +47,23 @@ public class BatchMessageIdImpl extends MessageIdImpl {
 
     public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize,
                               BitSet ackSet) {
+        this(ledgerId, entryId, partitionIndex, batchIndex, batchSize, ackSet, null);
+    }
+
+    BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, int batchSize,
+                       BitSet ackSet, BitSet discardedBatchIndexes) {
         super(ledgerId, entryId, partitionIndex);
         this.batchIndex = batchIndex;
         this.batchSize = batchSize;
         this.ackSet = ackSet;
+        this.discardedBatchIndexes = discardedBatchIndexes;
     }
 
     public BatchMessageIdImpl(MessageIdAdv other) {
         this(other.getLedgerId(), other.getEntryId(), other.getPartitionIndex(),
-                other.getBatchIndex(), other.getBatchSize(), other.getAckSet());
+                other.getBatchIndex(), other.getBatchSize(), other.getAckSet(),
+                other instanceof BatchMessageIdImpl batchMessageId
+                        ? batchMessageId.getDiscardedBatchIndexes() : null);
     }
 
     @Override
@@ -118,6 +132,10 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     @Override
     public BitSet getAckSet() {
         return ackSet;
+    }
+
+    BitSet getDiscardedBatchIndexes() {
+        return discardedBatchIndexes;
     }
 
     static BitSet newAckSet(int batchSize) {

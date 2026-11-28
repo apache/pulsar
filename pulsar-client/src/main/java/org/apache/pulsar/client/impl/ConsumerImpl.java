@@ -1500,6 +1500,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                   final int redeliveryCount,
                                                   final long consumerEpoch,
                                                   final boolean isEncrypted) {
+        return newSingleMessage(index, numMessages, brokerEntryMetadata, msgMetadata, singleMessageMetadata, payload,
+                messageId, schema, containMetadata, ackBitSet, ackSetInMessageId, null, redeliveryCount,
+                consumerEpoch, isEncrypted);
+    }
+
+    protected <V> MessageImpl<V> newSingleMessage(final int index,
+                                                  final int numMessages,
+                                                  final BrokerEntryMetadata brokerEntryMetadata,
+                                                  final MessageMetadata msgMetadata,
+                                                  final SingleMessageMetadata singleMessageMetadata,
+                                                  final ByteBuf payload,
+                                                  final MessageIdImpl messageId,
+                                                  final Schema<V> schema,
+                                                  final boolean containMetadata,
+                                                  final BitSetRecyclable ackBitSet,
+                                                  final BitSet ackSetInMessageId,
+                                                  final BitSet discardedBatchIndexes,
+                                                  final int redeliveryCount,
+                                                  final long consumerEpoch,
+                                                  final boolean isEncrypted) {
         log.debug().attr("index", index)
                 .log("processing message num - in batch");
 
@@ -1529,7 +1549,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
-                    messageId.getEntryId(), getPartitionIndex(), index, numMessages, ackSetInMessageId);
+                    messageId.getEntryId(), getPartitionIndex(), index, numMessages, ackSetInMessageId,
+                    discardedBatchIndexes);
 
             final ByteBuf payloadBuffer = (singleMessagePayload != null) ? singleMessagePayload : payload;
             final MessageImpl<V> message = MessageImpl.create(topicName.toString(), batchMessageIdImpl,
@@ -2144,6 +2165,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 && redeliveryCount == deadLetterPolicy.getMaxRedeliverCount() ? new ArrayDeque<>() : null;
 
         BitSet ackSetInMessageId = BatchMessageIdImpl.newAckSet(batchSize);
+        BitSet discardedBatchIndexes = conf.isBatchIndexAckEnabled() ? null : new BitSet(batchSize);
         BitSetRecyclable ackBitSet = null;
         if (ackSet != null && ackSet.length > 0) {
             ackBitSet = BitSetRecyclable.valueOf(ackSet);
@@ -2158,11 +2180,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 try {
                     message = newSingleMessage(i, batchSize, brokerEntryMetadata, msgMetadata,
                             singleMessageMetadata, uncompressedPayload, batchMessage, schema, true,
-                            ackBitSet, ackSetInMessageId, redeliveryCount, consumerEpoch, isEncrypted);
+                            ackBitSet, ackSetInMessageId, discardedBatchIndexes, redeliveryCount, consumerEpoch,
+                            isEncrypted);
                 } catch (IllegalStateException e) {
                     // The payload can't be read past a message that fails to deserialize, so the rest of the batch
                     // is discarded too
-                    discardCorruptedBatchTail(messageId, cnx, batchSize, i, ackBitSet, ackSetInMessageId, e);
+                    discardCorruptedBatchTail(messageId, cnx, batchSize, i, ackBitSet, ackSetInMessageId,
+                            discardedBatchIndexes, e);
                     break;
                 }
                 if (message == null) {
@@ -2609,18 +2633,29 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
      * <p>The discarded indexes are cleared in the ack set shared by the delivered messages' ids. If none is left, the
      * whole entry is acked now. Otherwise, the discarded indexes are acked by batch index (when batch index ack is
      * enabled) and the whole entry is acked by the normal ack path once the application acks the delivered messages.
+     * When batch index ack is disabled, no ack is sent here; the discarded indexes are recorded so that a
+     * transactional ack of a delivered message also acks them, since it builds its ack mask from the batch size.
      */
     private void discardCorruptedBatchTail(MessageIdData messageId, ClientCnx currentCnx, int batchSize,
                                            int failedIndex, BitSetRecyclable ackBitSet, BitSet ackSetInMessageId,
-                                           Exception cause) {
+                                           BitSet discardedBatchIndexes, Exception cause) {
         log.error().attr("messageId", messageId)
                 .attr("batchSize", batchSize)
                 .attr("failedIndex", failedIndex)
                 .exception(cause)
                 .log("Discarding the corrupted messages of the batch from the failed index on");
         BitSetRecyclable pendingAckSet = null;
+        int permits = 0;
         synchronized (ackSetInMessageId) {
             ackSetInMessageId.clear(failedIndex, batchSize);
+            for (int i = failedIndex; i < batchSize; i++) {
+                if (!isSingleMessageAcked(ackBitSet, i)) {
+                    permits++;
+                    if (!conf.isBatchIndexAckEnabled()) {
+                        discardedBatchIndexes.set(i);
+                    }
+                }
+            }
             if (!ackSetInMessageId.isEmpty()) {
                 pendingAckSet = BitSetRecyclable.valueOf(ackSetInMessageId.toLongArray());
             }
@@ -2638,12 +2673,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
         }
         // The broker only charged permits for the indexes it delivered, the ones not acked in the incoming ack set
-        int permits = 0;
-        for (int i = failedIndex; i < batchSize; i++) {
-            if (!isSingleMessageAcked(ackBitSet, i)) {
-                permits++;
-            }
-        }
         increaseAvailablePermits(currentCnx, permits);
         stats.incrementNumReceiveFailed();
     }
@@ -3715,6 +3744,28 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         pendingChunkedMessageCount--;
     }
 
+    /**
+     * Clears in the batch ack mask the indexes that were discarded after a decode failure and not acked by
+     * {@link #discardCorruptedBatchTail}. A transactional ack builds its mask from the batch size, so the corrupted
+     * tail would otherwise stay unacknowledged until the entry is redelivered.
+     */
+    private static void clearDiscardedBatchIndexes(MessageIdAdv messageId, BitSetRecyclable ackSet) {
+        if (!(messageId instanceof BatchMessageIdImpl batchMessageId)) {
+            return;
+        }
+        BitSet discardedBatchIndexes = batchMessageId.getDiscardedBatchIndexes();
+        BitSet sharedAckSet = batchMessageId.getAckSet();
+        if (discardedBatchIndexes == null || sharedAckSet == null) {
+            return;
+        }
+        synchronized (sharedAckSet) {
+            for (int i = discardedBatchIndexes.nextSetBit(0); i >= 0;
+                    i = discardedBatchIndexes.nextSetBit(i + 1)) {
+                ackSet.clear(i);
+            }
+        }
+    }
+
     private CompletableFuture<Void> doTransactionAcknowledgeForResponse(MessageId messageId, AckType ackType,
                                                                         ValidationError validationError,
                                                                         Map<String, Long> properties, TxnID txnID) {
@@ -3732,6 +3783,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             } else {
                 bitSetRecyclable.clear(messageIdAdv.getBatchIndex());
             }
+            clearDiscardedBatchIndexes(messageIdAdv, bitSetRecyclable);
             cmdList = Collections.singletonList(Commands.newAck(consumerId, ledgerId, entryId, bitSetRecyclable,
                     ackType, validationError, properties, txnID.getLeastSigBits(), txnID.getMostSigBits(), requestId,
                     messageIdAdv.getBatchSize()));
@@ -3845,6 +3897,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 } else {
                     bitSetRecyclable.clear(messageIdAdv.getBatchIndex());
                 }
+                clearDiscardedBatchIndexes(messageIdAdv, bitSetRecyclable);
                 for (long x : bitSetRecyclable.toLongArray()) {
                     messageIdData.addAckSet(x);
                 }
