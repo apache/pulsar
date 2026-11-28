@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.AssertJUnit.assertEquals;
@@ -613,7 +612,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                 logEvent.getMessage().toString().contains("Failed to check the move events for the system topic"));
         assertTrue(logFound2);
         verify(spyService, times(0)).cleanPoliciesCacheInitMap(any());
-        verify(spyService, times(2)).cleanupFailedPolicyCacheInit(any(), any(), anyBoolean());
+        verify(spyService, times(2)).cleanupFailedPolicyCacheInit(any(), any());
 
         // make sure not occur Recursive update
         boolean logFound3 = testLogAppender.getEvents().stream().anyMatch(logEvent ->
@@ -681,7 +680,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
                 logEvent.getMessage().toString().contains("Failed to check the move events for the system topic")
                         || logEvent.getMessage().toString().contains("Failed to read event from the system topic"));
         assertFalse(logFound2);
-        verify(spyService, times(1)).cleanupFailedPolicyCacheInit(any(), any(), anyBoolean());
+        verify(spyService, times(1)).cleanupFailedPolicyCacheInit(any(), any());
         verify(spyService, times(0)).cleanPoliciesCacheInitMap(any());
     }
 
@@ -724,7 +723,7 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
     }
 
     @Test(timeOut = 60_000)
-    public void testFailedInitClosesReaderWhenBrokerOwnsNoBundleOfNamespace() throws Exception {
+    public void testFailedInitClosesReaderWhetherOrNotBrokerOwnsBundleOfNamespace() throws Exception {
         final NamespaceName ownedNamespace = NamespaceName.get(NAMESPACE4);
         final NamespaceName unownedNamespace = NamespaceName.get(NAMESPACE5);
         admin.namespaces().createNamespace(NAMESPACE4);
@@ -735,27 +734,28 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         pulsar.getTopicPoliciesService().close();
         SystemTopicBasedTopicPoliciesService spyService =
                 Mockito.spy(new SystemTopicBasedTopicPoliciesService(pulsar));
-        SystemTopicClient.Reader<PulsarEvent> keptReader = readerWhoseFirstReadFails(ownedNamespace);
+        SystemTopicClient.Reader<PulsarEvent> laggingReader = readerWhoseFirstReadFails(ownedNamespace);
         SystemTopicClient.Reader<PulsarEvent> leakedReader = readerWhoseFirstReadFails(unownedNamespace);
-        Mockito.doReturn(CompletableFuture.completedFuture(keptReader))
+        Mockito.doReturn(CompletableFuture.completedFuture(laggingReader))
                 .when(spyService).createSystemTopicClient(ownedNamespace);
         Mockito.doReturn(CompletableFuture.completedFuture(leakedReader))
                 .when(spyService).createSystemTopicClient(unownedNamespace);
         pulsar.setTopicPoliciesService(spyService);
         spyService.start(pulsar);
 
-        // Control: the lookup makes this broker the owner of NAMESPACE4's bundle, and loading the bundle initializes
-        // the policy cache. A broker that serves the namespace keeps the reader of the failed initialization: the
-        // next topic load retries with it, and the bundle unload closes it at the latest.
+        // The lookup makes this broker the owner of NAMESPACE4's bundle, and loading the bundle initializes the
+        // policy cache. The retry that the next topic load makes must get a new reader, which reads the topic from
+        // the start: the reader of the failed initialization would continue from its position, and after a
+        // reconnect into a newer compaction of the topic it would miss the deletions compacted away meanwhile.
         admin.lookups().lookupTopic("persistent://" + NAMESPACE4 + "/topic");
-        Mockito.verify(keptReader, Mockito.timeout(30_000).atLeastOnce()).hasMoreEventsAsync();
+        Mockito.verify(laggingReader, Mockito.timeout(30_000).atLeastOnce()).hasMoreEventsAsync();
         Awaitility.await().untilAsserted(() -> Assertions.assertThat(spyService.getPoliciesCacheInit(ownedNamespace))
                 .describedAs("the failed initialization of %s must not stay registered", ownedNamespace)
                 .isNull());
-        Assertions.assertThat(spyService.getReaderCaches())
-                .describedAs("a broker that serves the namespace keeps the reader for the retry")
-                .containsKey(ownedNamespace);
-        Mockito.verify(keptReader, Mockito.never()).closeAsync();
+        Awaitility.await().untilAsserted(() -> Assertions.assertThat(spyService.getReaderCaches())
+                .describedAs("a broker that serves the namespace must not keep the reader for the retry")
+                .doesNotContainKey(ownedNamespace));
+        Mockito.verify(laggingReader, Mockito.timeout(30_000).atLeastOnce()).closeAsync();
 
         // Nothing looked a topic up in NAMESPACE5, so this broker owns none of its bundles, and a policy read
         // reaches it all the same, as it can during a bundle move. No topic load retries the initialization and no
@@ -821,23 +821,31 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Mockito.doReturn(CompletableFuture.completedFuture(null)).when(newerReader).closeAsync();
         service.policyCacheInitMap.put(namespace, newerInitFuture);
         service.getReaderCaches().put(namespace, CompletableFuture.completedFuture(newerReader));
+        final TopicName cachedTopic = TopicName.get("persistent", namespace, "identity-guarded-cleanup");
+        service.policiesCache.put(cachedTopic, new TopicPolicies());
 
         // A stale init attempt (A) whose reader was already torn down (e.g. by the timeout cleanup) fires its failure
-        // callback late. Cleaning it up by identity must be a no-op: it must not clobber B's future or close B's reader
-        // (issue #25294 follow-up).
+        // callback late. Cleaning it up by identity must be a no-op: it must not clobber B's future, close B's reader
+        // or drop the policies B's reader has cached (issue #25294 follow-up).
         CompletableFuture<Void> staleInitFuture = new CompletableFuture<>();
-        service.cleanupFailedPolicyCacheInit(namespace, staleInitFuture, true);
+        service.cleanupFailedPolicyCacheInit(namespace, staleInitFuture);
         assertSame(newerInitFuture, service.getPoliciesCacheInit(namespace));
         assertFalse(newerInitFuture.isDone());
         assertNotNull(service.getReaderCaches().get(namespace));
         Mockito.verify(newerReader, Mockito.never()).closeAsync();
+        Assertions.assertThat(service.policiesCache)
+                .describedAs("a stale cleanup must not drop the policies the newer attempt's reader has cached")
+                .containsKey(cachedTopic);
 
         // Cleaning up the owning attempt does drop its future and close its reader.
-        service.cleanupFailedPolicyCacheInit(namespace, newerInitFuture, true);
+        service.cleanupFailedPolicyCacheInit(namespace, newerInitFuture);
         assertNull(service.getPoliciesCacheInit(namespace));
         assertTrue(newerInitFuture.isCompletedExceptionally());
         assertNull(service.getReaderCaches().get(namespace));
         Mockito.verify(newerReader, Mockito.times(1)).closeAsync();
+        Assertions.assertThat(service.policiesCache)
+                .describedAs("the cleanup of the owning attempt must drop the policies its reader has cached")
+                .doesNotContainKey(cachedTopic);
     }
 
     @Test
