@@ -198,7 +198,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testWaitForExclusiveProducerCreatedWhenReady() throws Exception {
+    public void testWaitForExclusiveProducerOneCreateOneCloseAcrossPromotion() throws Exception {
         String topic = "persistent://public/default/wait-exclusive-interceptor-" + UUID.randomUUID();
         CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
         @Cleanup
@@ -207,17 +207,28 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
                 .accessMode(ProducerAccessMode.Exclusive)
                 .create();
         Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+        assertEquals(counterBrokerInterceptor.getProducerCreatedInvocations().get(), 1);
         CompletableFuture<Producer<String>> waitingFuture = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(ProducerAccessMode.WaitForExclusive)
                 .createAsync();
-        Awaitility.await().untilAsserted(() -> assertEquals(counterBrokerInterceptor.getProducerCount(), 1));
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(counterBrokerInterceptor.getProducerCount(), 1);
+            assertEquals(counterBrokerInterceptor.getProducerCreatedInvocations().get(), 1);
+        });
         active.close();
         @Cleanup
         Producer<String> waiting = waitingFuture.get(10, TimeUnit.SECONDS);
-        Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(counterBrokerInterceptor.getProducerCount(), 1);
+            assertEquals(counterBrokerInterceptor.getProducerCreatedInvocations().get(), 2);
+        });
         waiting.close();
-        Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 0);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(counterBrokerInterceptor.getProducerCount(), 0);
+            assertEquals(counterBrokerInterceptor.getProducerCreatedInvocations().get(), 2);
+            assertEquals(counterBrokerInterceptor.getProducerClosedInvocations().get(), 2);
+        });
     }
 
     @Test

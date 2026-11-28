@@ -125,6 +125,7 @@ public class Producer {
     private final AtomicBoolean brokerInterceptorClosedNotified = new AtomicBoolean(false);
     private final AtomicInteger brokerInterceptorCreateInProgress = new AtomicInteger();
     private final AtomicBoolean brokerInterceptorClosePendingDuringCreate = new AtomicBoolean();
+    private final AtomicBoolean brokerInterceptorCreateLifecycleInvoked = new AtomicBoolean(false);
 
     public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
             boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
@@ -866,6 +867,10 @@ public class Producer {
 
     public boolean markBrokerInterceptorClosedNotified() {
         return brokerInterceptorClosedNotified.compareAndSet(false, true);
+    }
+
+    public boolean markBrokerInterceptorCreateLifecycleInvoked() {
+        return brokerInterceptorCreateLifecycleInvoked.compareAndSet(false, true);
     }
 
     public void beginBrokerInterceptorCreate() {

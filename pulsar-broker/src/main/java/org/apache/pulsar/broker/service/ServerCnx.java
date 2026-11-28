@@ -5026,7 +5026,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     private void invokeProducerCreatedInterceptor(Producer producer, Map<String, String> metadata) {
-        if (brokerInterceptor == null) {
+        if (brokerInterceptor == null || !producer.markBrokerInterceptorCreateLifecycleInvoked()) {
             return;
         }
         producer.beginBrokerInterceptorCreate();

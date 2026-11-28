@@ -57,6 +57,10 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     private final AtomicInteger count = new AtomicInteger();
     private final AtomicInteger connectionCreationCount = new AtomicInteger();
     private final AtomicInteger producerCount = new AtomicInteger();
+    @Getter
+    private final AtomicInteger producerCreatedInvocations = new AtomicInteger();
+    @Getter
+    private final AtomicInteger producerClosedInvocations = new AtomicInteger();
     private final AtomicInteger consumerCount = new AtomicInteger();
     private final AtomicInteger messagePublishCount = new AtomicInteger();
     private final AtomicInteger messageCount = new AtomicInteger();
@@ -76,6 +80,8 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         count.set(0);
         connectionCreationCount.set(0);
         producerCount.set(0);
+        producerCreatedInvocations.set(0);
+        producerClosedInvocations.set(0);
         consumerCount.set(0);
         messagePublishCount.set(0);
         messageCount.set(0);
@@ -108,6 +114,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                                 Map<String, String> metadata) {
         log.debug().attr("name", producer.getProducerName())
                 .attr("id", producer.getProducerId()).log("Producer created");
+        producerCreatedInvocations.incrementAndGet();
         producerCount.incrementAndGet();
     }
 
@@ -116,6 +123,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
                                 Map<String, String> metadata) {
         log.debug().attr("name", producer.getProducerName())
                 .attr("id", producer.getProducerId()).log("Producer closed");
+        producerClosedInvocations.incrementAndGet();
         producerCount.decrementAndGet();
     }
 
