@@ -24,7 +24,7 @@ import static jakarta.ws.rs.core.Response.Status.NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.unsafeGetPartitionedTopicMetadataAsync;
-import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicAsync;
+import static org.apache.pulsar.broker.lookup.TopicLookupBase.lookupTopicForConnectionAsync;
 import static org.apache.pulsar.broker.service.ServerCnxThrottleTracker.ThrottleType;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.getMigratedClusterUrlAsync;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.ignoreUnrecoverableBKException;
@@ -783,11 +783,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     }
 
     @Override
-    protected void handleLookup(CommandLookupTopic lookupParam) {
+    protected void handleLookup(CommandLookupTopic lookup) {
         checkArgument(state == State.Connected);
-
-        // Make a copy since the command is handled asynchronously
-        CommandLookupTopic lookup = new CommandLookupTopic().copyFrom(lookupParam);
 
         final long requestId = lookup.getRequestId();
         final boolean authoritative = lookup.isAuthoritative();
@@ -819,63 +816,60 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
-        if (lookupSemaphore.tryAcquire()) {
-            isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData).thenApply(
-                    isAuthorized -> {
-                if (isAuthorized) {
-                    final Map<String, String> properties;
-                    if (lookup.getPropertiesCount() > 0) {
-                        properties = new HashMap<>();
-                        for (int i = 0; i < lookup.getPropertiesCount(); i++) {
-                            final var keyValue = lookup.getPropertyAt(i);
-                            properties.put(keyValue.getKey(), keyValue.getValue());
-                        }
-                    } else {
-                        properties = Collections.emptyMap();
-                    }
-                    lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative,
-                            authRole, originalPrincipal, authenticationData,
-                            originalAuthData != null ? originalAuthData : authenticationData,
-                            requestId, advertisedListenerName, properties).handle((lookupResponse, ex) -> {
-                                if (ex == null) {
-                                    writeAndFlush(lookupResponse);
-                                } else {
-                                    // it should never happen
-                                    log.warn()
-                                            .attr("topic", topicName)
-
-                                            .exception(ex)
-                                            .log("lookup failed with error");
-                                    writeAndFlush(newLookupErrorResponse(ServerError.ServiceNotReady,
-                                            ex.getMessage(), requestId));
-                                }
-                                lookupSemaphore.release();
-                                return null;
-                            });
-                } else {
-                    final String msg = "Client is not authorized to Lookup";
-                    log.warn()
-                            .attr("principal", getPrincipal())
-                            .attr("topic", topicName)
-                            .log(msg);
-                    writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
-                    lookupSemaphore.release();
-                }
-                return null;
-            }).exceptionally(ex -> {
-                logAuthException(remoteAddress, "lookup", getPrincipal(), Optional.of(topicName), ex);
-                final String msg = "Exception occurred while trying to authorize lookup";
-                writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
-                lookupSemaphore.release();
-                return null;
-            });
-        } else {
+        if (!lookupSemaphore.tryAcquire()) {
             log.debug()
                     .attr("topic", topicName)
                     .log("Failed lookup due to too many lookup-requests");
             writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId));
+            return;
         }
+
+        final Map<String, String> properties;
+        if (lookup.getPropertiesCount() > 0) {
+            properties = new HashMap<>();
+            for (int i = 0; i < lookup.getPropertiesCount(); i++) {
+                final var keyValue = lookup.getPropertyAt(i);
+                properties.put(keyValue.getKey(), keyValue.getValue());
+            }
+        } else {
+            properties = Collections.emptyMap();
+        }
+        lookupTopicForConnectionAsync(this, topicName, authoritative, requestId, advertisedListenerName, properties)
+                .whenComplete((lookupResponse, ex) -> {
+                    try {
+                        if (ex == null) {
+                            writeAndFlush(lookupResponse);
+                        } else {
+                            log.warn().attr("topic", topicName).exception(ex).log("Lookup failed with error");
+                            writeAndFlush(newLookupErrorResponse(ServerError.ServiceNotReady,
+                                    ex.getMessage(), requestId));
+                        }
+                    } finally {
+                        lookupSemaphore.release();
+                    }
+                });
+    }
+
+    /**
+     * Checks LOOKUP permission and completes with a failure response, or a {@code null} result if allowed.
+     */
+    public CompletableFuture<ByteBuf> authorizeTopicLookup(TopicName topicName, long requestId) {
+        return FutureUtil.supplySafely(
+                () -> isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData))
+                .handle((allowed, ex) -> {
+                    if (ex != null) {
+                        logAuthException(remoteAddress, "lookup", getPrincipal(), Optional.of(topicName), ex);
+                        return newLookupErrorResponse(ServerError.AuthorizationError,
+                                "Exception occurred while trying to authorize lookup", requestId);
+                    }
+                    if (!allowed) {
+                        String msg = "Client is not authorized to Lookup";
+                        log.warn().attr("principal", getPrincipal()).attr("topic", topicName).log(msg);
+                        return newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId);
+                    }
+                    return null;
+                });
     }
 
     private void writeAndFlush(ByteBuf cmd) {

@@ -125,6 +125,9 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
+import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.lookup.TopicLookupBase;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.resources.ClusterResources;
@@ -172,6 +175,7 @@ import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
 import org.apache.pulsar.common.api.proto.CommandPing;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
@@ -1145,6 +1149,115 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Failed);
         assertFalse(serverCnx.isActive());
         channel.finish();
+    }
+
+    @DataProvider
+    public Object[][] lookupAuthorizationRoles() {
+        String denied = "Client is not authorized to Lookup";
+        String providerFailure = "Exception occurred while trying to authorize lookup";
+        return new Object[][]{
+                {"pass.pass", null, null},
+                {"pass.fail", null, denied},
+                {"pass.error", null, providerFailure},
+                {"pass.throw", null, providerFailure},
+                {"pass.proxy", "pass.pass", null},
+                {"pass.fail", "pass.pass", denied},
+                {"pass.proxy", "pass.fail", denied}
+        };
+    }
+
+    @Test(dataProvider = "lookupAuthorizationRoles")
+    public void testLookupAuthorizesEachRoleOnce(String role, String originalRole, String errorMessage)
+            throws Exception {
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethod = authenticationProvider.getAuthMethodName();
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        when(authenticationService.getAuthenticationProvider(authMethod)).thenReturn(authenticationProvider);
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(true);
+        if (originalRole != null) {
+            svcConfig.setProxyRoles(Set.of(role));
+        }
+        svcConfig.setAuthorizationEnabled(true);
+        svcConfig.setAuthorizationProvider(MockAuthorizationProvider.class.getName());
+        MockAuthorizationProvider provider;
+        try (var construction = Mockito.mockConstruction(MockAuthorizationProvider.class,
+                Mockito.withSettings().defaultAnswer(CALLS_REAL_METHODS))) {
+            AuthorizationService authorizationService = new AuthorizationService(svcConfig,
+                    pulsarTestContext.getPulsarResources());
+            doReturn(authorizationService).when(brokerService).getAuthorizationService();
+            provider = ownMock(construction.constructed().get(0));
+        }
+
+        TopicName topic = TopicName.get(successTopicName);
+        CompletableFuture<Boolean> proxyPermission = new CompletableFuture<>();
+        doReturn(proxyPermission).when(provider)
+                .allowTopicOperationAsync(eq(topic), eq("pass.proxy"), eq(TopicOperation.LOOKUP), any());
+        Mockito.doThrow(new IllegalStateException("Provider failed before returning a future")).when(provider)
+                .allowTopicOperationAsync(eq(topic), eq("pass.throw"), eq(TopicOperation.LOOKUP), any());
+        Policies policies = new Policies();
+        policies.replication_clusters.add(svcConfig.getClusterName());
+        pulsarTestContext.getPulsarResources().getNamespaceResources().createPolicies(topic.getNamespaceObject(),
+                policies);
+        LookupResult owner = LookupResult.builder().type(LookupResult.Type.BrokerUrl)
+                .brokerServiceUrl("pulsar://owner:6650").build();
+        CompletableFuture<LookupOptions> lookupStarted = new CompletableFuture<>();
+        CompletableFuture<Optional<LookupResult>> ownerFuture = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            lookupStarted.complete(invocation.getArgument(1));
+            return ownerFuture;
+        }).when(namespaceService).getBrokerServiceUrlAsync(eq(topic), any());
+
+        resetChannel();
+        channel.writeInbound(originalRole == null
+                ? Commands.newConnect(authMethod, role, "test")
+                : Commands.newConnect(authMethod, role, "test", "localhost", originalRole, originalRole, authMethod));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+        var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+        int permits = lookupSemaphore.availablePermits();
+        Map<String, String> properties = Map.of("key", "first");
+        channel.writeInbound(Commands.newLookup(topic.toString(), "first-listener", true, 123, properties));
+        if ("pass.proxy".equals(role)) {
+            // Decode a second LOOKUP on the same channel while the first is waiting for the proxy's permission.
+            channel.writeInbound(Commands.newLookup("invalid/topic/with/four-parts", "second-listener", false, 124,
+                    Map.of("key", "second")));
+            CommandLookupTopicResponse invalid = (CommandLookupTopicResponse) getResponse();
+            assertThat(invalid.getRequestId()).isEqualTo(124L);
+            assertThat(invalid.getError()).isEqualTo(ServerError.InvalidTopicName);
+            assertThat(lookupStarted.isDone()).isFalse();
+            assertThat(channel.outboundMessages()).isEmpty();
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(permits - 1);
+            proxyPermission.complete(true);
+        }
+        if (errorMessage == null) {
+            LookupOptions options = lookupStarted.get(10, TimeUnit.SECONDS);
+            assertThat(options.isAuthoritative()).isTrue();
+            assertThat(options.getAdvertisedListenerName()).isEqualTo("first-listener");
+            assertThat(options.getProperties()).isEqualTo(properties);
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(permits - 1);
+            assertThat(channel.outboundMessages()).isEmpty();
+            ownerFuture.complete(Optional.of(owner));
+        }
+        CommandLookupTopicResponse response = (CommandLookupTopicResponse) getResponse();
+        assertThat(response.getRequestId()).isEqualTo(123L);
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(permits));
+        if (errorMessage == null) {
+            assertThat(response.getResponse()).isEqualTo(LookupType.Connect);
+            assertThat(response.getBrokerServiceUrl()).isEqualTo("pulsar://owner:6650");
+            assertThat(response.hasError()).isFalse();
+        } else {
+            assertThat(response.getResponse()).isEqualTo(LookupType.Failed);
+            assertThat(response.getError()).isEqualTo(ServerError.AuthorizationError);
+            assertThat(response.getMessage()).isEqualTo(errorMessage);
+            verify(namespaceService, never()).getBrokerServiceUrlAsync(eq(topic), any());
+        }
+        verify(provider, times(originalRole == null ? 1 : 2)).allowTopicOperationAsync(any(), any(), any(), any());
+        verify(provider).allowTopicOperationAsync(topic, role, TopicOperation.LOOKUP, serverCnx.getAuthData());
+        if (originalRole != null) {
+            verify(provider).allowTopicOperationAsync(topic, originalRole, TopicOperation.LOOKUP,
+                    serverCnx.getOriginalAuthData());
+        }
     }
 
     // This test used to be in the ServerCnxAuthorizationTest class, but it was migrated here because the mocking
@@ -4059,6 +4172,68 @@ public class ServerCnxTest {
         assertEquals(res.getError(), ServerError.InvalidTopicName);
 
         channel.finish();
+    }
+
+    @DataProvider
+    public Object[][] lookupValidationFailures() {
+        String namespace = "persistent://tenant/missing/";
+        return new Object[][]{
+                {namespace + "-partition-0", ServerError.ServiceNotReady,
+                        "Invalid topic name: " + namespace + ". Topic local name must not be blank."},
+                {namespace + "topic", ServerError.TopicNotFound, "Namespace not found"}
+        };
+    }
+
+    @Test(dataProvider = "lookupValidationFailures", timeOut = 30000)
+    public void testLookupValidationFailure(String topic, ServerError expectedError, String expectedMessage)
+            throws Exception {
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+        var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+        int permits = lookupSemaphore.availablePermits();
+
+        channel.writeInbound(Commands.newLookup(topic, false, 17));
+        CommandLookupTopicResponse response = (CommandLookupTopicResponse) getResponse();
+        assertThat(response.getRequestId()).isEqualTo(17L);
+        assertThat(response.getResponse()).isEqualTo(LookupType.Failed);
+        assertThat(response.getError()).isEqualTo(expectedError);
+        assertThat(response.getMessage()).isEqualTo(expectedMessage);
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(permits));
+    }
+
+    @DataProvider
+    public Object[][] lookupTopicHelperAuthorizationFailures() {
+        return new Object[][]{
+                {CompletableFuture.completedFuture(false), ServerError.AuthorizationError,
+                        "Don't have permission to connect to this namespace"},
+                {CompletableFuture.failedFuture(new RuntimeException("Provider failed")), ServerError.ServiceNotReady,
+                        "Provider failed"}
+        };
+    }
+
+    @Test(dataProvider = "lookupTopicHelperAuthorizationFailures")
+    public void testLookupTopicHelperPreservesAuthorizationErrors(CompletableFuture<Boolean> authorization,
+                                                                  ServerError expectedError, String expectedMessage)
+            throws Exception {
+        svcConfig.setAuthorizationEnabled(true);
+        AuthorizationService authorizationService = mock(AuthorizationService.class);
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
+        TopicName topic = TopicName.get(successTopicName);
+        String role = "client";
+        AuthenticationDataSource authData = AuthenticationDataAnonymous.INSTANCE;
+        doReturn(authorization).when(authorizationService)
+                .allowTopicOperationAsync(topic, TopicOperation.LOOKUP, null, role, null, authData);
+
+        ByteBuf frame = TopicLookupBase.lookupTopicAsync(pulsar, topic, false, role, null, authData, null, 18,
+                null, Collections.emptyMap()).get(10, TimeUnit.SECONDS);
+        CommandLookupTopicResponse response = (CommandLookupTopicResponse) clientChannelHelper.getCommand(frame);
+        assertThat(response.getRequestId()).isEqualTo(18L);
+        assertThat(response.getResponse()).isEqualTo(LookupType.Failed);
+        assertThat(response.getError()).isEqualTo(expectedError);
+        assertThat(response.getMessage()).isEqualTo(expectedMessage);
+        verify(authorizationService).allowTopicOperationAsync(topic, TopicOperation.LOOKUP, null, role, null, authData);
+        verify(namespaceService, never()).getBrokerServiceUrlAsync(eq(topic), any());
     }
 
     @Test(timeOut = 30000)
