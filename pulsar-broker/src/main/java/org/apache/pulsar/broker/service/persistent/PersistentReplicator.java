@@ -1130,7 +1130,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected void doReleaseResources() {
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
     }
-    @VisibleForTesting
     public ManagedCursor getCursor() {
         return cursor;
     }

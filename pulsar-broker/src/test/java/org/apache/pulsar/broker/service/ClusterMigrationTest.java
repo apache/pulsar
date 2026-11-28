@@ -637,6 +637,7 @@ public class ClusterMigrationTest extends TestRetrySupport {
 
         Awaitility.await().untilAsserted(() -> {
             topic1.checkClusterMigration().get();
+            assertTrue(topic1.isMigrated());
         });
 
         producer1.sendAsync("test1".getBytes());

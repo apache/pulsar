@@ -99,6 +99,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                 && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
     }
 
+    @VisibleForTesting
+    public boolean isExpirationCheckInProgress() {
+        return expirationCheckInProgress == TRUE;
+    }
+
     @Override
     public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
         return CompletableFuture.supplyAsync(() -> expireMessages(messageTTLInSeconds), topic.getOrderedExecutor());
@@ -106,6 +111,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
 
     @Override
     public boolean expireMessages(int messageTTLInSeconds) {
+        if (topic.isClosingOrDeleting()) {
+            return false;
+        }
         if (!expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
             log.debug()
                     .log("Ignore expire-message scheduled task, last check is still running");
@@ -118,7 +126,8 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         checkExpiryByLedgerClosureTime(cursor, messageTTLInSeconds);
         // Some part of entries in active Ledger may have reached TTL, so we need to continue searching.
         long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTTLInSeconds);
-        finder.findMessages(expiredMessageTimestamp, this);
+        // The expiry only moves the mark-delete position forward, so the find does not read the entries up to it.
+        finder.findMessages(expiredMessageTimestamp, cursor.getMarkDeletedPosition(), this);
         return true;
     }
 
@@ -151,6 +160,9 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
 
     @Override
     public boolean expireMessages(Position messagePosition) {
+        if (topic.isClosingOrDeleting()) {
+            return false;
+        }
         // If it's beyond last position of this topic, do nothing.
         Position topicLastPosition = this.topic.getLastPosition();
         ManagedLedger managedLedger = cursor.getManagedLedger();
@@ -274,6 +286,15 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                 expirationCheckInProgress = FALSE;
                 return;
             }
+            beforeCursorMarkDelete(position);
+            if (topic.isClosingOrDeleting()) {
+                log.debug()
+                        .attr("position", position)
+                        .log("Skipping message expiry mark-delete because topic is closing or deleting");
+                expirationCheckInProgress = FALSE;
+                updateRates();
+                return;
+            }
             log.info()
                     .attr("position", position)
                     .log("Expiring all messages until position");
@@ -287,6 +308,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             expirationCheckInProgress = FALSE;
             updateRates();
         }
+    }
+
+    @VisibleForTesting
+    protected void beforeCursorMarkDelete(Position position) {
+        // No-op.
     }
 
     @Override

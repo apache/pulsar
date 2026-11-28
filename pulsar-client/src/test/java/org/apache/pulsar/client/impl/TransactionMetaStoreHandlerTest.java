@@ -20,9 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,6 +36,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.ReferenceCountUtil;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
@@ -119,6 +124,45 @@ public class TransactionMetaStoreHandlerTest {
             assertThat(handler.connectionFailed(new PulsarClientException.AuthorizationException("denied"))).isFalse();
             assertThat(connectFuture).isCompletedExceptionally();
             assertThat(handler.getConnectHandleState()).isEqualTo(HandlerState.State.Failed);
+        } finally {
+            handler.close();
+        }
+    }
+
+    @Test
+    public void testRetargetedLeaderReconnectsOverTheNewRoute() throws Exception {
+        @Cleanup
+        final PulsarClientImpl client = spy((PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://service.invalid:6650").build());
+        final InetSocketAddress service = InetSocketAddress.createUnresolved("service.invalid", 6650);
+        final InetSocketAddress leader = InetSocketAddress.createUnresolved("leader.invalid", 6650);
+        final LookupService lookup = mock(LookupService.class);
+        when(lookup.isBinaryProtoLookupService()).thenReturn(true);
+        when(lookup.resolveHost()).thenReturn(service);
+        client.setLookup(lookup);
+        final ClientCnx viaProxy = mock(ClientCnx.class);
+        when(viaProxy.getRemoteEndpointProtocolVersion()).thenReturn(19);
+        when(viaProxy.channel()).thenReturn(mock(Channel.class));
+        answerConnectRequests(viaProxy);
+        // The first dial through the proxy connects. Later dials stay pending, which leaves them observable.
+        doReturn(CompletableFuture.completedFuture(viaProxy), new CompletableFuture<ClientCnx>())
+                .when(client).getConnection(eq(leader), eq(service), anyInt());
+        doReturn(new CompletableFuture<ClientCnx>()).when(client).getConnection(eq(leader), eq(leader), anyInt());
+        final URI leaderUri = URI.create("pulsar://leader.invalid:6650");
+        final TransactionMetaStoreHandler handler =
+                new TransactionMetaStoreHandler(15L, client, leaderUri, true, new CompletableFuture<>());
+        try {
+            handler.start();
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(handler.getConnectHandleState()).isEqualTo(HandlerState.State.Ready));
+
+            // A snapshot from a direct watch connection keeps the leader and drops the proxy. Retargeting closes
+            // the current connection, whose channel-inactive callback then reports the close to the handler.
+            handler.retargetLeader(leaderUri, false);
+            handler.connectionClosed(viaProxy);
+
+            Awaitility.await().untilAsserted(() -> verify(client).getConnection(eq(leader), eq(leader), anyInt()));
+            verify(client, times(1)).getProxyConnection(eq(leader), anyInt());
         } finally {
             handler.close();
         }

@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -51,6 +52,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
@@ -344,6 +346,73 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         assertThat(recoveredTermination.isDone()).as("Recovered durable termination completes immediately").isTrue();
         assertThat(recoveredTermination.get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
         assertThat(putCount.get()).isEqualTo(putsAfterTermination);
+    }
+
+    @Test(timeOut = 20000)
+    public void closedLedgerRejectsFirstTermination() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("close-before-terminate");
+        ledger.close();
+
+        assertThatThrownBy(() -> terminateAsync(ledger).get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
+        assertThat(ledger.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
+        assertThat(factory.getManagedLedgerInfo(ledger.getName()).terminatedPosition).isNull();
+    }
+
+    @Test(timeOut = 20000, dataProvider = "terminationMetadataFailures")
+    public void duplicateTerminateAfterCloseSharesExistingAttempt(boolean metadataFails) throws Exception {
+        String ledgerName = "duplicate-terminate-after-close";
+        String ledgerPath = "/managed-ledgers/" + ledgerName;
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl spyStoreFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) spyStoreFactory.open(ledgerName,
+                initManagedLedgerConfig(defaultConfig()));
+        Position lastPosition = ledger.addEntry(new byte[] {1});
+
+        CompletableFuture<Void> updateStarted = new CompletableFuture<>();
+        CompletableFuture<Void> releaseUpdate = new CompletableFuture<>();
+        MetadataStoreException injectedFailure = new MetadataStoreException("termination metadata unavailable");
+        AtomicInteger writes = new AtomicInteger();
+        doAnswer(invocation -> {
+            writes.incrementAndGet();
+            byte[] value = invocation.getArgument(1);
+            Optional<Long> expectedVersion = invocation.getArgument(2);
+            updateStarted.complete(null);
+            return releaseUpdate.thenCompose(ignored -> metadataStore.put(ledgerPath, value, expectedVersion));
+        }).when(spyStore).put(eq(ledgerPath), any(byte[].class), any());
+
+        CompletableFuture<Position> termination = terminateAsync(ledger);
+        CompletableFuture<Position> pendingDuplicate;
+        try {
+            updateStarted.get(5, TimeUnit.SECONDS);
+            ledger.close();
+            pendingDuplicate = terminateAsync(ledger);
+            assertThat(pendingDuplicate).isNotDone();
+            assertThatThrownBy(() -> ledger.asyncMigrate().get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
+        } finally {
+            if (metadataFails) {
+                releaseUpdate.completeExceptionally(injectedFailure);
+            } else {
+                releaseUpdate.complete(null);
+            }
+        }
+
+        if (metadataFails) {
+            Throwable failure = termination.handle((position, error) -> error).get(5, TimeUnit.SECONDS);
+            assertThat(failure).isInstanceOf(ManagedLedgerException.class).hasRootCause(injectedFailure);
+            assertThat(pendingDuplicate.handle((position, error) -> error).get(5, TimeUnit.SECONDS)).isSameAs(failure);
+            assertThatThrownBy(() -> terminateAsync(ledger).get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
+            assertThat(spyStoreFactory.getManagedLedgerInfo(ledgerName).terminatedPosition).isNull();
+        } else {
+            assertThat(termination.get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+            assertThat(pendingDuplicate.get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+            assertThat(terminateAsync(ledger).get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        }
+        assertThat(ledger.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
+        assertThat(writes).hasValue(1);
     }
 
     @Test(timeOut = 20000)

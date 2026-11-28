@@ -36,9 +36,12 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -55,6 +58,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import it.unimi.dsi.fastutil.longs.LongLongPair;
 import java.lang.reflect.Field;
 import java.nio.ReadOnlyBufferException;
 import java.nio.charset.Charset;
@@ -96,6 +100,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongPredicate;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -152,9 +157,11 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -1858,6 +1865,662 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             }
         }, null);
         assertTrue(latch3.await(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void testPropertiesSnapshotsAreDetached() throws Exception {
+        ManagedLedger ledger = factory.open("properties-snapshot-test");
+        ledger.setProperties(Map.of("key1", "value1"));
+
+        Map<String, String> firstSnapshot = ledger.getProperties();
+        firstSnapshot.put("external", "value");
+        assertEquals(ledger.getProperties(), Map.of("key1", "value1"));
+
+        ledger.close();
+        ledger = factory.open("properties-snapshot-test");
+        assertEquals(ledger.getProperties(), Map.of("key1", "value1"));
+
+        CountDownLatch callbackCompleted = new CountDownLatch(1);
+        ledger.asyncSetProperty("key2", "value2", new AsyncCallbacks.UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                properties.put("callback", "value");
+                callbackCompleted.countDown();
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                callbackCompleted.countDown();
+            }
+        }, null);
+
+        assertTrue(callbackCompleted.await(5, TimeUnit.SECONDS));
+        assertEquals(ledger.getProperties(), Map.of("key1", "value1", "key2", "value2"));
+        assertEquals(firstSnapshot, Map.of("key1", "value1", "external", "value"));
+    }
+
+    @Test
+    public void testFailedPropertiesUpdateDoesNotChangeInMemoryState() throws Exception {
+        String ledgerName = "properties-failure-test";
+        ManagedLedger ledger = factory.open(ledgerName);
+        ledger.setProperty("existing", "value");
+
+        metadataStore.failConditional(new MetadataStoreException("injected failure"),
+                (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                        && path.equals("/managed-ledgers/" + ledgerName));
+
+        CompletableFuture<ManagedLedgerException> failure = new CompletableFuture<>();
+        ledger.asyncSetProperty("failed", "value", new AsyncCallbacks.UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                failure.completeExceptionally(new AssertionError("The properties update should fail"));
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                failure.complete(exception);
+            }
+        }, null);
+
+        assertNotNull(failure.get(5, TimeUnit.SECONDS));
+        assertEquals(ledger.getProperties(), Map.of("existing", "value"));
+
+        ledger.setProperty("after-failure", "value");
+        assertEquals(ledger.getProperties(), Map.of("existing", "value", "after-failure", "value"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testPropertiesRemainUnchangedUntilMetadataUpdateCompletes() throws Exception {
+        String ledgerName = "properties-pending-update-test";
+        String ledgerPath = "/managed-ledgers/" + ledgerName;
+        CompletableFuture<Void> releaseUpdate = new CompletableFuture<>();
+        CountDownLatch updateIntercepted = new CountDownLatch(1);
+        AtomicBoolean interceptNextPut = new AtomicBoolean(false);
+
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (ledgerPath.equals(invocation.getArgument(0))
+                    && interceptNextPut.compareAndSet(true, false)) {
+                updateIntercepted.countDown();
+                CompletableFuture<Stat> realResult = (CompletableFuture<Stat>) invocation.callRealMethod();
+                CompletableFuture<Stat> gatedResult = new CompletableFuture<>();
+                realResult.whenComplete((stat, error) -> releaseUpdate.whenComplete((ignored, releaseError) -> {
+                    if (error != null) {
+                        gatedResult.completeExceptionally(error);
+                    } else {
+                        gatedResult.complete(stat);
+                    }
+                }));
+                return gatedResult;
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(ledgerPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl gatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        try {
+            ManagedLedger ledger = gatedFactory.open(ledgerName);
+            ledger.setProperties(Map.of("key1", "old", "key2", "old"));
+
+            Map<String, String> update = new HashMap<>();
+            update.put("key1", "new");
+            update.put("key2", "new");
+            CompletableFuture<Void> updateResult = new CompletableFuture<>();
+            interceptNextPut.set(true);
+            ledger.asyncSetProperties(update, new AsyncCallbacks.UpdatePropertiesCallback() {
+                @Override
+                public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                    updateResult.complete(null);
+                }
+
+                @Override
+                public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                    updateResult.completeExceptionally(exception);
+                }
+            }, null);
+
+            assertTrue(updateIntercepted.await(5, TimeUnit.SECONDS));
+            update.put("late-change", "value");
+            assertEquals(ledger.getProperties(), Map.of("key1", "old", "key2", "old"));
+
+            releaseUpdate.complete(null);
+            updateResult.get(5, TimeUnit.SECONDS);
+            assertEquals(ledger.getProperties(), Map.of("key1", "new", "key2", "new"));
+        } finally {
+            releaseUpdate.complete(null);
+            gatedFactory.shutdown();
+        }
+    }
+
+    @Test
+    public void testPropertiesCallbackExceptionDoesNotKeepMetadataMutexLocked() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("properties-callback-exception-test");
+        CountDownLatch firstCallbackInvoked = new CountDownLatch(1);
+        ledger.asyncSetProperty("key1", "value1", new AsyncCallbacks.UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                firstCallbackInvoked.countDown();
+                throw new RuntimeException("injected callback failure");
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                firstCallbackInvoked.countDown();
+            }
+        }, null);
+
+        assertTrue(firstCallbackInvoked.await(5, TimeUnit.SECONDS));
+
+        CountDownLatch secondCallbackCompleted = new CountDownLatch(1);
+        AtomicReference<ManagedLedgerException> secondFailure = new AtomicReference<>();
+        ledger.asyncSetProperty("key2", "value2", new AsyncCallbacks.UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                secondCallbackCompleted.countDown();
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                secondFailure.set(exception);
+                secondCallbackCompleted.countDown();
+            }
+        }, null);
+
+        assertTrue(secondCallbackCompleted.await(5, TimeUnit.SECONDS));
+        assertNull(secondFailure.get());
+        assertEquals(ledger.getProperties(), Map.of("key1", "value1", "key2", "value2"));
+        assertTrue(ledger.metadataMutex.tryLock());
+        assertFalse(ledger.metadataMutex.tryLock());
+        ledger.metadataMutex.unlock();
+    }
+
+    @Test
+    public void testPropertiesFailureCallbackExceptionDoesNotEscape() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("properties-failure-callback-exception-test");
+        ManagedLedgerInterceptor originalInterceptor = ledger.managedLedgerInterceptor;
+        ManagedLedgerInterceptor failingInterceptor = mock(ManagedLedgerInterceptor.class);
+        RuntimeException buildFailure = new RuntimeException("injected build failure");
+        doThrow(buildFailure).when(failingInterceptor).onUpdateManagedLedgerInfo(anyMap());
+        AtomicBoolean successCalled = new AtomicBoolean();
+        AtomicReference<ManagedLedgerException> callbackFailure = new AtomicReference<>();
+
+        try {
+            ledger.managedLedgerInterceptor = failingInterceptor;
+            ledger.asyncSetProperty("key", "value", new AsyncCallbacks.UpdatePropertiesCallback() {
+                @Override
+                public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                    successCalled.set(true);
+                }
+
+                @Override
+                public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                    callbackFailure.set(exception);
+                    throw new RuntimeException("injected callback failure");
+                }
+            }, null);
+        } finally {
+            ledger.managedLedgerInterceptor = originalInterceptor;
+        }
+
+        assertFalse(successCalled.get());
+        assertNotNull(callbackFailure.get());
+        assertSame(callbackFailure.get().getCause(), buildFailure);
+        assertEquals(ledger.getProperties(), Map.of());
+        assertTrue(ledger.metadataMutex.tryLock());
+        ledger.metadataMutex.unlock();
+
+        ledger.setProperty("after-failure", "value");
+        assertEquals(ledger.getProperties(), Map.of("after-failure", "value"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testConcurrentPropertyUpdateDoesNotFenceMigrationTermination() throws Exception {
+        String ledgerName = "properties-migration-termination-race-test";
+        String ledgerPath = "/managed-ledgers/" + ledgerName;
+        CompletableFuture<Void> releasePropertyUpdate = new CompletableFuture<>();
+        CountDownLatch propertyMetadataStored = new CountDownLatch(1);
+        AtomicBoolean interceptNextPut = new AtomicBoolean(false);
+        AtomicBoolean countMetadataPuts = new AtomicBoolean(false);
+        AtomicInteger metadataPuts = new AtomicInteger();
+        AtomicReference<byte[]> propertyMetadata = new AtomicReference<>();
+
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (ledgerPath.equals(invocation.getArgument(0))) {
+                if (countMetadataPuts.get()) {
+                    metadataPuts.incrementAndGet();
+                }
+                if (interceptNextPut.compareAndSet(true, false)) {
+                    byte[] metadata = invocation.getArgument(1);
+                    propertyMetadata.set(Arrays.copyOf(metadata, metadata.length));
+                    CompletableFuture<Stat> realResult = (CompletableFuture<Stat>) invocation.callRealMethod();
+                    CompletableFuture<Stat> gatedResult = new CompletableFuture<>();
+                    realResult.whenComplete((stat, error) -> {
+                        propertyMetadataStored.countDown();
+                        releasePropertyUpdate.whenComplete((ignored, releaseError) -> {
+                            if (error != null) {
+                                gatedResult.completeExceptionally(error);
+                            } else {
+                                gatedResult.complete(stat);
+                            }
+                        });
+                    });
+                    return gatedResult;
+                }
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(ledgerPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl gatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        CompletableFuture<Void> releaseLedgerClose = new CompletableFuture<>();
+        try {
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) gatedFactory.open(ledgerName);
+            ledger.setProperty("existing", "value");
+            Position expectedPosition = ledger.addEntry("entry".getBytes(UTF_8));
+            countMetadataPuts.set(true);
+
+            LedgerHandle currentLedger = ledger.currentLedger;
+            LedgerHandle spyLedgerHandle = spy(currentLedger);
+            CountDownLatch ledgerCloseIntercepted = new CountDownLatch(1);
+            doAnswer(invocation -> {
+                AsyncCallback.CloseCallback callback = invocation.getArgument(0);
+                Object closeContext = invocation.getArgument(1);
+                currentLedger.asyncClose((rc, lh, ctx) -> {
+                    ledgerCloseIntercepted.countDown();
+                    releaseLedgerClose.whenComplete((ignored, error) ->
+                            callback.closeComplete(rc, spyLedgerHandle, closeContext));
+                }, closeContext);
+                return null;
+            }).when(spyLedgerHandle).asyncClose(any(AsyncCallback.CloseCallback.class), any());
+            ledger.currentLedger = spyLedgerHandle;
+
+            CompletableFuture<Position> migrationResult = ledger.asyncMigrate();
+            assertTrue(ledgerCloseIntercepted.await(5, TimeUnit.SECONDS));
+            assertEquals(metadataPuts.get(), 0);
+            assertEquals(ledger.getProperties(), Map.of("existing", "value"));
+
+            CompletableFuture<Position> concurrentMigrationResult = ledger.asyncMigrate();
+            assertThat(ledger.asyncMigrate().cancel(false)).isTrue();
+            assertEquals(metadataPuts.get(), 0);
+            assertFalse(migrationResult.isDone());
+            assertFalse(concurrentMigrationResult.isDone());
+
+            CompletableFuture<Void> propertyResult = new CompletableFuture<>();
+            interceptNextPut.set(true);
+            ledger.asyncSetProperty("during-close", "value", new AsyncCallbacks.UpdatePropertiesCallback() {
+                @Override
+                public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                    propertyResult.complete(null);
+                }
+
+                @Override
+                public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                    propertyResult.completeExceptionally(exception);
+                }
+            }, null);
+
+            assertTrue(propertyMetadataStored.await(5, TimeUnit.SECONDS));
+            assertEquals(metadataPuts.get(), 1);
+            ManagedLedgerInfo storedPropertyMetadata =
+                    ((MetaStoreImpl) gatedFactory.getMetaStore()).parseManagedLedgerInfo(propertyMetadata.get());
+            assertFalse(storedPropertyMetadata.hasTerminatedPosition());
+            assertThat(gatedFactory.getManagedLedgerInfo(ledgerName).properties).doesNotContainKey("migrated");
+            assertFalse(propertyResult.isDone());
+            boolean metadataMutexAcquired = ledger.metadataMutex.tryLock();
+            if (metadataMutexAcquired) {
+                ledger.metadataMutex.unlock();
+            }
+            assertFalse(metadataMutexAcquired);
+            releaseLedgerClose.complete(null);
+            assertFalse(migrationResult.isDone());
+
+            releasePropertyUpdate.complete(null);
+            propertyResult.get(5, TimeUnit.SECONDS);
+            assertEquals(migrationResult.get(5, TimeUnit.SECONDS), expectedPosition);
+            assertEquals(concurrentMigrationResult.get(5, TimeUnit.SECONDS), expectedPosition);
+            assertEquals(metadataPuts.get(), 2);
+            assertTrue(ledger.isTerminated());
+            assertFalse(ledger.state.isFenced());
+
+            ledger.close();
+            ManagedLedger reopenedLedger = gatedFactory.open(ledgerName);
+            assertTrue(reopenedLedger.isMigrated());
+            assertTrue(reopenedLedger.isTerminated());
+            assertEquals(reopenedLedger.getLastConfirmedEntry(), expectedPosition);
+            assertEquals(reopenedLedger.getProperties(),
+                    Map.of("existing", "value", "migrated", "true", "during-close", "value"));
+        } finally {
+            releasePropertyUpdate.complete(null);
+            releaseLedgerClose.complete(null);
+            gatedFactory.shutdown();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testAsyncMigrateCanRetryAfterMarkerFailureDuringConcurrentTermination() throws Exception {
+        String ledgerName = "migration-marker-failure-during-termination-test";
+        String ledgerPath = "/managed-ledgers/" + ledgerName;
+        CompletableFuture<Stat> terminationMetadataStored = new CompletableFuture<>();
+        CompletableFuture<Stat> terminationMetadataResult = new CompletableFuture<>();
+        AtomicBoolean interceptTerminationPut = new AtomicBoolean();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            CompletableFuture<Stat> realResult = (CompletableFuture<Stat>) invocation.callRealMethod();
+            if (!interceptTerminationPut.compareAndSet(true, false)) {
+                return realResult;
+            }
+            realResult.whenComplete((stat, error) -> {
+                if (error != null) {
+                    terminationMetadataStored.completeExceptionally(error);
+                } else {
+                    terminationMetadataStored.complete(stat);
+                }
+            });
+            return terminationMetadataResult;
+        }).when(spyStore).put(eq(ledgerPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl gatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        CompletableFuture<Integer> closeResult = new CompletableFuture<>();
+        try {
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) gatedFactory.open(ledgerName);
+            ledger.setProperty("existing", "value");
+            Position expectedPosition = ledger.addEntry("entry".getBytes(UTF_8));
+            CompletableFuture<Position> terminationResult = asyncTerminateWithBlockedLedgerClose(ledger, closeResult);
+            interceptTerminationPut.set(true);
+            closeResult.complete(BKException.Code.OK);
+            Stat terminationStat = terminationMetadataStored.get(5, TimeUnit.SECONDS);
+
+            // Termination has already built and stored its metadata, but has not observed the PUT result.
+            assertThat(gatedFactory.getManagedLedgerInfo(ledgerName).properties)
+                    .containsEntry("existing", "value").doesNotContainKey("migrated");
+            CompletableFuture<Position> migrationResult = ledger.asyncMigrate();
+            assertThat(terminationResult).isNotDone();
+            assertThat(migrationResult).isNotDone();
+            assertThat(ledger.isMigrated()).isFalse();
+
+            MetadataStoreException markerFailure = new MetadataStoreException("injected marker failure");
+            metadataStore.failConditional(markerFailure,
+                    (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                            && path.equals(ledgerPath));
+            terminationMetadataResult.complete(terminationStat);
+            assertThat(terminationResult.get(5, TimeUnit.SECONDS)).isEqualTo(expectedPosition);
+            assertThatThrownBy(() -> migrationResult.get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class).hasRootCause(markerFailure);
+            assertThat(ledger.isMigrated()).isFalse();
+            assertThat(ledger.getProperties()).doesNotContainKey("migrated");
+
+            assertThat(ledger.asyncMigrate().get(5, TimeUnit.SECONDS)).isEqualTo(expectedPosition);
+
+            ledger.close();
+            ManagedLedger reopenedLedger = gatedFactory.open(ledgerName);
+            assertThat(reopenedLedger.isMigrated()).isTrue();
+            assertThat(reopenedLedger.isTerminated()).isTrue();
+            assertThat(reopenedLedger.getLastConfirmedEntry()).isEqualTo(expectedPosition);
+            assertThat(reopenedLedger.getProperties()).containsEntry("migrated", "true");
+        } finally {
+            terminationMetadataResult.completeExceptionally(new MetadataStoreException("test cleanup"));
+            closeResult.complete(BKException.Code.OK);
+            gatedFactory.shutdown();
+        }
+    }
+
+    @DataProvider(name = "concurrentTerminationResults")
+    public Object[][] concurrentTerminationResults() {
+        return new Object[][]{
+                {"success", BKException.Code.OK, false, false},
+                {"close-failure", BKException.Code.UnexpectedConditionException, false, false},
+                {"metadata-failure", BKException.Code.OK, true, false},
+                {"synchronous-metadata-failure", BKException.Code.OK, true, true}
+        };
+    }
+
+    @Test(dataProvider = "concurrentTerminationResults")
+    @SuppressWarnings("unchecked")
+    public void testAsyncMigrateWaitsForConcurrentTermination(String scenario, int closeRc,
+                                                             boolean failTerminationMetadata,
+                                                             boolean throwTerminationMetadata) throws Exception {
+        String ledgerName = "migration-during-termination-" + scenario;
+        String ledgerPath = "/managed-ledgers/" + ledgerName;
+        CompletableFuture<Stat> terminationMetadataStored = new CompletableFuture<>();
+        CompletableFuture<Stat> terminationMetadataResult = new CompletableFuture<>();
+        AtomicBoolean interceptTerminationPut = new AtomicBoolean();
+        AtomicBoolean throwNextPut = new AtomicBoolean();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (throwNextPut.compareAndSet(true, false)) {
+                throw new IllegalStateException("injected synchronous termination metadata failure");
+            }
+            if (interceptTerminationPut.compareAndSet(true, false)) {
+                CompletableFuture<Stat> realResult = (CompletableFuture<Stat>) invocation.callRealMethod();
+                realResult.whenComplete((stat, error) -> {
+                    if (error != null) {
+                        terminationMetadataStored.completeExceptionally(error);
+                    } else {
+                        terminationMetadataStored.complete(stat);
+                    }
+                });
+                return terminationMetadataResult;
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(ledgerPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl gatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        CompletableFuture<Integer> closeResult = new CompletableFuture<>();
+        try {
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) gatedFactory.open(ledgerName);
+            Position expectedPosition = ledger.addEntry("entry".getBytes(UTF_8));
+            CompletableFuture<Position> terminationResult = asyncTerminateWithBlockedLedgerClose(ledger, closeResult);
+
+            CompletableFuture<Position> migrationResult = ledger.asyncMigrate();
+            assertThat(ledger.getProperties()).doesNotContainKey("migrated");
+            assertThat(terminationResult).isNotDone();
+            assertThat(migrationResult).as("Migration must wait for the pending ledger close").isNotDone();
+            assertThat(ledger.isMigrated()).isFalse();
+
+            if (throwTerminationMetadata) {
+                throwNextPut.set(true);
+            } else if (failTerminationMetadata) {
+                metadataStore.failConditional(new MetadataStoreException("injected termination metadata failure"),
+                        (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                                && path.equals(ledgerPath));
+            } else if (closeRc == BKException.Code.OK) {
+                interceptTerminationPut.set(true);
+            }
+            closeResult.complete(closeRc);
+
+            if (closeRc != BKException.Code.OK || failTerminationMetadata) {
+                assertThatThrownBy(() -> terminationResult.get(5, TimeUnit.SECONDS))
+                        .isInstanceOf(ExecutionException.class)
+                        .hasCauseInstanceOf(ManagedLedgerException.class);
+                assertThatThrownBy(() -> migrationResult.get(5, TimeUnit.SECONDS))
+                        .isInstanceOf(ExecutionException.class)
+                        .hasCauseInstanceOf(ManagedLedgerException.class);
+                assertThat(ledger.isMigrated()).isFalse();
+                assertThat(ledger.asyncMigrate().get(5, TimeUnit.SECONDS)).isEqualTo(expectedPosition);
+            } else {
+                Stat terminationStat = terminationMetadataStored.get(5, TimeUnit.SECONDS);
+                var storedInfo = gatedFactory.getManagedLedgerInfo(ledgerName);
+                assertThat(storedInfo.terminatedPosition).isNotNull();
+                assertThat(storedInfo.properties).containsEntry("migrated", "true");
+                assertThat(ledger.isMigrated()).isFalse();
+                AsyncCallbacks.TerminateCallback concurrentTermination = mock(AsyncCallbacks.TerminateCallback.class);
+                ledger.asyncTerminate(concurrentTermination, null);
+                verifyNoInteractions(concurrentTermination);
+                assertThat(terminationResult).isNotDone();
+                assertThat(migrationResult).as("Migration must wait for termination metadata completion").isNotDone();
+                terminationMetadataResult.complete(terminationStat);
+                assertThat(terminationResult.get(5, TimeUnit.SECONDS)).isEqualTo(expectedPosition);
+                assertThat(migrationResult.get(5, TimeUnit.SECONDS)).isEqualTo(expectedPosition);
+                verify(concurrentTermination, Mockito.timeout(5000)).terminateComplete(expectedPosition, null);
+            }
+
+            ledger.close();
+            ManagedLedger reopenedLedger = gatedFactory.open(ledgerName);
+            assertThat(reopenedLedger.isMigrated()).isTrue();
+            assertThat(reopenedLedger.isTerminated()).isTrue();
+            assertThat(reopenedLedger.getLastConfirmedEntry()).isEqualTo(expectedPosition);
+            assertThat(reopenedLedger.getProperties()).containsEntry("migrated", "true");
+        } finally {
+            terminationMetadataResult.completeExceptionally(new MetadataStoreException("test cleanup"));
+            closeResult.complete(BKException.Code.OK);
+            gatedFactory.shutdown();
+        }
+    }
+
+    private CompletableFuture<Position> asyncTerminateWithBlockedLedgerClose(ManagedLedgerImpl ledger,
+                                                                            CompletableFuture<Integer> closeResult)
+            throws InterruptedException {
+        LedgerHandle currentLedger = ledger.currentLedger;
+        LedgerHandle spyLedgerHandle = spy(currentLedger);
+        CountDownLatch closeIntercepted = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            AsyncCallback.CloseCallback callback = invocation.getArgument(0);
+            Object closeContext = invocation.getArgument(1);
+            closeResult.thenAccept(rc -> {
+                if (rc == BKException.Code.OK) {
+                    currentLedger.asyncClose((result, lh, ctx) ->
+                            callback.closeComplete(result, spyLedgerHandle, closeContext), closeContext);
+                } else {
+                    callback.closeComplete(rc, spyLedgerHandle, closeContext);
+                }
+            });
+            closeIntercepted.countDown();
+            return null;
+        }).when(spyLedgerHandle).asyncClose(any(AsyncCallback.CloseCallback.class), any());
+        ledger.currentLedger = spyLedgerHandle;
+
+        CompletableFuture<Position> result = asyncTerminate(ledger);
+        assertThat(closeIntercepted.await(5, TimeUnit.SECONDS)).as("Termination must reach the ledger close").isTrue();
+        return result;
+    }
+
+    private static CompletableFuture<Position> asyncTerminate(ManagedLedger ledger) {
+        CompletableFuture<Position> result = new CompletableFuture<>();
+        ledger.asyncTerminate(new AsyncCallbacks.TerminateCallback() {
+            @Override
+            public void terminateComplete(Position lastCommittedPosition, Object ctx) {
+                result.complete(lastCommittedPosition);
+            }
+
+            @Override
+            public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null);
+        return result;
+    }
+
+    @Test
+    public void testOrdinaryTerminationRetryDoesNotCommitFailedMigration() throws Exception {
+        String ledgerName = "ordinary-termination-retry-during-migration-failure";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName);
+        Position lastPosition = ledger.addEntry("entry".getBytes(UTF_8));
+        CompletableFuture<Integer> closeResult = new CompletableFuture<>();
+        try {
+            CompletableFuture<Position> firstTermination = asyncTerminateWithBlockedLedgerClose(ledger, closeResult);
+            CompletableFuture<Position> migration = ledger.asyncMigrate();
+            // Register the retry last. It can start as soon as termination fails, while migration is still completing.
+            CompletableFuture<Position> retry = asyncTerminate(ledger)
+                    .exceptionallyCompose(error -> asyncTerminate(ledger));
+
+            MetadataStoreException failure = new MetadataStoreException("injected termination metadata failure");
+            metadataStore.failConditional(failure,
+                    (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                            && path.equals("/managed-ledgers/" + ledgerName));
+            closeResult.complete(BKException.Code.OK);
+
+            assertThatThrownBy(() -> firstTermination.get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class).hasRootCause(failure);
+            assertThatThrownBy(() -> migration.get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class).hasRootCause(failure);
+            assertThat(retry.get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
+        } finally {
+            closeResult.complete(BKException.Code.OK);
+            ledger.close();
+        }
+
+        ManagedLedger reopened = factory.open(ledgerName);
+        try {
+            assertThat(reopened.isTerminated()).isTrue();
+            assertThat(reopened.getLastConfirmedEntry()).isEqualTo(lastPosition);
+            assertThat(reopened.getProperties()).doesNotContainKey("migrated");
+            assertThat(reopened.isMigrated()).isFalse();
+        } finally {
+            reopened.close();
+        }
+    }
+
+    @Test
+    public void testAsyncMigrateCanRetryAfterTerminationMetadataFailure() throws Exception {
+        String ledgerName = "migration-termination-retry-test";
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName);
+        Position expectedPosition = ledger.addEntry("entry".getBytes(UTF_8));
+        metadataStore.failConditional(new MetadataStoreException("injected failure"),
+                (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                        && path.equals("/managed-ledgers/" + ledgerName));
+
+        try {
+            ledger.asyncMigrate().get(5, TimeUnit.SECONDS);
+            fail("The first migration should fail");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof ManagedLedgerException);
+        }
+
+        assertFalse(ledger.isMigrated());
+        assertTrue(ledger.isTerminated());
+        assertEquals(ledger.getLastConfirmedEntry(), expectedPosition);
+        assertThat(ledger.getProperties()).doesNotContainKey("migrated");
+
+        // A property update after the BookKeeper close must not commit the failed termination.
+        ledger.setProperty("after-failed-termination", "value");
+        var storedInfo = factory.getManagedLedgerInfo(ledgerName);
+        assertThat(storedInfo.properties).containsEntry("after-failed-termination", "value")
+                .doesNotContainKey("migrated");
+        assertThat(storedInfo.terminatedPosition).isNull();
+
+        assertEquals(ledger.asyncMigrate().get(5, TimeUnit.SECONDS), expectedPosition);
+        assertTrue(ledger.isMigrated());
+        assertTrue(ledger.isTerminated());
+
+        ledger.close();
+        ManagedLedger reopenedLedger = factory.open(ledgerName);
+        assertTrue(reopenedLedger.isMigrated());
+        assertTrue(reopenedLedger.isTerminated());
+        assertEquals(reopenedLedger.getLastConfirmedEntry(), expectedPosition);
+        assertThat(reopenedLedger.getProperties()).containsEntry("after-failed-termination", "value")
+                .containsEntry("migrated", "true");
+    }
+
+    @Test
+    public void testFailedMigrationDoesNotMarkOrdinaryTerminationAsMigrated() throws Exception {
+        String ledgerName = "failed-migration-before-ordinary-termination";
+        ManagedLedger ledger = factory.open(ledgerName);
+        ledger.addEntry("before-migration".getBytes(UTF_8));
+        MetadataStoreException terminationFailure = new MetadataStoreException("injected termination metadata failure");
+        metadataStore.failConditional(terminationFailure,
+                (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                        && path.equals("/managed-ledgers/" + ledgerName));
+
+        assertThatThrownBy(() -> ledger.asyncMigrate().get(5, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class).hasRootCause(terminationFailure);
+        assertThat(factory.getManagedLedgerInfo(ledgerName).terminatedPosition).isNull();
+        ledger.close();
+
+        ManagedLedger reopenedLedger = factory.open(ledgerName);
+        assertThat(reopenedLedger.isTerminated()).isFalse();
+        assertThat(reopenedLedger.isMigrated()).isFalse();
+        Position lastPosition = reopenedLedger.addEntry("after-failed-migration".getBytes(UTF_8));
+        assertThat(reopenedLedger.terminate()).isEqualTo(lastPosition);
+        assertThat(reopenedLedger.isMigrated()).isFalse();
+        reopenedLedger.close();
+
+        ManagedLedger terminatedLedger = factory.open(ledgerName);
+        assertThat(terminatedLedger.isTerminated()).isTrue();
+        assertThat(terminatedLedger.getLastConfirmedEntry()).isEqualTo(lastPosition);
+        assertThat(terminatedLedger.isMigrated()).isFalse();
+        assertThat(terminatedLedger.getProperties()).doesNotContainKey("migrated");
     }
 
     @Test
@@ -3714,6 +4377,58 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(reopened.getLedgersInfo().size() < ledgerIds.size());
     }
 
+    @DataProvider
+    public Object[][] fencedCursorRecoveryOrder() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "fencedCursorRecoveryOrder")
+    public void testDeleteReclaimsCursorLedgerAcrossFencedRecovery(boolean recoveryCompletesBeforeDelete)
+            throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig())
+                .setMaxUnackedRangesToPersistInMetadataStore(0);
+        ManagedLedger ledger = factory.open("delete-during-lazy-cursor-recovery", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+        ledger.addEntry(new byte[] {1});
+        cursor.delete(ledger.addEntry(new byte[] {2}));
+        long cursorLedgerId = cursor.getCursorLedger();
+        ledger.close();
+        assertThat(bkc.getLedgers()).contains(cursorLedgerId);
+        String cursorPath = "/managed-ledgers/" + ledger.getName() + "/cursor";
+        assertThat(metadataStore.exists(cursorPath).get(5, TimeUnit.SECONDS)).isTrue();
+
+        CompletableFuture<Void> resumeRecovery = new CompletableFuture<>();
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = createFactoryWithGatedCursorRecovery(Map.of("cursor", resumeRecovery));
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory2.open(ledger.getName(),
+                config.setLazyCursorRecovery(true));
+        DeleteLedgerCallback deletion = mock(DeleteLedgerCallback.class);
+        CompletableFuture<ManagedCursor> opening;
+        try {
+            opening = ManagedLedgerUtils.openCursor(reopened, "cursor");
+            assertThat(opening).isNotDone();
+            if (recoveryCompletesBeforeDelete) {
+                reopened.setFenced();
+                resumeRecovery.complete(null);
+                assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(ManagedLedgerFencedException.class);
+                assertThat(reopened.getCursors()).isEmpty();
+                assertThat(reopened.getActiveCursors()).isEmpty();
+            }
+            factory2.asyncDelete(ledger.getName(), deletion, null);
+            assertThat(reopened.getState()).isEqualTo(ManagedLedgerImpl.State.FencedForDeletion);
+        } finally {
+            resumeRecovery.complete(null);
+        }
+        assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(ManagedLedgerFencedException.class);
+        assertThat(reopened.getActiveCursors()).isEmpty();
+        verify(deletion, timeout(5000)).deleteLedgerComplete(null);
+        assertThat(metadataStore.exists(cursorPath).get(5, TimeUnit.SECONDS)).isFalse();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertThat(bkc.getLedgers()).doesNotContain(cursorLedgerId));
+    }
+
     @Test
     public void testFailedLazyCursorRecoveryBlocksTrimmingUntilRecovered() throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setMaxEntriesPerLedger(2);
@@ -4253,6 +4968,125 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         });
 
         ledger.close();
+    }
+
+    /**
+     * A batched skip-read with multiple ranges must not hang when a range read hits the read-entry
+     * timeout: the batch finalizes with the failure (empty contiguous prefix when the first range is
+     * the one timing out), delivers the original read context, and ignores late completions.
+     */
+    @Test
+    public void testBatchedSkipReadMultipleRangesTimeOut() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setReadEntryTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("batched_skip_read_timeout_test", config);
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        // ensure that the reads aren't cached
+        factory.getEntryCacheManager().clear();
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long ledgerId, long firstEntry,
+                                                                       long lastEntry, LedgerEntries entries) {
+                // Every range read stalls past the 1s read timeout.
+                return CompletableFuture.supplyAsync(() -> entries,
+                        CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS));
+            }
+        });
+
+        Object readCtx = new Object();
+        AtomicInteger failureCount = new AtomicInteger();
+        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
+        cursor.asyncReadEntriesWithSkip(6, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                fail("expected readEntriesFailed after the read timeout");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failureCount.incrementAndGet();
+                failure.set(exception);
+                receivedCtx.set(ctx);
+            }
+        }, readCtx, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
+
+        // The timeout fires after ~1s while every range read is stalled; the failure must arrive via
+        // the read-timeout path, not from the delayed reads completing at ~3s.
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(failure.get());
+            assertTrue(failure.get().getMessage()
+                    .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
+            assertEquals(receivedCtx.get(), readCtx, "the timeout failure must carry the original read context");
+        });
+        // Late completions of the other ranges (at ~3s) must not re-finalize the batch. The during()
+        // window must extend past the delayed reads' completion time, hence 3s.
+        Awaitility.await().during(3, TimeUnit.SECONDS).atMost(8, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(failureCount.get(), 1));
+
+        bkc.setReadHandleInterceptor(null);
+    }
+
+    /**
+     * A later range that hits the read-entry timeout is a range that fails: the batch waits for the
+     * ranges in flight instead of finalizing on its own, delivers the first range's entries as the
+     * prefix, and leaves the cursor right after them, before the timed-out range.
+     */
+    @Test
+    public void testBatchedSkipReadLaterRangeTimesOutDeliversFirstRange() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setReadEntryTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("batched_skip_read_later_range_timeout",
+                config);
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+        long ledgerId = -1;
+        for (int i = 0; i < 20; i++) {
+            ledgerId = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding)).getLedgerId();
+        }
+        // Entries 4 to 15 are individually deleted: a 12-entry hole, so the window [0..19] is read as
+        // the ranges [0..3] and [16..19]
+        List<Position> hole = new ArrayList<>();
+        for (long entryId = 4; entryId <= 15; entryId++) {
+            hole.add(PositionFactory.create(ledgerId, entryId));
+        }
+        cursor.delete(hole);
+
+        // The first range answers at once; the second one never does, so that it hits the 1s timeout.
+        factory.getEntryCacheManager().clear();
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long bkLedgerId, long firstEntry,
+                                                                       long lastEntry, LedgerEntries entries) {
+                if (firstEntry == 0) {
+                    return CompletableFuture.completedFuture(entries);
+                }
+                return new CompletableFuture<>();
+            }
+        });
+
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        try {
+            cursor.asyncReadEntries(20, -1, recording, null, PositionFactory.LATEST);
+
+            // The second range's timeout makes the read succeed with the first range's entries
+            assertTrue(recording.await());
+            assertEquals(recording.failure.get(), null,
+                    "a prefix was delivered, so the read reports the entries");
+            assertEquals(recording.entries.size(), 4);
+            for (int i = 0; i < 4; i++) {
+                assertEquals(recording.entries.get(i).getEntryId(), i);
+            }
+            // The cursor waits right after the delivered prefix: on the individually deleted hole
+            // before the timed-out range, which the next read's scan skips
+            assertEquals(cursor.getReadPosition().getEntryId(), 4);
+            recording.entries.forEach(Entry::release);
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+        }
     }
 
     @Test
@@ -5688,6 +6522,412 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testEstimatedBacklogSizes() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setMaxEntriesPerLedger(3);
+        config.setRetentionTime(-1, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(-1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatch", config);
+        List<Position> positions = new ArrayList<>();
+        for (int i = 1; i <= 7; i++) {
+            positions.add(ledger.addEntry(new byte[i]));
+        }
+
+        List<Position> queries = new ArrayList<>();
+        queries.add(PositionFactory.create(-1, -1));
+        for (Position position : positions) {
+            for (long entryId : new long[]{-1, position.getEntryId(), 100}) {
+                queries.add(PositionFactory.create(position.getLedgerId(), entryId));
+            }
+        }
+        // Missing ledger IDs retain the insertion-point semantics of the original headMap calculation.
+        queries.add(PositionFactory.create(positions.get(0).getLedgerId() - 1, 0));
+        Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger, queries);
+        for (Position position : queries) {
+            assertEquals(estimates.get(position).longValue(), ledger.getEstimatedBacklogSize(position));
+        }
+        assertEquals(ManagedLedgerBacklogSizeEstimator.estimate(ledger, List.of(positions.get(0)))
+                .get(positions.get(0)).longValue(), ledger.getEstimatedBacklogSize(positions.get(0)));
+        assertTrue(ManagedLedgerBacklogSizeEstimator.estimate(ledger, List.of()).isEmpty());
+        Map<Position, Long> repeatedEstimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
+                Arrays.asList(positions.get(6), positions.get(0), positions.get(6)));
+        assertEquals(repeatedEstimates.size(), 2);
+        assertEquals(repeatedEstimates.get(positions.get(6)).longValue(),
+                ledger.getEstimatedBacklogSize(positions.get(6)));
+        assertEquals(repeatedEstimates.get(positions.get(0)).longValue(),
+                ledger.getEstimatedBacklogSize(positions.get(0)));
+
+        Position current = positions.get(6);
+        long oldEstimate = estimates.get(current);
+        ledger.addEntry(new byte[8]);
+        assertEquals(estimates.get(current).longValue(), oldEstimate);
+        assertEquals(ledger.getEstimatedBacklogSize(current), oldEstimate + 8);
+        ledger.addEntry(new byte[9]);
+        Position nextLedger = ledger.addEntry(new byte[10]);
+        assertTrue(nextLedger.getLedgerId() > current.getLedgerId());
+
+        ledger.getConfig().setRetentionTime(0, TimeUnit.SECONDS);
+        ledger.getConfig().setRetentionSizeInMB(0);
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<Void> trimmed = new CompletableFuture<>();
+            ledger.trimConsumedLedgersInBackground(trimmed);
+            trimmed.join();
+            assertFalse(ledger.getLedgersInfo().containsKey(positions.get(0).getLedgerId()));
+        });
+        // A batch sampled after trimming can still contain positions from ledgers that were removed.
+        Map<Position, Long> afterTrim = ManagedLedgerBacklogSizeEstimator.estimate(ledger, queries);
+        for (Position position : queries) {
+            assertEquals(afterTrim.get(position).longValue(), ledger.getEstimatedBacklogSize(position));
+        }
+        assertEquals(estimates.get(current).longValue(), oldEstimate);
+        ledger.close();
+    }
+
+    @DataProvider(name = "backlogBatchLayouts")
+    public Object[][] backlogBatchLayouts() {
+        List<Object[]> layouts = new ArrayList<>();
+        for (int entriesPerLedger : new int[]{1, 2, 5}) {
+            for (boolean uniformSize : new boolean[]{false, true}) {
+                for (boolean reopen : new boolean[]{false, true}) {
+                    layouts.add(new Object[]{entriesPerLedger, uniformSize, reopen});
+                }
+            }
+        }
+        return layouts.toArray(new Object[0][]);
+    }
+
+    @DataProvider(name = "backlogBatchLedgerSizes")
+    public Object[][] backlogBatchLedgerSizes() {
+        return new Object[][]{{1}, {2}, {5}};
+    }
+
+    @Test(dataProvider = "backlogBatchLayouts", timeOut = 20000)
+    public void testEstimatedBacklogSizesAcrossLedgerLayouts(int entriesPerLedger, boolean uniformSize,
+                                                            boolean reopen) throws Exception {
+        ManagedLedgerConfig config = backlogBatchConfig(entriesPerLedger);
+        String name = "backlogBatchLayout-" + entriesPerLedger + "-" + uniformSize + "-" + reopen;
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
+        try {
+            List<ManagedCursor> cursors = new ArrayList<>();
+            for (String cursorName : List.of("first", "middle", "last")) {
+                cursors.add(ledger.openCursor(cursorName));
+            }
+            List<Position> positions = new ArrayList<>();
+            long totalBytes = 0;
+            long gapLedgerId = -1;
+            int entryCount = entriesPerLedger * 3 + 1;
+            for (int i = 0; i < entryCount; i++) {
+                int entrySize = uniformSize ? 11 : (i + 1) * 7;
+                positions.add(ledger.addEntry(new byte[entrySize]));
+                totalBytes += entrySize;
+                if (i == 0) {
+                    // Reserve an unrelated BookKeeper ledger ID between data ledgers.
+                    LedgerHandle unrelated = bkc.createLedger(DigestType.MAC, new byte[0]);
+                    gapLedgerId = unrelated.getId();
+                    unrelated.close();
+                }
+            }
+            assertTrue(positions.get(0).getLedgerId() < gapLedgerId);
+            assertTrue(gapLedgerId < positions.get(positions.size() - 1).getLedgerId());
+            assertFalse(ledger.getLedgersInfo().containsKey(gapLedgerId));
+            cursors.get(0).markDelete(positions.get(0));
+            cursors.get(1).markDelete(positions.get(entryCount / 2));
+            cursors.get(2).markDelete(positions.get(entryCount - 1));
+
+            if (reopen) {
+                ledger.close();
+                ledger = (ManagedLedgerImpl) factory.open(name, config);
+                cursors.clear();
+                for (String cursorName : List.of("first", "middle", "last")) {
+                    cursors.add(ledger.openCursor(cursorName));
+                }
+            }
+
+            List<Position> queries = new ArrayList<>(positions);
+            for (Position position : positions) {
+                queries.add(PositionFactory.create(position.getLedgerId(), -1));
+                queries.add(PositionFactory.create(position.getLedgerId(), 100));
+            }
+            for (ManagedCursor cursor : cursors) {
+                queries.add(cursor.getMarkDeletedPosition());
+            }
+            Position beforeFirst = PositionFactory.create(positions.get(0).getLedgerId() - 1, -1);
+            Position afterLast = PositionFactory.create(positions.get(entryCount - 1).getLedgerId() + 1, 0);
+            queries.add(beforeFirst);
+            queries.add(afterLast);
+            queries.add(PositionFactory.create(gapLedgerId, 0));
+            queries.add(positions.get(0));
+            Collections.reverse(queries);
+            List<Position> originalOrder = new ArrayList<>(queries);
+
+            Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger, queries);
+            assertEquals(queries, originalOrder, "Batch estimation must not reorder the caller's positions");
+            assertEquals(estimates.size(), new HashSet<>(queries).size());
+            assertEquals(estimates.get(beforeFirst).longValue(), totalBytes);
+            // Unknown future ledger IDs follow the legacy estimator, whose metadata prefix does not
+            // include the current ledger's live size. Its result need not be zero for these positions.
+            for (Position query : queries) {
+                assertEquals(estimates.get(query).longValue(), ledger.getEstimatedBacklogSize(query),
+                        "Estimate at " + query);
+            }
+            if (uniformSize) {
+                assertEstimatedBacklogBytes(ledger, estimates, positions, 11);
+            }
+        } finally {
+            ledger.close();
+        }
+    }
+
+    @Test(dataProvider = "backlogBatchLedgerSizes", timeOut = 20000)
+    public void testEstimatedBacklogSizesAfterCursorAdvanceAndTrim(int entriesPerLedger) throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatchTrim-" + entriesPerLedger,
+                backlogBatchConfig(entriesPerLedger));
+        try {
+            ManagedCursor slow = ledger.openCursor("slow");
+            ManagedCursor fast = ledger.openCursor("fast");
+            List<Position> positions = new ArrayList<>();
+            for (int i = 0; i < entriesPerLedger * 4 + 1; i++) {
+                positions.add(ledger.addEntry(new byte[13]));
+            }
+            List<Position> queries = new ArrayList<>(positions);
+            queries.add(slow.getMarkDeletedPosition());
+            queries.add(PositionFactory.create(positions.get(0).getLedgerId(), -1));
+            Map<Position, Long> beforeTrim = ManagedLedgerBacklogSizeEstimator.estimate(ledger, queries);
+            assertEstimatedBacklogBytes(ledger, beforeTrim, positions, 13);
+
+            slow.markDelete(positions.get(entriesPerLedger * 2 - 1));
+            fast.markDelete(positions.get(entriesPerLedger * 3 - 1));
+            queries.add(slow.getMarkDeletedPosition());
+            queries.add(fast.getMarkDeletedPosition());
+            ledger.getConfig().setRetentionTime(0, TimeUnit.SECONDS);
+            ledger.getConfig().setRetentionSizeInMB(0);
+            Awaitility.await().untilAsserted(() -> {
+                CompletableFuture<Void> trimmed = new CompletableFuture<>();
+                ledger.trimConsumedLedgersInBackground(trimmed);
+                trimmed.get(5, TimeUnit.SECONDS);
+                assertFalse(ledger.getLedgersInfo().containsKey(positions.get(0).getLedgerId()));
+            });
+
+            Map<Position, Long> afterTrim = ManagedLedgerBacklogSizeEstimator.estimate(ledger, queries);
+            assertEstimatedBacklogBytes(ledger, afterTrim, positions, 13);
+            for (Position query : queries) {
+                assertEquals(afterTrim.get(query).longValue(), ledger.getEstimatedBacklogSize(query),
+                        "Estimate after trim at " + query);
+            }
+            assertEquals(beforeTrim.get(positions.get(0)).longValue(), (positions.size() - 1) * 13L,
+                    "A completed batch must not change when ledger metadata is trimmed");
+        } finally {
+            ledger.close();
+        }
+    }
+
+    @Test(dataProvider = "backlogBatchLedgerSizes", timeOut = 20000)
+    public void testEstimatedBacklogSizesWithPositionsCapturedBeforeRollover(int entriesPerLedger) throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatchCaptured-" + entriesPerLedger,
+                backlogBatchConfig(entriesPerLedger));
+        try {
+            ManagedCursor cursor = ledger.openCursor("cursor");
+            List<Position> positions = new ArrayList<>();
+            for (int i = 0; i < entriesPerLedger; i++) {
+                positions.add(ledger.addEntry(new byte[17]));
+            }
+            List<Position> captured = List.of(cursor.getMarkDeletedPosition(), positions.get(0),
+                    positions.get(positions.size() - 1));
+            Map<Position, Long> initial = ManagedLedgerBacklogSizeEstimator.estimate(ledger, captured);
+            assertEstimatedBacklogBytes(ledger, initial, positions, 17);
+
+            for (int i = 0; i < entriesPerLedger + 1; i++) {
+                positions.add(ledger.addEntry(new byte[17]));
+            }
+            assertTrue(positions.get(positions.size() - 1).getLedgerId() > positions.get(0).getLedgerId());
+            cursor.markDelete(positions.get(positions.size() - 1));
+            Map<Position, Long> afterRollover = ManagedLedgerBacklogSizeEstimator.estimate(ledger, captured);
+            assertEstimatedBacklogBytes(ledger, afterRollover, positions, 17);
+            for (Position query : captured) {
+                assertEquals(afterRollover.get(query).longValue(), ledger.getEstimatedBacklogSize(query));
+                assertEquals(afterRollover.get(query) - initial.get(query), (entriesPerLedger + 1) * 17L);
+            }
+        } finally {
+            ledger.close();
+        }
+    }
+
+    @Test
+    public void testEstimatedBacklogSizesRejectsNullArguments() {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        Position position = PositionFactory.create(1, 0);
+        assertThatThrownBy(() -> ManagedLedgerBacklogSizeEstimator.estimate(null, List.of(position)))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> ManagedLedgerBacklogSizeEstimator.estimate(ledger, null))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> ManagedLedgerBacklogSizeEstimator.estimate(ledger, Arrays.asList((Position) null)))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> ManagedLedgerBacklogSizeEstimator.estimate(ledger, Arrays.asList(position, null)))
+                .isInstanceOf(NullPointerException.class);
+        assertTrue(ManagedLedgerBacklogSizeEstimator.estimate(ledger, List.of()).isEmpty());
+    }
+
+    private ManagedLedgerConfig backlogBatchConfig(int entriesPerLedger) {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setMaxEntriesPerLedger(entriesPerLedger);
+        config.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        config.setRetentionTime(-1, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(-1);
+        return config;
+    }
+
+    private void assertEstimatedBacklogBytes(ManagedLedgerImpl ledger, Map<Position, Long> estimates,
+                                             List<Position> writtenPositions, int entrySize) {
+        Set<Long> retainedLedgers = new HashSet<>(ledger.getLedgersInfo().keySet());
+        long lastWrittenLedgerId = writtenPositions.get(writtenPositions.size() - 1).getLedgerId();
+        for (Map.Entry<Position, Long> estimate : estimates.entrySet()) {
+            // Future ledger queries are checked against the legacy estimator rather than actual bytes.
+            if (estimate.getKey().getLedgerId() > lastWrittenLedgerId) {
+                continue;
+            }
+            long expectedBytes = writtenPositions.stream()
+                    .filter(position -> retainedLedgers.contains(position.getLedgerId()))
+                    .filter(position -> position.compareTo(estimate.getKey()) > 0)
+                    .count() * entrySize;
+            assertEquals(estimate.getValue().longValue(), expectedBytes, "Remaining bytes at " + estimate.getKey());
+        }
+    }
+
+    @Test
+    public void testEstimatedBacklogSizesFallback() {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        Position first = PositionFactory.create(1, 0);
+        Position second = PositionFactory.create(2, 0);
+        when(ledger.getEstimatedBacklogSize(first)).thenReturn(10L);
+        when(ledger.getEstimatedBacklogSize(second)).thenReturn(30L);
+
+        Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
+                Arrays.asList(first, second, first));
+
+        assertEquals(estimates.size(), 2);
+        assertEquals(estimates.get(first).longValue(), 10);
+        assertEquals(estimates.get(second).longValue(), 30);
+    }
+
+    @Test
+    public void testEstimatedBacklogSizesCopiesOnlyQueriedPrefix() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setMaxEntriesPerLedger(1);
+        config.setRetentionTime(-1, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(-1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatchPrefix", config);
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            positions.add(ledger.addEntry(new byte[10]));
+        }
+        Position first = positions.get(0);
+        List<Position> queries = List.of(first, PositionFactory.create(first.getLedgerId(), -1));
+        long lastLedgerId = positions.get(19).getLedgerId();
+        LedgerInfo original = ledger.getLedgersInfo().get(lastLedgerId);
+        LedgerInfo tail = spy(original);
+        ledger.getLedgersInfo().put(lastLedgerId, tail);
+        try {
+            Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger, queries);
+            for (Position position : queries) {
+                assertEquals(estimates.get(position).longValue(), ledger.getEstimatedBacklogSize(position));
+            }
+            verify(tail, never()).getSize();
+            verify(tail, never()).getEntries();
+        } finally {
+            ledger.getLedgersInfo().put(lastLedgerId, original);
+            ledger.close();
+        }
+    }
+
+    @Test
+    public void testEstimatedBacklogSizesCalculatesOutsideMonitor() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatchMonitor",
+                initManagedLedgerConfig(defaultConfig()));
+        Position first = ledger.addEntry(new byte[10]);
+        ledger.addEntry(new byte[20]);
+        long capturedEstimate = ledger.getEstimatedBacklogSize(first);
+        Position query = mock(Position.class);
+        when(query.getLedgerId()).thenReturn(first.getLedgerId());
+        doAnswer(invocation -> {
+            assertFalse(Thread.holdsLock(ledger));
+            // A write after capture must not change the counters used to calculate this batch.
+            ledger.addEntry(new byte[30]);
+            return first.getEntryId();
+        }).when(query).getEntryId();
+        Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
+                List.of(query, PositionFactory.create(first.getLedgerId(), -1)));
+        assertEquals(estimates.get(query).longValue(), capturedEstimate);
+        assertTrue(ledger.getEstimatedBacklogSize(first) > capturedEstimate);
+        verify(query).getEntryId();
+        ledger.close();
+    }
+
+    @Test
+    public void testEstimatedBacklogSizesAtEmptyLedgerAfterRollover() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setMaxEntriesPerLedger(1);
+        config.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        config.setRetentionTime(-1, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(-1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatchEmptyLedger", config);
+        Position confirmed = ledger.addEntry(new byte[10]);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(ledger.currentLedger.getId() > confirmed.getLedgerId());
+            assertEquals(ledger.currentLedgerEntries, 0);
+        });
+        Position emptyLedger = PositionFactory.create(ledger.currentLedger.getId(), -1);
+        assertTrue(emptyLedger.compareTo(ledger.lastConfirmedEntry) > 0);
+        Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
+                List.of(confirmed, emptyLedger));
+        assertEquals(estimates.get(emptyLedger).longValue(), 0);
+        assertEquals(estimates.get(emptyLedger).longValue(), ledger.getEstimatedBacklogSize(emptyLedger));
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testEstimatedBacklogSizesWithUnconfirmedAdd() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("backlogBatchUnconfirmedAdd",
+                initManagedLedgerConfig(defaultConfig()));
+        Position initial = PositionFactory.create(ledger.currentLedger.getId(), -1);
+        List<Position> queries = List.of(initial, PositionFactory.create(-1, -1));
+        CompletableFuture<Void> responseGate = bkc.addEntryResponseGate();
+        CompletableFuture<Position> add = new CompletableFuture<>();
+        try {
+            ledger.asyncAddEntry(new byte[100], new AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    add.complete(position);
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    add.completeExceptionally(exception);
+                }
+            }, null);
+            // The positions are fixed before sampling metadata. A pending add can change the live
+            // counters without creating a future position that could be paired with the old total.
+            Awaitility.await().untilAsserted(() -> {
+                assertEquals(ledger.getCurrentLedgerEntries(), 1);
+                assertEquals(ledger.getTotalSize(), 0);
+                assertFalse(add.isDone());
+            });
+            Map<Position, Long> estimates = ManagedLedgerBacklogSizeEstimator.estimate(ledger, queries);
+            assertEquals(estimates.get(initial).longValue(), ledger.getEstimatedBacklogSize(initial));
+            responseGate.complete(null);
+            Position confirmed = add.get(5, TimeUnit.SECONDS);
+            assertEquals(estimates.get(initial).longValue(), 0);
+            Map<Position, Long> afterAdd = ManagedLedgerBacklogSizeEstimator.estimate(ledger,
+                    List.of(initial, confirmed));
+            assertEquals(afterAdd.get(initial).longValue(), 100);
+            assertEquals(afterAdd.get(confirmed).longValue(), 0);
+        } finally {
+            responseGate.complete(null);
+            ledger.close();
+        }
+    }
+
+    @Test
     public void testDeleteCursorTwice() throws Exception {
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("ml", initManagedLedgerConfig(defaultConfig()));
         String cursorName = "cursor_1";
@@ -6836,14 +8076,15 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // 3. Add Entry 2. Triggers second rollover process.
         // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
-        Position p = ledger.addEntry("entry-2".getBytes(Encoding));
+        ledger.addEntry("entry-2".getBytes(Encoding));
 
         // Wait for background tasks (metadata callback and trim) to complete.
         // We expect only one ledger (Rollover and trim happened).
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() == 1);
-        // All ledgers are trimmed, left one empty ledger, trim process moves markDeletedPosition to p.getLedgerId():0
-        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
-        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
+        long emptyLedgerId = ledger.getLedgersInfo().lastEntry().getValue().getLedgerId();
+        // All ledgers are trimmed, left one empty ledger, trim process moves markDeletedPosition to emptyLedgerId:-1.
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(emptyLedgerId, -1));
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(emptyLedgerId, -1));
 
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), properties);
@@ -6968,7 +8209,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         nonDurableCursorsMarkDeleteCompletedLatch.countDown();
 
         assertTrue(advanceCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
-        assertEquals(nonDurableCursor.getMarkDeletedPosition(), pos2);
+        // The ledger of pos2 is fully consumed, so the mark-delete moves to nextLedgerId:-1 if the rollover
+        // already added the next ledger.
+        Position markDeletedPosition = nonDurableCursor.getMarkDeletedPosition();
+        Long nextLedgerId = ledger.getNextValidLedger(pos2.getLedgerId());
+        if (nextLedgerId == null || !markDeletedPosition.equals(PositionFactory.create(nextLedgerId, -1))) {
+            assertEquals(markDeletedPosition, pos2);
+        }
         assertEquals(nonDurableCursor.getProperties(), properties);
     }
 
@@ -6993,5 +8240,1445 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl v3ClientLedger = (ManagedLedgerImpl) factory.open("batch_read_v3_client",
                 initManagedLedgerConfig(defaultConfig()));
         assertFalse(v3ClientLedger.isBatchReadEnabled());
+    }
+
+    /** Records the outcome of a read callback: the delivered entries, the failure and the context. */
+    private static final class RecordingReadEntriesCallback implements ReadEntriesCallback {
+        final CountDownLatch latch = new CountDownLatch(1);
+        final List<Entry> entries = new ArrayList<>();
+        final AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+        final AtomicReference<Object> receivedCtx = new AtomicReference<>();
+
+        @Override
+        public void readEntriesComplete(List<Entry> entries, Object ctx) {
+            this.entries.addAll(entries);
+            receivedCtx.set(ctx);
+            latch.countDown();
+        }
+
+        @Override
+        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+            failure.set(exception);
+            receivedCtx.set(ctx);
+            latch.countDown();
+        }
+
+        boolean await() throws InterruptedException {
+            return latch.await(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void testBatchReadEntriesCallback() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testBatchReadEntriesCallback");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 10, -1, recording,
+                null, ledger.lastConfirmedEntry, position -> position.getEntryId() % 2 == 0, true);
+
+        List<LongLongPair> ranges = List.of(
+                LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L), LongLongPair.of(5L, 5L),
+                LongLongPair.of(7L, 7L), LongLongPair.of(9L, 9L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(ranges, 5, opReadEntry, null, null);
+        long ledgerId = ledger.currentLedger.getId();
+        EntryImpl entry7 = EntryImpl.create(ledgerId, 7, new byte[7]);
+        EntryImpl lateEntry5 = EntryImpl.create(ledgerId, 5, new byte[5]);
+
+        // The first four ranges are submitted; the [9] range is not, so that the halted submission
+        // leaves it to the continuation read.
+        for (int i = 0; i < 4; i++) {
+            callback.onRangeSubmitted();
+        }
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1,  new byte[1])), ranges.get(0));
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 3,  new byte[3])), ranges.get(1));
+        // The [7] range read completes before the [5] range read reports.
+        callback.readEntriesComplete(List.of(entry7), ranges.get(3));
+        // The [5] range fails: as a range other than the first, its failure halts the submission and
+        // waits for the ranges in flight instead of finalizing the batched read with an empty prefix.
+        callback.readEntriesFailed(
+                new ManagedLedgerException.InvalidCursorPositionException("Invalid cursor position"), ranges.get(2));
+        assertTrue(callback.shouldStopSubmission());
+        callback.submissionFinished();
+        // After the batched read finalized, a late success of the failed range must be ignored.
+        callback.readEntriesComplete(List.of(lateEntry5), ranges.get(2));
+
+        assertTrue(recording.await());
+        // should not fail
+        assertEquals(recording.failure.get(), null);
+        assertEquals(recording.entries.size(), 2);
+
+        // `recording.entries` should be only the entries with entryId 1 and 3.
+        assertEquals(recording.entries.get(0).getEntryId(), 1);
+        assertEquals(recording.entries.get(1).getEntryId(), 3);
+
+        // Entries dropped by the failure prefix filter and the late-completion guard must be released;
+        // unreleased entries would pin inflight-reads-limiter permits forever.
+        assertEquals(entry7.refCnt(), 0, "non-prefix entry must be released by filterEntries");
+        assertEquals(lateEntry5.refCnt(), 0, "late completion after finalize must be released");
+
+        // ReadPosition should be updated to [4]
+        assertEquals(cursor.getReadPosition().getEntryId(), 4);
+    }
+
+    @Test
+    public void testBatchReadEntriesCallbackEmptyRangeReadDoesNotSkipEntries() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testBatchReadEntriesCallbackEmptyRangeReadDoesNotSkipEntries");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 2, -1, recording,
+                null, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        // Three ranges to read: [1, 2], [4], [6]
+        List<LongLongPair> ranges = List.of(
+                LongLongPair.of(1L, 2L), LongLongPair.of(4L, 4L), LongLongPair.of(6L, 6L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(ranges, 4, opReadEntry, PositionFactory.create(ledgerId, 9), null);
+
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1]),
+                EntryImpl.create(ledgerId, 2, new byte[2])), null);
+        // The [6] range read completes before the [4] range read.
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 6, new byte[6])), null);
+        // The [4] range read returns an empty batch, which completes the batched read.
+        callback.readEntriesComplete(Collections.emptyList(), null);
+
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        // Only the contiguous prefix [1, 2] may be delivered; entry 6 must not be delivered
+        // before entry 4, otherwise entry 4 would be skipped silently.
+        assertEquals(recording.entries.size(), 2);
+        assertEquals(recording.entries.get(0).getEntryId(), 1);
+        assertEquals(recording.entries.get(1).getEntryId(), 2);
+        // The read position must point to entry 3 so that the unread entries will be read again.
+        assertEquals(cursor.getReadPosition().getEntryId(), 3);
+    }
+
+    @Test
+    public void testSyncFailureOnFirstRangeStopsSubmittingLaterRanges() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testSyncFailureOnFirstRangeStopsSubmittingLaterRanges");
+        ledger = Mockito.spy(ledger);
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicInteger submitCount = new AtomicInteger();
+        AtomicReference<ManagedLedgerException> callbackFailure = new AtomicReference<>();
+        Mockito.doAnswer(inv -> {
+            int invocationCount = submitCount.incrementAndGet();
+            if (invocationCount == 1) {
+                ReadEntriesCallback callback = inv.getArgument(5);
+                Object ctx = inv.getArgument(6);
+                callback.readEntriesFailed(
+                        new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), ctx);
+                return null;
+            }
+            fail("should not submit later ranges after the first range fails synchronously");
+            return null;
+        }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
+                Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(ReadEntriesCallback.class),
+                Mockito.any(), Mockito.anyBoolean());
+
+        cursor.asyncReadEntriesWithSkip(10, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                fail("expected readEntriesFailed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                callbackFailure.set(exception);
+                latch.countDown();
+            }
+        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 2 == 0);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals(submitCount.get(), 1);
+        assertTrue(callbackFailure.get() instanceof ManagedLedgerException.TooManyRequestsException);
+    }
+
+    @Test
+    public void testBatchReadEntriesCallbackThrottledLaterRangeDeliversInFlightPrefix() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testBatchReadEntriesCallbackThrottledLaterRangeDeliversInFlightPrefix");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, recording,
+                readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        // Read entries [1], [3], [5] in three ranges.
+        List<LongLongPair> ranges = List.of(
+                LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L), LongLongPair.of(5L, 5L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(ranges, 3, opReadEntry, PositionFactory.create(ledgerId, 5), readCtx);
+
+        // Range [1] is submitted and still in flight when range [3] gets rejected by the inflight
+        // read limiter. The rejection must stop submitting further ranges, but must not fail the
+        // batched read while the first range is still pending.
+        callback.onRangeSubmitted();
+        callback.onRangeSubmitted();
+        callback.readEntriesFailed(
+                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), readCtx);
+        assertTrue(callback.shouldStopSubmission());
+        callback.submissionFinished();
+        assertEquals(recording.failure.get(), null);
+        assertTrue(recording.entries.isEmpty());
+
+        // When the in-flight range completes, its entries form the contiguous prefix to deliver.
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1])), readCtx);
+
+        assertTrue(recording.await());
+        assertEquals(recording.receivedCtx.get(), readCtx,
+                "the throttled batched read must deliver the caller's read context");
+        assertEquals(recording.failure.get(), null);
+        assertEquals(recording.entries.size(), 1);
+        assertEquals(recording.entries.get(0).getEntryId(), 1);
+        // The read position must advance past the delivered prefix so that the remaining entries
+        // are read again by the next read instead of being skipped.
+        assertEquals(cursor.getReadPosition().getEntryId(), 2);
+    }
+
+    @Test
+    public void testBatchedReadDeliversEntriesSortedWhenRangesCompleteOutOfOrder() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testBatchedReadDeliversEntriesSortedWhenRangesCompleteOutOfOrder");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        List<Entry> delivered = new ArrayList<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                delivered.addAll(entries);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                fail("expected readEntriesComplete");
+            }
+        }, null, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(
+                LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L), LongLongPair.of(5L, 5L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 3, opReadEntry, PositionFactory.create(ledgerId, 5), null);
+
+        // Complete the ranges in descending order: the delivered entries must still be ascending.
+        for (long entryId : new long[]{5, 3, 1}) {
+            callback.onRangeSubmitted();
+        }
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 5, new byte[1])), null);
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 3, new byte[1])), null);
+        callback.submissionFinished();
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1])), null);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals(delivered.size(), 3);
+        assertEquals(delivered.get(0).getEntryId(), 1);
+        assertEquals(delivered.get(1).getEntryId(), 3);
+        assertEquals(delivered.get(2).getEntryId(), 5);
+        delivered.forEach(Entry::release);
+    }
+
+    @Test
+    public void testSubmissionFinishedFailurePreservesReadContext() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testSubmissionFinishedFailurePreservesReadContext");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
+        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                fail("expected readEntriesFailed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failure.set(exception);
+                receivedCtx.set(ctx);
+                latch.countDown();
+            }
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3), readCtx);
+
+        // The first range is rejected synchronously by the inflight limiter with nothing else in flight;
+        // the failure is deferred to submissionFinished(), which must preserve the read context.
+        callback.onRangeSubmitted();
+        callback.readEntriesFailed(
+                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), readCtx);
+        assertTrue(callback.shouldStopSubmission());
+        callback.submissionFinished();
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertTrue(failure.get() instanceof ManagedLedgerException.TooManyRequestsException);
+        assertEquals(receivedCtx.get(), readCtx, "submissionFinished() must deliver the original read context");
+    }
+
+    @Test
+    public void testSubmissionFinishedPrefixDeliveryPreservesReadContext() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testSubmissionFinishedPrefixDeliveryPreservesReadContext");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
+        List<Entry> delivered = new ArrayList<>();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                delivered.addAll(entries);
+                receivedCtx.set(ctx);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                fail("expected the in-flight prefix to be delivered via readEntriesComplete");
+            }
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3), readCtx);
+
+        // Range [1] completes, then range [3] is throttled synchronously while the submission loop is
+        // still running: the successful prefix must be delivered with the original read context.
+        callback.onRangeSubmitted();
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1])), readCtx);
+        callback.onRangeSubmitted();
+        callback.readEntriesFailed(
+                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), readCtx);
+        assertTrue(callback.shouldStopSubmission());
+        callback.submissionFinished();
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertEquals(delivered.size(), 1);
+        assertEquals(delivered.get(0).getEntryId(), 1);
+        assertEquals(receivedCtx.get(), readCtx, "prefix delivery must carry the original read context");
+        // The read position advances past the delivered prefix so the remaining entries are re-read.
+        assertEquals(cursor.getReadPosition().getEntryId(), 2);
+        delivered.forEach(Entry::release);
+    }
+
+    @Test
+    public void testBatchReadEntriesCallbackThrottledWithNothingInFlightFails() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testBatchReadEntriesCallbackThrottledWithNothingInFlightFails");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<ManagedLedgerException> callbackFailure = new AtomicReference<>();
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
+        ManagedLedgerImpl.BatchReadEntriesCallback[] callbackRef = new ManagedLedgerImpl.BatchReadEntriesCallback[1];
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 2, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                fail("expected readEntriesFailed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                // The OpReadEntry callback must not be invoked while the batch callback's monitor is
+                // held, otherwise a caller holding the dispatcher monitor could deadlock with a range
+                // read failing on another thread.
+                assertFalse(Thread.holdsLock(callbackRef[0]));
+                callbackFailure.set(exception);
+                receivedCtx.set(ctx);
+                latch.countDown();
+            }
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
+        callbackRef[0] = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3), readCtx);
+
+        // The very first range read gets rejected by the inflight read limiter with nothing else in
+        // flight, so the batched read must fail once the submission loop has finished.
+        callbackRef[0].onRangeSubmitted();
+        callbackRef[0].readEntriesFailed(
+                new ManagedLedgerException.TooManyRequestsException("inflight limiter rejected read"), readCtx);
+        assertTrue(callbackRef[0].shouldStopSubmission());
+        callbackRef[0].submissionFinished();
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertTrue(callbackFailure.get() instanceof ManagedLedgerException.TooManyRequestsException);
+        assertEquals(receivedCtx.get(), readCtx,
+                "the throttled batched read must deliver the caller's read context");
+    }
+
+    @Test
+    public void testBatchReadEntriesCallbackInvokesOpCallbackWithoutHoldingMonitor() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setReadEntriesCallbackInline(true);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testBatchReadEntriesCallbackInvokesOpCallbackWithoutHoldingMonitor", config);
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicBoolean failed = new AtomicBoolean(false);
+        List<Entry> entries = new ArrayList<>();
+        ManagedLedgerImpl.BatchReadEntriesCallback[] callbackRef = new ManagedLedgerImpl.BatchReadEntriesCallback[1];
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 2, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries0, Object ctx) {
+                // With inline read completion this runs on the calling thread, so holding the batch
+                // callback's monitor here would be observable.
+                assertFalse(Thread.holdsLock(callbackRef[0]));
+                entries.addAll(entries0);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                assertFalse(Thread.holdsLock(callbackRef[0]));
+                failed.set(true);
+                latch.countDown();
+            }
+        }, null, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
+        callbackRef[0] = new ManagedLedgerImpl
+                .BatchReadEntriesCallback(ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3), null);
+
+        callbackRef[0].onRangeSubmitted();
+        callbackRef[0].onRangeSubmitted();
+        callbackRef[0].readEntriesComplete(List.of(EntryImpl.create(ledgerId, 1, new byte[1])), null);
+        callbackRef[0].readEntriesComplete(List.of(EntryImpl.create(ledgerId, 3, new byte[3])), null);
+        callbackRef[0].submissionFinished();
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertFalse(failed.get());
+        assertEquals(entries.size(), 2);
+        assertEquals(entries.get(0).getEntryId(), 1);
+        assertEquals(entries.get(1).getEntryId(), 3);
+    }
+
+    @Test
+    public void testGuardedBatchedCompletionFallsBackOnThrowable() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testGuardedBatchedCompletionFallsBackOnThrowable");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 4; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
+        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+
+        // updateReadStats is the first cursor call inside internalReadEntriesComplete; make it throw.
+        ManagedCursorImpl cursorSpy = Mockito.spy(cursor);
+        Mockito.doThrow(new RuntimeException("simulated cursor failure"))
+                .when(cursorSpy).updateReadStats(Mockito.anyInt(), Mockito.anyLong());
+
+        OpReadEntry opReadEntry = OpReadEntry.create(cursorSpy, cursor.readPosition, 2, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                fail("expected the throwable to be converted into readEntriesFailed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failure.set(exception);
+                receivedCtx.set(ctx);
+                latch.countDown();
+            }
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        EntryImpl entry = EntryImpl.create(ledgerId, 1, new byte[1]);
+        // Must not throw even though the finalize hits the stubbed cursor failure.
+        opReadEntry.readEntriesCompleteGuarded(List.of(entry), null, readCtx);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertNotNull(failure.get());
+        assertEquals(receivedCtx.get(), readCtx, "the fallback must deliver the original read context");
+        entry.release();
+    }
+
+    @Test
+    public void testGuardedBatchedFailureFallsBackOnThrowable() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testGuardedBatchedFailureFallsBackOnThrowable");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 4; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<Object> receivedCtx = new AtomicReference<>();
+        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+
+        // readOperationCompleted is the first cursor call inside internalReadEntriesFailed.
+        ManagedCursorImpl cursorSpy = Mockito.spy(cursor);
+        Mockito.doThrow(new RuntimeException("simulated cursor failure"))
+                .when(cursorSpy).readOperationCompleted();
+
+        OpReadEntry opReadEntry = OpReadEntry.create(cursorSpy, cursor.readPosition, 2, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                fail("expected the throwable to be converted into readEntriesFailed");
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failure.set(exception);
+                receivedCtx.set(ctx);
+                latch.countDown();
+            }
+        }, readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        // Empty prefix: the failure path itself throws through the spied cursor; the guard must
+        // still complete the callback instead of propagating the RuntimeException.
+        opReadEntry.readEntriesFailedGuarded(Collections.emptyList(),
+                new ManagedLedgerException.TooManyRequestsException("throttled"), readCtx);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertNotNull(failure.get());
+        assertEquals(receivedCtx.get(), readCtx);
+    }
+
+    @Test
+    public void testFailurePrefixFiltersIndividuallyDeletedEntries() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testFailurePrefixFiltersIndividuallyDeletedEntries");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 6; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 3, -1, recording,
+                readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        List<LongLongPair> ranges = List.of(LongLongPair.of(1L, 1L), LongLongPair.of(3L, 3L));
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 2, opReadEntry, PositionFactory.create(ledgerId, 3), readCtx);
+
+        EntryImpl bufferedEntry = EntryImpl.create(ledgerId, 1, new byte[1]);
+        callback.onRangeSubmitted();
+        callback.onRangeSubmitted();
+        // Range [1] completed; entry 1 is individually deleted while range [3] is still in flight...
+        callback.readEntriesComplete(List.of(bufferedEntry), readCtx);
+        cursor.delete(PositionFactory.create(ledgerId, 1));
+        // ...then range [3] fails: the prefix [1] must be filtered out, released, and not delivered.
+        callback.readEntriesFailed(new ManagedLedgerException("read failed"), readCtx);
+        callback.submissionFinished();
+
+        assertTrue(recording.await());
+        assertTrue(recording.entries.isEmpty(), "individually deleted prefix entries must not be delivered");
+        assertNotNull(recording.failure.get());
+        assertEquals(bufferedEntry.refCnt(), 0, "the filtered-out prefix entry must be released");
+    }
+
+    @Test
+    public void testSuccessDeliveryJumpsIndividuallyDeletedEntries() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("testSuccessDeliveryJumpsIndividuallyDeletedEntries");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        Object readCtx = new Object();
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 10, -1, recording,
+                readCtx, ledger.lastConfirmedEntry, position -> false, true);
+
+        long ledgerId = ledger.currentLedger.getId();
+        // The scan skips entry 4, whose single-entry hole is merged into one range read [0..9]
+        List<LongLongPair> ranges = List.of(LongLongPair.of(0L, 9L));
+        List<LongLongPair> mergedHoles = List.of(LongLongPair.of(4L, 4L));
+        LongPredicate shouldSkipEntry = entryId -> cursor.isMessageDeleted(ledgerId, entryId);
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 9, opReadEntry, PositionFactory.create(ledgerId, 9), readCtx, shouldSkipEntry,
+                mergedHoles);
+
+        // Entry 7 was not skipped by the scan but is individually deleted while the range read is in
+        // flight: it is dropped and released on arrival, the prefix walk jumps over it together with
+        // the merged hole, and the tail of the window is still delivered.
+        cursor.delete(PositionFactory.create(ledgerId, 7));
+
+        List<Entry> readEntries = new ArrayList<>();
+        EntryImpl holeEntry = null;
+        EntryImpl deletedInFlightEntry = null;
+        for (int i = 0; i <= 9; i++) {
+            EntryImpl entry = EntryImpl.create(ledgerId, i, ("dummy-entry-" + i).getBytes(Encoding));
+            if (i == 4) {
+                holeEntry = entry;
+            } else if (i == 7) {
+                deletedInFlightEntry = entry;
+            }
+            readEntries.add(entry);
+        }
+        callback.onRangeSubmitted();
+        callback.readEntriesComplete(readEntries, ranges.get(0));
+        callback.submissionFinished();
+
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        List<Long> deliveredEntryIds = new ArrayList<>();
+        for (Entry entry : recording.entries) {
+            deliveredEntryIds.add(entry.getEntryId());
+        }
+        assertEquals(deliveredEntryIds, List.of(0L, 1L, 2L, 3L, 5L, 6L, 8L, 9L));
+        assertEquals(holeEntry.refCnt(), 0, "the merged hole entry must be released");
+        assertEquals(deletedInFlightEntry.refCnt(), 0, "the entry deleted in flight must be released");
+        assertEquals(cursor.getReadPosition().getEntryId(), 10);
+    }
+
+    /**
+     * A hole entry that stops being skipped while its range read is in flight must still be released
+     * without delivery: the expected count was reduced by the holes that the scan found, so
+     * delivering the entry would reach the count while another range is still in flight, and
+     * completing the batch then would advance the read position past that range's entries and drop
+     * them.
+     */
+    @Test
+    public void testBatchedSkipReadHoleEntryUnskippedOnArrivalDeliversInFlightRange() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testBatchedSkipReadHoleEntryUnskipped",
+                initManagedLedgerConfig(defaultConfig()));
+        for (int i = 0; i < 20; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+
+        // The scan skips entry 2 (a one-entry hole, merged into the range read [0..3]) and entries
+        // 4..18 (too long a run to merge), so the window [0..19] builds the ranges [0..3] and [19..19].
+        AtomicBoolean entryTwoInTracker = new AtomicBoolean(true);
+        Predicate<Position> skipCondition = position -> {
+            long entryId = position.getEntryId();
+            if (entryId == 2) {
+                return entryTwoInTracker.get();
+            }
+            return entryId >= 4 && entryId <= 18;
+        };
+
+        // While the range [0..3] is read, entry 2's delivery time passes and the tracker drops it, so
+        // the skip condition no longer matches it. The range [19..19] is held to be still in flight.
+        factory.getEntryCacheManager().clear();
+        CompletableFuture<Void> releaseSecondRange = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long bkLedgerId, long firstEntry,
+                                                                       long lastEntry, LedgerEntries entries) {
+                if (firstEntry == 19) {
+                    return releaseSecondRange.thenApply(ignored -> entries);
+                }
+                entryTwoInTracker.set(false);
+                return CompletableFuture.completedFuture(entries);
+            }
+        });
+
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        cursor.asyncReadEntriesWithSkip(20, -1, recording, null, PositionFactory.LATEST, skipCondition);
+
+        try {
+            // Entry 2 is a hole of the scan: it must be released even though the condition no longer
+            // skips it, so that the batch waits for the held range instead of completing early.
+            assertFalse(recording.latch.await(500, TimeUnit.MILLISECONDS),
+                    "the batched read must wait for the in-flight range instead of completing early");
+            releaseSecondRange.complete(null);
+            assertTrue(recording.await());
+
+            assertEquals(recording.failure.get(), null);
+            List<Long> deliveredEntryIds = new ArrayList<>();
+            for (Entry entry : recording.entries) {
+                deliveredEntryIds.add(entry.getEntryId());
+            }
+            assertEquals(deliveredEntryIds, List.of(0L, 1L, 3L, 19L),
+                    "the scan's hole entry must be released and the in-flight range delivered");
+            assertEquals(cursor.getReadPosition().getEntryId(), 20);
+            recording.entries.forEach(Entry::release);
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+        }
+    }
+
+    /**
+     * An arriving range whose entries are all filtered on arrival must not finalize the batched read
+     * while another range is in flight: the in-flight range can still deliver its entries, while
+     * finalizing now would release them and read them again.
+     */
+    @Test
+    public void testBatchReadEntriesCallbackWaitsWhenArrivingRangeFiltersToNothing() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testBatchedSkipReadFiltersToNothing",
+                initManagedLedgerConfig(defaultConfig()));
+        for (int i = 0; i < 16; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+        long ledgerId = ledger.currentLedger.getId();
+
+        // The scan skips entry 1 (a one-entry hole, merged into the range read [0..4]) and entries
+        // 5..13 (too long a run to merge), building the ranges [0..4] and [14..15].
+        LongPredicate scanSkip = entryId -> entryId == 1 || (entryId >= 5 && entryId <= 13);
+        List<LongLongPair> ranges = new ArrayList<>();
+        List<LongLongPair> mergedHoles = new ArrayList<>();
+        ManagedLedgerImpl.buildRanges(0, 15, scanSkip, 4, ranges, 8, 256, mergedHoles);
+        assertEquals(ranges, List.of(LongLongPair.of(0L, 4L), LongLongPair.of(14L, 15L)));
+        assertEquals(mergedHoles, List.of(LongLongPair.of(1L, 1L)));
+
+        Object readCtx = new Object();
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 16, -1, recording,
+                readCtx, ledger.lastConfirmedEntry, position -> false, true);
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 6, opReadEntry, PositionFactory.create(ledgerId, 15), readCtx,
+                entryId -> scanSkip.test(entryId) || cursor.isMessageDeleted(ledgerId, entryId),
+                mergedHoles);
+
+        // The readable entries of the range [0..4] are individually deleted while the range read is
+        // in flight: together with the merged hole entry 1, everything of the range is filtered on
+        // arrival.
+        List<Position> deletedInFlight = new ArrayList<>();
+        for (long entryId : new long[]{0, 2, 3, 4}) {
+            deletedInFlight.add(PositionFactory.create(ledgerId, entryId));
+        }
+        cursor.delete(deletedInFlight);
+        callback.onRangeSubmitted();
+        callback.onRangeSubmitted();
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 0, new byte[1]),
+                EntryImpl.create(ledgerId, 1, new byte[1]),
+                EntryImpl.create(ledgerId, 2, new byte[1]),
+                EntryImpl.create(ledgerId, 3, new byte[1]),
+                EntryImpl.create(ledgerId, 4, new byte[1])), ranges.get(0));
+        assertFalse(callback.shouldStopSubmission(),
+                "an arrival that filters down to nothing must not finalize the batched read");
+
+        // The other range's entries are delivered, and the prefix walk accepts the deleted, hole and
+        // skipped entry ids in between, so that they form one contiguous prefix.
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 14, new byte[1]),
+                EntryImpl.create(ledgerId, 15, new byte[1])), ranges.get(1));
+        callback.submissionFinished();
+
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        List<Long> deliveredEntryIds = new ArrayList<>();
+        for (Entry entry : recording.entries) {
+            deliveredEntryIds.add(entry.getEntryId());
+        }
+        assertEquals(deliveredEntryIds, List.of(14L, 15L));
+        assertEquals(cursor.getReadPosition().getEntryId(), 16);
+    }
+
+    /**
+     * The condition can change while the scan runs, e.g. an entry acknowledged during it. The scan
+     * must test every entry once, or an entry seen as readable by a hole's look-ahead and as skipped
+     * afterwards would be counted out of the expected count twice, and the batch could complete with
+     * a range still in flight and drop that range's entries.
+     */
+    @Test
+    public void testBatchReadEntriesCallbackHoleCountHoldsWhenConditionChangesDuringScan() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testBatchedSkipReadScanConditionChanges",
+                initManagedLedgerConfig(defaultConfig()));
+        for (int i = 0; i < 14; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+        long ledgerId = ledger.currentLedger.getId();
+
+        // Entry 1 is deleted; entry 2 is acknowledged between the look-ahead of entry 1's hole and the
+        // point where the scan would reach it, so the look-ahead sees it as readable and every later
+        // evaluation as skipped. Entries 4..12 are deleted, too long a run to merge.
+        AtomicBoolean entryTwoAcknowledged = new AtomicBoolean();
+        LongPredicate scanSkip = entryId -> {
+            if (entryId == 1) {
+                return true;
+            }
+            if (entryId == 2) {
+                return entryTwoAcknowledged.getAndSet(true);
+            }
+            return entryId >= 4 && entryId <= 12;
+        };
+        List<LongLongPair> ranges = new ArrayList<>();
+        List<LongLongPair> mergedHoles = new ArrayList<>();
+        ManagedLedgerImpl.buildRanges(0, 13, scanSkip, 4, ranges, 8, 256, mergedHoles);
+        // One hole of one entry: entry 2 is a readable entry of the range, and the expected count is
+        // 4 + 1 - 1 = 4, so that the range [13..13] still in flight is never skipped.
+        assertEquals(ranges, List.of(LongLongPair.of(0L, 3L), LongLongPair.of(13L, 13L)));
+        assertEquals(mergedHoles, List.of(LongLongPair.of(1L, 1L)));
+
+        Object readCtx = new Object();
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, cursor.readPosition, 14, -1, recording,
+                readCtx, ledger.lastConfirmedEntry, position -> false, true);
+        ManagedLedgerImpl.BatchReadEntriesCallback callback = new ManagedLedgerImpl.BatchReadEntriesCallback(
+                ranges, 4, opReadEntry, PositionFactory.create(ledgerId, 13), readCtx,
+                entryId -> scanSkip.test(entryId) || cursor.isMessageDeleted(ledgerId, entryId),
+                mergedHoles);
+
+        callback.onRangeSubmitted();
+        callback.onRangeSubmitted();
+        // Entry 1 is the scan's hole, entry 2 is skipped now: only 0 and 3 are delivered, which is
+        // short of the expected count, so the batch must wait for the range [13..13].
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 0, new byte[1]),
+                EntryImpl.create(ledgerId, 1, new byte[1]),
+                EntryImpl.create(ledgerId, 2, new byte[1]),
+                EntryImpl.create(ledgerId, 3, new byte[1])), ranges.get(0));
+        assertFalse(callback.shouldStopSubmission(),
+                "a matching hole count must not complete the batch before the other range reported");
+
+        callback.readEntriesComplete(List.of(EntryImpl.create(ledgerId, 13, new byte[1])), ranges.get(1));
+        callback.submissionFinished();
+
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        List<Long> deliveredEntryIds = new ArrayList<>();
+        for (Entry entry : recording.entries) {
+            deliveredEntryIds.add(entry.getEntryId());
+        }
+        assertEquals(deliveredEntryIds, List.of(0L, 3L, 13L));
+        assertEquals(cursor.getReadPosition().getEntryId(), 14);
+    }
+
+    @Test
+    public void testReadEntriesFromDifferentLedgersWithSkipCondition() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(5);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipCondition", config);
+        ledger = Mockito.spy(ledger);
+
+        AtomicInteger counter = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            counter.incrementAndGet();
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntries(Mockito.any());
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+
+        Position lastPosition = null;
+        for (int i = 0; i < 12; i++) {
+            lastPosition = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        cursor.asyncReadEntriesWithSkip(100, -1, recording, null, PositionFactory.LATEST,
+                position -> position.getEntryId() % 2 == 0);
+
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        assertEquals(recording.entries.size(), 5);
+        // Read entries from 3 ledgers, the counter is 3.
+        assertEquals(counter.get(), 3);
+        Position readPosition = cursor.getReadPosition();
+        assertTrue(readPosition.getLedgerId() == lastPosition.getLedgerId()
+                && readPosition.getEntryId() == lastPosition.getEntryId() + 1);
+    }
+
+    @Test
+    public void testReadEntriesFromDifferentLedgersWithDeletedLedgerEnds() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(5);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithDeletedLedgerEnds", config);
+        ledger = Mockito.spy(ledger);
+
+        AtomicInteger counter = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            counter.incrementAndGet();
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntries(Mockito.any());
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            positions.add(ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding)));
+        }
+        // Individually delete the last entry of each closed ledger, so that every scan window ends on a
+        // deleted position and the read position is advanced through the deleted-range branch of
+        // getNextAvailablePosition.
+        Set<Position> ledgerEnds = new HashSet<>();
+        for (int i = 0; i < positions.size() - 1; i++) {
+            if (positions.get(i).getLedgerId() != positions.get(i + 1).getLedgerId()) {
+                ledgerEnds.add(positions.get(i));
+            }
+        }
+        assertEquals(ledgerEnds.size(), 2);
+        cursor.delete(ledgerEnds);
+
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        cursor.asyncReadEntries(100, -1, recording, null, PositionFactory.LATEST);
+
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        assertEquals(recording.entries.size(), 10);
+        // One read per ledger: the deleted ledger ends are hopped over without an extra read round-trip.
+        assertEquals(counter.get(), 3);
+        assertEquals(cursor.getReadPosition(), positions.get(positions.size() - 1).getNext());
+    }
+
+    @Test
+    public void testReadEntriesFromOneSameLedgerWithSkipCondition() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadEntriesWithSkipCondition", config);
+        ledger = Mockito.spy(ledger);
+
+        AtomicInteger counter = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            counter.incrementAndGet();
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntries(Mockito.any());
+
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("test-cursor");
+
+        Position lastPosition = null;
+        for (int i = 0; i < 81; i++) {
+            lastPosition = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        // Every 9th entry is read: the 8-entry holes between them are too wide to merge, so each read
+        // entry is a range of its own.
+        cursor.asyncReadEntriesWithSkip(100, -1, recording, null, PositionFactory.LATEST,
+                position -> position.getEntryId() % 9 != 0);
+
+        assertTrue(recording.await());
+        // The 9-range window exceeds MAX_BATCHED_READ_RANGES(4) and is served by 3 scan windows within
+        // the same read operation.
+        assertEquals(counter.get(), 3);
+
+        assertEquals(recording.failure.get(), null);
+        assertEquals(recording.entries.size(), 9);
+
+        Position readPosition = cursor.getReadPosition();
+        assertTrue(readPosition.getLedgerId() == lastPosition.getLedgerId()
+                && readPosition.getEntryId() == lastPosition.getEntryId() + 1);
+    }
+
+    @Test
+    public void testBatchedSkipReadCapsConcurrentRangeSubmissions() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testBatchedSkipReadCapsConcurrentRangeSubmissions", config);
+        for (int i = 0; i < 46; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+        // Spy the ledger only after every entry is added: the entry cache keeps the pre-spy instance and
+        // validates its reads against that instance's lastConfirmedEntry, so the spy must copy the state
+        // of a ledger that already contains all the entries. The cursor is opened on the spy (so the stub
+        // below intercepts its range reads) at the earliest position, so the first read scans them all.
+        ledger = Mockito.spy(ledger);
+        @Cleanup
+        ManagedCursorImpl cursor =
+                (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+
+        // Delay every BK read so no range completion can interleave with the submission loop, and clear
+        // the cache so nothing completes synchronously.
+        factory.getEntryCacheManager().clear();
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long ledgerId, long firstEntry,
+                                                                       long lastEntry, LedgerEntries entries) {
+                return CompletableFuture.supplyAsync(() -> entries,
+                        CompletableFuture.delayedExecutor(500, TimeUnit.MILLISECONDS));
+            }
+        });
+
+        AtomicInteger submitCount = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            submitCount.incrementAndGet();
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
+                Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(ReadEntriesCallback.class),
+                Mockito.any(), Mockito.anyBoolean());
+
+        // First read: 6 ranges exist in the window, separated by 8-entry holes - wider than a merged
+        // hole, so the scan splits them - but only the first 4 may be submitted. The truncated window no
+        // longer reaches the last confirmed entry, so the read does not complete early:
+        // checkReadCompletion issues the continuation read of the SAME operation for the remaining 2
+        // ranges, and the single callback delivers all 6 entries.
+        CountDownLatch latch = new CountDownLatch(1);
+        List<Entry> delivered = new ArrayList<>();
+        cursor.asyncReadEntriesWithSkip(46, -1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                delivered.addAll(entries);
+                latch.countDown();
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                fail("expected readEntriesComplete");
+            }
+        }, null, PositionFactory.LATEST, position -> position.getEntryId() % 9 != 0);
+
+        // The submission loop runs synchronously on the calling thread while every BK read is stalled,
+        // so exactly MAX_BATCHED_READ_RANGES(4) ranges must have been submitted when the call returns.
+        assertEquals(submitCount.get(), 4,
+                "a scan window must not submit more than MAX_BATCHED_READ_RANGES range reads");
+
+        assertTrue(latch.await(10, TimeUnit.SECONDS));
+        assertEquals(submitCount.get(), 6, "the continuation window must submit the remaining 2 ranges");
+        assertEquals(delivered.size(), 6);
+        for (int i = 0; i < 6; i++) {
+            assertEquals(delivered.get(i).getEntryId(), 9L * i);
+        }
+        assertEquals(cursor.getReadPosition().getEntryId(), 46);
+        delivered.forEach(Entry::release);
+
+        bkc.setReadHandleInterceptor(null);
+    }
+
+    /**
+     * A failure of a later range of a batched skip-read must not finalize the read on its own: with
+     * autoSkipNonRecoverableData enabled, an empty prefix would reach the auto-skip branch of the
+     * failure path, which skips the whole window from the read position - including the entries of the
+     * first range that is still being read and would have been delivered. The later range's failure
+     * must wait for the in-flight first range instead, deliver its entries, and leave the cursor at
+     * the failed range, where a retry fails at the read position and skips only that range's entries.
+     */
+    @Test
+    public void testBatchedSkipReadLaterRangeFailureWaitsForFirstRange() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setAutoSkipNonRecoverableData(true);
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testBatchedSkipReadLaterRangeFailureWaits", config);
+        long ledgerId = -1;
+        for (int i = 0; i < 20; i++) {
+            Position position = ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+            ledgerId = position.getLedgerId();
+        }
+        @Cleanup
+        ManagedCursorImpl cursor =
+                (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+        // Delete entries 4 to 12, a 9-entry hole: the scan window [0..19] splits into the ranges
+        // [0..3] and [13..19], too far apart to merge into one read.
+        List<Position> hole = new ArrayList<>();
+        for (long entryId = 4; entryId <= 12; entryId++) {
+            hole.add(PositionFactory.create(ledgerId, entryId));
+        }
+        cursor.delete(hole);
+
+        // Hold the first range's bookie read; fail the second range's read with a non-recoverable
+        // error while the first one is still in flight. Clear the cache so both ranges read storage.
+        factory.getEntryCacheManager().clear();
+        CompletableFuture<Void> releaseFirstRange = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long bkLedgerId, long firstEntry,
+                                                                       long lastEntry, LedgerEntries entries) {
+                if (firstEntry == 0) {
+                    return releaseFirstRange.thenApply(ignored -> entries);
+                }
+                CompletableFuture<LedgerEntries> failedRead = new CompletableFuture<>();
+                failedRead.completeExceptionally(BKException.create(BKException.Code.NoSuchEntryException));
+                return failedRead;
+            }
+        });
+
+        Predicate<Position> skipHole = position -> position.getEntryId() >= 4 && position.getEntryId() <= 12;
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        cursor.asyncReadEntriesWithSkip(20, -1, recording, null, PositionFactory.LATEST, skipHole);
+
+        try {
+            // The failed second range must not finalize the read with an empty prefix while the first
+            // range is held: that would auto-skip the whole window and complete without entries.
+            assertFalse(recording.latch.await(500, TimeUnit.MILLISECONDS),
+                    "the batched read must wait for the in-flight first range");
+            releaseFirstRange.complete(null);
+            assertTrue(recording.await());
+
+            // The first range's entries are delivered and nothing was skipped for them.
+            assertEquals(recording.failure.get(), null);
+            assertEquals(recording.entries.size(), 4);
+            for (int i = 0; i < 4; i++) {
+                assertEquals(recording.entries.get(i).getEntryId(), i);
+                assertFalse(cursor.isMessageDeleted(ledgerId, i),
+                        "a delivered entry of the first range must not be marked as skipped");
+            }
+            // The cursor waits at the failed range: the read position sits on the individually
+            // deleted hole before it, which the next read's scan skips.
+            assertEquals(cursor.getReadPosition().getEntryId(), 4);
+            recording.entries.forEach(Entry::release);
+            recording.entries.clear();
+
+            // The retry scans [13..19] as one contiguous range and fails at the read position: the
+            // auto-skip branch skips only that range's entries, as it did before batching.
+            RecordingReadEntriesCallback retryRecording = new RecordingReadEntriesCallback();
+            cursor.asyncReadEntriesWithSkip(20, -1, retryRecording, null, PositionFactory.LATEST, skipHole);
+            assertTrue(retryRecording.await());
+            for (long entryId = 13; entryId <= 19; entryId++) {
+                assertTrue(cursor.isMessageDeleted(ledgerId, entryId),
+                        "the retry must skip the entries of the failed range");
+            }
+            assertFalse(cursor.hasMoreEntries());
+            retryRecording.entries.forEach(Entry::release);
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+        }
+    }
+
+    /**
+     * A small hole inside a batched skip-read window is read through when batch reads are enabled: the
+     * window becomes one range read, one request to the bookie, and the entries of the hole that the
+     * read returns are released without being delivered, so the skip condition still holds.
+     */
+    @Test
+    public void testBatchedSkipReadMergesSmallHoleIntoOneRangeRead() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testBatchedSkipReadMergesSmallHole", config);
+        for (int i = 0; i < 10; i++) {
+            ledger.addEntry(("dummy-entry-" + i).getBytes(Encoding));
+        }
+        ledger = Mockito.spy(ledger);
+        @Cleanup
+        ManagedCursorImpl cursor =
+                (ManagedCursorImpl) ledger.openCursor("test-cursor", InitialPosition.Earliest);
+        // Entry 4 is skipped: a hole of one entry, well within the merged-hole distance
+        Predicate<Position> skipHole = position -> position.getEntryId() == 4;
+
+        factory.getEntryCacheManager().clear();
+        AtomicInteger submitCount = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            submitCount.incrementAndGet();
+            return inv.callRealMethod();
+        }).when(ledger).asyncReadEntry(Mockito.any(ReadHandle.class), Mockito.anyLong(),
+                Mockito.anyLong(), Mockito.anyLong(), Mockito.any(), Mockito.any(ReadEntriesCallback.class),
+                Mockito.any(), Mockito.anyBoolean());
+
+        RecordingReadEntriesCallback recording = new RecordingReadEntriesCallback();
+        cursor.asyncReadEntriesWithSkip(10, -1, recording, null, PositionFactory.LATEST, skipHole);
+
+        assertTrue(recording.await());
+        assertEquals(recording.failure.get(), null);
+        // One range read covers the whole window, hole included
+        assertEquals(submitCount.get(), 1, "a small hole must be read through by a single range read");
+        assertEquals(recording.entries.size(), 9);
+        for (int i = 0; i < 9; i++) {
+            assertEquals(recording.entries.get(i).getEntryId(), i < 4 ? i : i + 1);
+        }
+        assertEquals(cursor.getReadPosition().getEntryId(), 10);
+        recording.entries.forEach(Entry::release);
+    }
+
+    // ===== Unit tests for buildRanges =====
+
+    private static List<LongLongPair> callBuildRanges(long firstEntry, long lastEntry, long ledgerId,
+                                                      Predicate<Position> skipCondition) {
+        return ManagedLedgerImpl.buildRanges(firstEntry, lastEntry, ledgerId, skipCondition);
+    }
+
+    @Test
+    public void testBuildRangesNoSkip() {
+        List<LongLongPair> ranges = callBuildRanges(0, 4, 1, pos -> false);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 4L));
+    }
+
+    @Test
+    public void testBuildRangesAllSkipped() {
+        List<LongLongPair> ranges = callBuildRanges(0, 4, 1, pos -> true);
+
+        assertTrue(ranges.isEmpty());
+    }
+
+    @Test
+    public void testBuildRangesSingleEntryNotSkipped() {
+        List<LongLongPair> ranges = callBuildRanges(5, 5, 1, pos -> false);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(5L, 5L));
+    }
+
+    @Test
+    public void testBuildRangesSingleEntrySkipped() {
+        List<LongLongPair> ranges = callBuildRanges(5, 5, 1, pos -> true);
+
+        assertTrue(ranges.isEmpty());
+    }
+
+    @Test
+    public void testBuildRangesSkipFirst() {
+        List<LongLongPair> ranges = callBuildRanges(0, 4, 1, pos -> pos.getEntryId() == 0);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(1L, 4L));
+    }
+
+    @Test
+    public void testBuildRangesSkipLast() {
+        List<LongLongPair> ranges = callBuildRanges(0, 4, 1, pos -> pos.getEntryId() == 4);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 3L));
+    }
+
+    @Test
+    public void testBuildRangesMultipleDisjointRanges() {
+        // Skip entry 2 and 5: ranges should be [0,1], [3,4], [6,6]
+        List<LongLongPair> ranges = callBuildRanges(0, 6, 1,
+                pos -> pos.getEntryId() == 2 || pos.getEntryId() == 5);
+
+        assertEquals(ranges.size(), 3);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 1L));
+        assertEquals(ranges.get(1), LongLongPair.of(3L, 4L));
+        assertEquals(ranges.get(2), LongLongPair.of(6L, 6L));
+    }
+
+    @Test
+    public void testBuildRangesConsecutiveSkipsInMiddle() {
+        // Skip entries 2,3,4: ranges should be [0,1], [5,6]
+        List<LongLongPair> ranges = callBuildRanges(0, 6, 1,
+                pos -> pos.getEntryId() >= 2 && pos.getEntryId() <= 4);
+
+        assertEquals(ranges.size(), 2);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 1L));
+        assertEquals(ranges.get(1), LongLongPair.of(5L, 6L));
+    }
+
+    @Test
+    public void testBuildRangesSkipEvenEntries() {
+        // Skip even entries: each range is a single entry [1,1], [3,3], [5,5]
+        List<LongLongPair> ranges = callBuildRanges(0, 5, 1, pos -> pos.getEntryId() % 2 == 0);
+
+        assertEquals(ranges.size(), 3);
+        assertEquals(ranges.get(0), LongLongPair.of(1L, 1L));
+        assertEquals(ranges.get(1), LongLongPair.of(3L, 3L));
+        assertEquals(ranges.get(2), LongLongPair.of(5L, 5L));
+    }
+
+    @Test
+    public void testBuildRangesPredicateUsesLedgerId() {
+        // Skip entries in ledger 1, but predicate checks ledgerId
+        List<LongLongPair> ranges = callBuildRanges(0, 2, 1, pos -> pos.getLedgerId() == 1);
+
+        assertTrue(ranges.isEmpty());
+
+        // Now with a different ledgerId, nothing should be skipped
+        ranges = callBuildRanges(0, 2, 2, pos -> pos.getLedgerId() == 1);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 2L));
+    }
+
+    @Test
+    public void testBuildRangesLargeEntryIds() {
+        // Use values large enough to test long range but not so large as to overflow
+        long first = 999_999_999_999L;
+        long last = 999_999_999_999L + 2;
+        List<LongLongPair> ranges = callBuildRanges(first, last, 1, pos -> false);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(first, last));
+    }
+
+    @Test
+    public void testBuildRangesOnlyMiddleKept() {
+        // Only keep entry 3, skip everything else
+        List<LongLongPair> ranges = callBuildRanges(0, 6, 1, pos -> pos.getEntryId() != 3);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(3L, 3L));
+    }
+
+    @Test
+    public void testBuildRangesSkipMiddleEntry() {
+        List<LongLongPair> ranges = callBuildRanges(10, 12, 5, pos -> pos.getEntryId() == 11);
+
+        assertEquals(ranges.size(), 2);
+        assertEquals(ranges.get(0), LongLongPair.of(10L, 10L));
+        assertEquals(ranges.get(1), LongLongPair.of(12L, 12L));
+    }
+
+    @Test
+    public void testBuildRangesPositionFieldsCorrect() {
+        // Verify that the predicate receives correct ledgerId and entryId
+        List<Long> seenLedgerIds = new ArrayList<>();
+        List<Long> seenEntryIds = new ArrayList<>();
+
+        callBuildRanges(3, 5, 99, pos -> {
+            seenLedgerIds.add(pos.getLedgerId());
+            seenEntryIds.add(pos.getEntryId());
+            return false;
+        });
+
+        assertEquals(seenLedgerIds, Arrays.asList(99L, 99L, 99L));
+        assertEquals(seenEntryIds, Arrays.asList(3L, 4L, 5L));
+    }
+
+    private static List<LongLongPair> callBuildRangesWithHoleMerging(long firstEntry, long lastEntry,
+                                                                     LongPredicate shouldSkipEntry,
+                                                                     long maxMergedHoleDistance,
+                                                                     long maxMergedRangeEntries,
+                                                                     List<LongLongPair> mergedHoles) {
+        List<LongLongPair> ranges = new ArrayList<>();
+        ManagedLedgerImpl.buildRanges(firstEntry, lastEntry, shouldSkipEntry, Integer.MAX_VALUE, ranges,
+                maxMergedHoleDistance, maxMergedRangeEntries, mergedHoles);
+        return ranges;
+    }
+
+    @Test
+    public void testBuildRangesMergesSmallHoleIntoOneRange() {
+        // Skip entry 5, a hole of one entry: read through it instead of splitting [1..4] and [6..10]
+        List<LongLongPair> mergedHoles = new ArrayList<>();
+        List<LongLongPair> ranges = callBuildRangesWithHoleMerging(1, 10,
+                entryId -> entryId == 5, 8, 256, mergedHoles);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(1L, 10L));
+        assertEquals(mergedHoles, List.of(LongLongPair.of(5L, 5L)));
+    }
+
+    @Test
+    public void testBuildRangesMergesOnlyHolesWithinMaxDistance() {
+        // A hole one entry away merges with a maximum distance of 3, a hole four entries away splits
+        List<LongLongPair> mergedHoles = new ArrayList<>();
+        List<LongLongPair> ranges = callBuildRangesWithHoleMerging(0, 10,
+                entryId -> entryId == 2 || (entryId >= 6 && entryId <= 8), 3, 256, mergedHoles);
+
+        assertEquals(ranges.size(), 2);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 5L));
+        assertEquals(ranges.get(1), LongLongPair.of(9L, 10L));
+        assertEquals(mergedHoles, List.of(LongLongPair.of(2L, 2L)));
+    }
+
+    @Test
+    public void testBuildRangesHoleMergingDisabledSplitsEveryHole() {
+        List<LongLongPair> mergedHoles = new ArrayList<>();
+        List<LongLongPair> ranges = callBuildRangesWithHoleMerging(1, 10,
+                entryId -> entryId == 5, 0, 256, mergedHoles);
+
+        assertEquals(ranges.size(), 2);
+        assertEquals(ranges.get(0), LongLongPair.of(1L, 4L));
+        assertEquals(ranges.get(1), LongLongPair.of(6L, 10L));
+        assertTrue(mergedHoles.isEmpty());
+    }
+
+    @Test
+    public void testBuildRangesHoleMergingBoundedByMaxRangeEntries() {
+        // The hole is small, but merging it would span 11 entries of a maximum of 10
+        List<LongLongPair> mergedHoles = new ArrayList<>();
+        List<LongLongPair> ranges = callBuildRangesWithHoleMerging(0, 12,
+                entryId -> entryId == 10, 8, 10, mergedHoles);
+
+        assertEquals(ranges.size(), 2);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 9L));
+        assertEquals(ranges.get(1), LongLongPair.of(11L, 12L));
+        assertTrue(mergedHoles.isEmpty());
+    }
+
+    @Test
+    public void testBuildRangesTrailingSkippedRunIsNotMerged() {
+        List<LongLongPair> mergedHoles = new ArrayList<>();
+        List<LongLongPair> ranges = callBuildRangesWithHoleMerging(0, 6,
+                entryId -> entryId >= 3, 8, 256, mergedHoles);
+
+        assertEquals(ranges.size(), 1);
+        assertEquals(ranges.get(0), LongLongPair.of(0L, 2L));
+        assertTrue(mergedHoles.isEmpty());
+    }
+
+    @Test
+    public void testBuildRangesKeepsHolesDisjointWhenConditionChangesDuringScan() {
+        // The condition reads live cursor state: entry 2 is acknowledged between the look-ahead of the
+        // hole at entry 1 and the point where the scan would reach it, so the look-ahead sees it as
+        // readable and every later evaluation as skipped. The scan must consume the look-ahead's
+        // result; testing entry 2 again would start another hole from the same rangeEnd + 1 and count
+        // entry 1 out of the expected count twice.
+        AtomicBoolean entryTwoAcknowledged = new AtomicBoolean();
+        LongPredicate scanSkip = entryId -> {
+            if (entryId == 1) {
+                return true;
+            }
+            if (entryId == 2) {
+                return entryTwoAcknowledged.getAndSet(true);
+            }
+            return entryId >= 4 && entryId <= 12;
+        };
+        List<LongLongPair> mergedHoles = new ArrayList<>();
+        List<LongLongPair> ranges = callBuildRangesWithHoleMerging(0, 13, scanSkip, 8, 256, mergedHoles);
+
+        assertEquals(ranges, List.of(LongLongPair.of(0L, 3L), LongLongPair.of(13L, 13L)));
+        assertEquals(mergedHoles, List.of(LongLongPair.of(1L, 1L)));
     }
 }

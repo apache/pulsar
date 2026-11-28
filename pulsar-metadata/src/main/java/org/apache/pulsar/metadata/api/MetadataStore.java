@@ -25,9 +25,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.impl.ListenerRegistrationWarnings;
@@ -202,7 +202,8 @@ public interface MetadataStore extends AutoCloseable {
     default CompletableFuture<Void> deleteIfExists(String path, Optional<Long> expectedVersion, Set<Option> opts) {
         return delete(path, expectedVersion, opts)
                 .exceptionally(e -> {
-                    if (e.getCause() instanceof NotFoundException) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(e);
+                    if (cause instanceof NotFoundException) {
                         LOG.info().attr("path", path).log("Path not found while deleting (this is not a problem)");
                         return null;
                     } else {
@@ -212,7 +213,7 @@ public interface MetadataStore extends AutoCloseable {
                             LOG.info().attr("path", path).attr("expectedVersion", expectedVersion).exception(e)
                                     .log("Failed to delete path");
                         }
-                        throw new CompletionException(e);
+                        throw FutureUtil.wrapToCompletionException(cause);
                     }
                 });
     }
