@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.PULSAR_PARTITIONED_METADATA_ERROR;
 import static org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.PULSAR_PRODUCER_CREATE_ERROR;
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
+import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
 import io.prometheus.metrics.core.metrics.Counter;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
@@ -37,8 +39,10 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.stats.MetricsUtil;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionCreateStatus;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionStatus;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.PartitionedMetadataResponse;
 import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
 /**
@@ -113,6 +117,18 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
             "pulsar.broker.producer.create.failure.count";
     private final ObservableLongCounter producerCreateFailureCounter;
 
+    public static final String PARTITIONED_METADATA_REQUEST_DURATION_METRIC_NAME =
+            "pulsar.broker.request.topic.partitioned_metadata.duration";
+    /** The SDK's default buckets are for milliseconds, so a histogram in seconds sets its own. */
+    private static final List<Double> PARTITIONED_METADATA_REQUEST_DURATION_BUCKETS =
+            List.of(0.001, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 5.0, 30.0);
+    private final DoubleHistogram partitionedMetadataRequestDuration;
+
+    public static final String PARTITIONED_METADATA_REQUEST_FAILURE_COUNTER_METRIC_NAME =
+            "pulsar.broker.request.topic.partitioned_metadata.failure.count";
+    private final LongCounter partitionedMetadataRequestFailureCounter;
+    private final Map<ServerError, Attributes> partitionedMetadataFailureAttributes = new EnumMap<>(ServerError.class);
+
     public static final String NON_RECOVERABLE_LEDGERS_SKIPPED_COUNTER_METRIC_NAME =
             "pulsar.broker.non.recoverable.ledgers.skipped.count";
     private final ObservableLongCounter nonRecoverableLedgersSkippedCounter;
@@ -153,6 +169,8 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
         this.connectionCreateFailCount = new LongAdder();
         for (ServerError error : ServerError.values()) {
             producerCreateFailureCounts.put(error, new LongAdder());
+            partitionedMetadataFailureAttributes.put(error,
+                    Attributes.of(PULSAR_PARTITIONED_METADATA_ERROR, error.name()));
         }
         this.nonRecoverableLedgersSkippedCount = new LongAdder();
         this.nonRecoverableEntriesSkippedCount = new LongAdder();
@@ -185,6 +203,20 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
                 .setUnit("{operation}")
                 .buildWithCallback(measurement -> producerCreateFailureCounts.forEach((error, count) ->
                         measurement.record(count.sum(), Attributes.of(PULSAR_PRODUCER_CREATE_ERROR, error.name()))));
+
+        partitionedMetadataRequestDuration = pulsar.getOpenTelemetry().getMeter()
+                .histogramBuilder(PARTITIONED_METADATA_REQUEST_DURATION_METRIC_NAME)
+                .setDescription("The duration of partitioned topic metadata requests.")
+                .setUnit("s")
+                .setExplicitBucketBoundariesAdvice(PARTITIONED_METADATA_REQUEST_DURATION_BUCKETS)
+                .build();
+
+        partitionedMetadataRequestFailureCounter = pulsar.getOpenTelemetry().getMeter()
+                .counterBuilder(PARTITIONED_METADATA_REQUEST_FAILURE_COUNTER_METRIC_NAME)
+                .setDescription("The number of failed partitioned topic metadata requests, "
+                        + "by the error returned to the client.")
+                .setUnit("{operation}")
+                .build();
 
         nonRecoverableLedgersSkippedCounter = pulsar.getOpenTelemetry().getMeter()
                 .counterBuilder(NON_RECOVERABLE_LEDGERS_SKIPPED_COUNTER_METRIC_NAME)
@@ -345,6 +377,20 @@ public class BrokerOperabilityMetrics implements AutoCloseable {
 
     public void recordProducerCreateFailure(ServerError error) {
         producerCreateFailureCounts.get(error).increment();
+    }
+
+    /** Records the duration of a partitioned topic metadata request that was answered with the topic partitions. */
+    public void recordPartitionedMetadataRequestDuration(long durationNanos) {
+        partitionedMetadataRequestDuration.record(MetricsUtil.convertToSeconds(durationNanos, TimeUnit.NANOSECONDS),
+                PartitionedMetadataResponse.SUCCESS.attributes);
+    }
+
+    /** Records the duration of a partitioned topic metadata request that failed and the error returned to the
+     * client. */
+    public void recordPartitionedMetadataRequestFailure(long durationNanos, ServerError error) {
+        partitionedMetadataRequestDuration.record(MetricsUtil.convertToSeconds(durationNanos, TimeUnit.NANOSECONDS),
+                PartitionedMetadataResponse.FAILURE.attributes);
+        partitionedMetadataRequestFailureCounter.add(1, partitionedMetadataFailureAttributes.get(error));
     }
 
     public void recordHealthCheckStatusSuccess() {

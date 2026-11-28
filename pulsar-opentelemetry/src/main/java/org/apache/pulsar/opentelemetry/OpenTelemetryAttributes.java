@@ -243,6 +243,24 @@ public interface OpenTelemetryAttributes {
         public final Attributes attributes = Attributes.of(PULSAR_CONNECTION_CREATE_STATUS, name().toLowerCase());
     }
 
+    /**
+     * The outcome of a partitioned topic metadata request: success or failure.
+     */
+    AttributeKey<String> PULSAR_PARTITIONED_METADATA_RESPONSE =
+            AttributeKey.stringKey("pulsar.partitioned_metadata.response");
+    enum PartitionedMetadataResponse {
+        SUCCESS,
+        FAILURE;
+        public final Attributes attributes =
+                Attributes.of(PULSAR_PARTITIONED_METADATA_RESPONSE, name().toLowerCase());
+    }
+
+    /**
+     * The protocol error returned for a failed partitioned topic metadata request.
+     */
+    AttributeKey<String> PULSAR_PARTITIONED_METADATA_ERROR =
+            AttributeKey.stringKey("pulsar.partitioned_metadata.error");
+
     // Managed Ledger Attributes
 
     /**

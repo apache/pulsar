@@ -18,19 +18,34 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricHistogramValue;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
+import static org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.PULSAR_PARTITIONED_METADATA_ERROR;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.data.HistogramPointData;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import io.prometheus.metrics.model.snapshots.MetricSnapshots;
 import io.prometheus.metrics.model.snapshots.SummarySnapshot;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.PulsarStats;
+import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.PartitionedMetadataResponse;
 import org.testng.annotations.Test;
 
 /**
@@ -41,6 +56,10 @@ public class BrokerOperabilityMetricsTest {
     private static final String TOPIC_LOAD_TIMES = "pulsar_topic_load_times";
 
     private static PulsarService mockPulsar() {
+        return mockPulsar(OpenTelemetry.noop().getMeter("test"));
+    }
+
+    private static PulsarService mockPulsar(Meter meter) {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName("test");
         PulsarService pulsar = mock(PulsarService.class);
@@ -48,7 +67,7 @@ public class BrokerOperabilityMetricsTest {
         when(pulsar.getConfig()).thenReturn(config);
         when(pulsar.getAdvertisedAddress()).thenReturn("localhost");
         PulsarBrokerOpenTelemetry openTelemetry = mock(PulsarBrokerOpenTelemetry.class);
-        when(openTelemetry.getMeter()).thenReturn(OpenTelemetry.noop().getMeter("test"));
+        when(openTelemetry.getMeter()).thenReturn(meter);
         when(pulsar.getOpenTelemetry()).thenReturn(openTelemetry);
         return pulsar;
     }
@@ -130,5 +149,64 @@ public class BrokerOperabilityMetricsTest {
         } finally {
             metrics.close();
         }
+    }
+
+    @Test
+    public void testPartitionedMetadataRequestMetrics() {
+        InMemoryMetricReader reader = InMemoryMetricReader.create();
+        OpenTelemetrySdk openTelemetry = OpenTelemetrySdk.builder()
+                .setMeterProvider(SdkMeterProvider.builder().registerMetricReader(reader).build())
+                .build();
+        BrokerOperabilityMetrics metrics =
+                new BrokerOperabilityMetrics(mockPulsar(openTelemetry.getMeter("test")), new PrometheusRegistry());
+        try {
+            metrics.recordPartitionedMetadataRequestDuration(TimeUnit.MILLISECONDS.toNanos(25));
+            metrics.recordPartitionedMetadataRequestFailure(TimeUnit.MILLISECONDS.toNanos(50),
+                    ServerError.TopicNotFound);
+            metrics.recordPartitionedMetadataRequestFailure(TimeUnit.MILLISECONDS.toNanos(75),
+                    ServerError.TooManyRequests);
+            metrics.recordPartitionedMetadataRequestFailure(TimeUnit.MILLISECONDS.toNanos(100),
+                    ServerError.TooManyRequests);
+
+            // Every request is timed in seconds, with its outcome as the attribute.
+            String duration = BrokerOperabilityMetrics.PARTITIONED_METADATA_REQUEST_DURATION_METRIC_NAME;
+            assertMetricHistogramValue(reader.collectAllMetrics(), duration,
+                    PartitionedMetadataResponse.SUCCESS.attributes,
+                    count -> assertEquals(count.longValue(), 1L),
+                    sum -> assertEquals(sum.doubleValue(), 0.025, 1e-9));
+            assertMetricHistogramValue(reader.collectAllMetrics(), duration,
+                    PartitionedMetadataResponse.FAILURE.attributes,
+                    count -> assertEquals(count.longValue(), 3L),
+                    sum -> assertEquals(sum.doubleValue(), 0.225, 1e-9));
+
+            // The buckets are for seconds, not the SDK's defaults for milliseconds: 25 ms lands in (20 ms, 50 ms].
+            List<Double> buckets = List.of(0.001, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0, 5.0, 30.0);
+            assertEquals(histogramPoint(reader.collectAllMetrics(), duration,
+                    PartitionedMetadataResponse.SUCCESS.attributes).getBoundaries(), buckets);
+            assertEquals(histogramPoint(reader.collectAllMetrics(), duration,
+                    PartitionedMetadataResponse.SUCCESS.attributes).getCounts(),
+                    List.of(0L, 0L, 0L, 0L, 1L, 0L, 0L, 0L, 0L, 0L, 0L, 0L));
+            assertEquals(histogramPoint(reader.collectAllMetrics(), duration,
+                    PartitionedMetadataResponse.FAILURE.attributes).getCounts(),
+                    List.of(0L, 0L, 0L, 0L, 1L, 2L, 0L, 0L, 0L, 0L, 0L, 0L));
+
+            // Every failed request is counted with the error that was returned to the client.
+            String failures = BrokerOperabilityMetrics.PARTITIONED_METADATA_REQUEST_FAILURE_COUNTER_METRIC_NAME;
+            assertMetricLongSumValue(reader.collectAllMetrics(), failures,
+                    Attributes.of(PULSAR_PARTITIONED_METADATA_ERROR, ServerError.TopicNotFound.name()), 1);
+            assertMetricLongSumValue(reader.collectAllMetrics(), failures,
+                    Attributes.of(PULSAR_PARTITIONED_METADATA_ERROR, ServerError.TooManyRequests.name()), 2);
+        } finally {
+            metrics.close();
+            openTelemetry.close();
+        }
+    }
+
+    private static HistogramPointData histogramPoint(Collection<MetricData> metrics, String metricName,
+                                                     Attributes attributes) {
+        return metrics.stream().filter(metric -> metric.getName().equals(metricName))
+                .flatMap(metric -> metric.getHistogramData().getPoints().stream())
+                .filter(point -> point.getAttributes().equals(attributes))
+                .findFirst().orElseThrow();
     }
 }
