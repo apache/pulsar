@@ -217,6 +217,81 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getState(), ManagedCursorImpl.State.Closed.toString());
     }
 
+    @Test(timeOut = 20000)
+    void testClearBacklogFailsOnCloseWithPendingReads() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        config.setMaxUnackedRangesToPersistInMetadataStore(0);
+        config.setThrottleMarkDelete(0);
+        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+        ledger.addEntry("dummy-entry-1".getBytes(Encoding));
+        ledger.addEntry("dummy-entry-2".getBytes(Encoding));
+
+        // Hold a read in flight so the mark-delete below queues instead of persisting at once.
+        // Issue the read from its own thread: with the entries cached it can complete inline
+        // on the calling thread, and the callback below would then block the test thread
+        // itself waiting for releaseRead (CI: ThreadTimeoutException, the test never reached
+        // asyncClearBacklog). The callback blocks the read thread instead.
+        CountDownLatch readStarted = new CountDownLatch(1);
+        CountDownLatch releaseRead = new CountDownLatch(1);
+        Thread readThread = new Thread(() -> cursor.asyncReadEntries(100, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                entries.forEach(Entry::release);
+                readStarted.countDown();
+                try {
+                    releaseRead.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                fail(exception.getMessage());
+            }
+        }, null, PositionFactory.LATEST));
+        readThread.start();
+        assertTrue(readStarted.await(10, TimeUnit.SECONDS));
+
+        AtomicReference<ManagedLedgerException> clearFailure = new AtomicReference<>();
+        CountDownLatch clearDone = new CountDownLatch(1);
+        cursor.asyncClearBacklog(new AsyncCallbacks.ClearBacklogCallback() {
+            @Override
+            public void clearBacklogComplete(Object ctx) {
+                clearDone.countDown();
+            }
+
+            @Override
+            public void clearBacklogFailed(ManagedLedgerException exception, Object ctx) {
+                clearFailure.set(exception);
+                clearDone.countDown();
+            }
+        }, null);
+
+        CountDownLatch closeDone = new CountDownLatch(1);
+        cursor.asyncClose(new AsyncCallbacks.CloseCallback() {
+            @Override
+            public void closeComplete(Object ctx) {
+                closeDone.countDown();
+            }
+
+            @Override
+            public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                fail(exception.getMessage());
+            }
+        }, null);
+
+        // Without the fix the clear callback never fires and this times out.
+        assertTrue(clearDone.await(10, TimeUnit.SECONDS));
+        assertNotNull(clearFailure.get());
+        assertTrue(clearFailure.get() instanceof ManagedLedgerException.CursorAlreadyClosedException);
+        assertTrue(closeDone.await(10, TimeUnit.SECONDS));
+        releaseRead.countDown();
+        readThread.join();
+        ledger.close();
+    }
+
     @Test
     public void testOpenCursorWithNullInitialPosition() throws Exception {
         ManagedLedgerConfig config = defaultConfig();
