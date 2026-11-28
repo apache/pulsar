@@ -887,6 +887,10 @@ public class Producer {
         }
     }
 
+    public boolean isBrokerInterceptorCreateInProgress() {
+        return brokerInterceptorCreateInProgress.get() > 0;
+    }
+
     public void noteBrokerInterceptorClosePendingDuringCreate() {
         if (brokerInterceptorCreateInProgress.get() > 0) {
             brokerInterceptorClosePendingDuringCreate.set(true);

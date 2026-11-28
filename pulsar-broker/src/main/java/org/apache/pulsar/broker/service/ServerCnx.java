@@ -2517,7 +2517,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                         .attr("subscription", subscriptionName)
                                         .log("Created subscription on topic");
                                 commandSender.sendSuccessResponse(requestId);
-                                invokeConsumerCreatedInterceptor(consumer, metadata);
+                                scheduleConsumerCreatedInterceptor(consumer, metadata);
                             } else {
                                 // The consumer future was completed before by a close command
                                 try {
@@ -3072,7 +3072,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     commandSender.sendProducerSuccessResponse(requestId, producerName,
                             producer.getLastSequenceId(), producer.getSchemaVersion(),
                             newTopicEpoch, true /* producer is ready now */);
-                    invokeProducerCreatedInterceptor(producer, metadata);
+                    scheduleProducerCreatedInterceptor(producer, metadata);
                     return;
                 } else {
                     // The producer's future was completed before by
@@ -5006,11 +5006,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         safelyRemoveConsumer(consumer);
     }
 
-    private void invokeConsumerCreatedInterceptor(Consumer consumer, Map<String, String> metadata) {
+    private void scheduleConsumerCreatedInterceptor(Consumer consumer, Map<String, String> metadata) {
         if (brokerInterceptor == null) {
             return;
         }
         consumer.beginBrokerInterceptorCreate();
+        execute(() -> runConsumerCreatedInterceptor(consumer, metadata));
+    }
+
+    private void runConsumerCreatedInterceptor(Consumer consumer, Map<String, String> metadata) {
         try {
             try {
                 brokerInterceptor.consumerCreated(this, consumer, metadata);
@@ -5025,11 +5029,15 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
-    private void invokeProducerCreatedInterceptor(Producer producer, Map<String, String> metadata) {
+    private void scheduleProducerCreatedInterceptor(Producer producer, Map<String, String> metadata) {
         if (brokerInterceptor == null || !producer.markBrokerInterceptorCreateLifecycleInvoked()) {
             return;
         }
         producer.beginBrokerInterceptorCreate();
+        execute(() -> runProducerCreatedInterceptor(producer, metadata));
+    }
+
+    private void runProducerCreatedInterceptor(Producer producer, Map<String, String> metadata) {
         try {
             try {
                 brokerInterceptor.producerCreated(this, producer, metadata);
@@ -5047,6 +5055,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void notifyConsumerClosed(Consumer consumer) {
         if (brokerInterceptor == null) {
+            return;
+        }
+        if (consumer.isBrokerInterceptorCreateInProgress()) {
+            consumer.noteBrokerInterceptorClosePendingDuringCreate();
             return;
         }
         if (!consumer.hasBrokerInterceptorCreateNotifications()) {
@@ -5072,6 +5084,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     public void notifyProducerClosed(Producer producer) {
         if (brokerInterceptor == null) {
+            return;
+        }
+        if (producer.isBrokerInterceptorCreateInProgress()) {
+            producer.noteBrokerInterceptorClosePendingDuringCreate();
             return;
         }
         if (!producer.hasBrokerInterceptorCreateNotifications()) {
