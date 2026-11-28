@@ -47,6 +47,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -194,6 +195,29 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         assertEquals(counterBrokerInterceptor.getProducerCount(), 0);
         pulsarClient.newProducer(Schema.BOOL).topic("test").create();
         Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+    }
+
+    @Test
+    public void testWaitForExclusiveProducerCreatedWhenReady() throws Exception {
+        String topic = "persistent://public/default/wait-exclusive-interceptor-" + UUID.randomUUID();
+        CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+        @Cleanup
+        Producer<String> active = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.Exclusive)
+                .create();
+        Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+        CompletableFuture<Producer<String>> waitingFuture = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .accessMode(ProducerAccessMode.WaitForExclusive)
+                .createAsync();
+        Awaitility.await().untilAsserted(() -> assertEquals(counterBrokerInterceptor.getProducerCount(), 1));
+        active.close();
+        @Cleanup
+        Producer<String> waiting = waitingFuture.get(10, TimeUnit.SECONDS);
+        Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+        waiting.close();
+        Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 0);
     }
 
     @Test

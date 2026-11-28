@@ -3168,16 +3168,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 commandSender.sendProducerSuccessResponse(requestId, producerName,
                         producer.getLastSequenceId(), producer.getSchemaVersion(),
                         Optional.empty(), false/* producer is not ready now */);
-                if (brokerInterceptor != null) {
-                    try {
-                        brokerInterceptor.producerCreated(this, producer, metadata);
-                        if (!(brokerInterceptor instanceof BrokerInterceptors)) {
-                            producer.markBrokerInterceptorCreatedNotified(0);
-                        }
-                    } catch (Throwable t) {
-                        log.error().exception(t).log("Exception occur when intercept producer created.");
-                    }
-                }
+                // WaitForExclusive: producerCreated is emitted when the producer becomes ready, not while queued.
             }
         }, ctx.executor());
     }
