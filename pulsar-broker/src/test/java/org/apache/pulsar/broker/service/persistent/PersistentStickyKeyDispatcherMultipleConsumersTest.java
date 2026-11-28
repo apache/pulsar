@@ -294,6 +294,45 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         assertTrue(persistentDispatcher.getSelector().getConsumerKeyHashRanges().isEmpty());
     }
 
+    /**
+     * Removing the last consumer debits its unacked messages but leaves its pending acks map in place.
+     * An ack that completes after the removal then finds its entry and debits the same messages a
+     * second time, driving the dispatcher's total below zero. See #27556.
+     */
+    @Test(timeOut = 10000)
+    public void testLateAckAfterLastConsumerRemovedDoesNotDebitTwice() throws Exception {
+        Consumer consumer = createMockConsumer();
+        persistentDispatcher.addConsumer(consumer).join();
+
+        // The consumer holds one pending ack, counted in the dispatcher's unacked messages. The map is
+        // stubbed to behave like the real PendingAcksMap: draining it closes it, and a removal after the
+        // close finds no entry.
+        PendingAcksMap pendingAcks = mock(PendingAcksMap.class);
+        AtomicBoolean mapClosed = new AtomicBoolean(false);
+        doReturn(pendingAcks).when(consumer).getPendingAcks();
+        doReturn(1).when(consumer).getUnackedMessages();
+        doAnswer(invocation -> {
+            invocation.getArgument(0, PendingAcksMap.PendingAcksConsumer.class).accept(1L, 1L, 1, 0);
+            mapClosed.set(true);
+            return null;
+        }).when(pendingAcks).forEachAndClose(any());
+        // PendingAcksMap.PENDING_ACK_NOT_FOUND is package-private, so the -1 is spelled out here.
+        doAnswer(invocation -> mapClosed.get() ? -1 : 1)
+                .when(consumer).removePendingAckAndGetRemainingUnacked(anyLong(), anyLong());
+        persistentDispatcher.addUnAckedMessages(1);
+
+        persistentDispatcher.removeConsumer(consumer);
+
+        // Simulate the ack completing after the removal, as applyPendingAckCompletions does: it debits
+        // through the dispatcher only when it still finds the entry.
+        int removed = consumer.removePendingAckAndGetRemainingUnacked(1L, 1L);
+        if (removed != -1) {
+            persistentDispatcher.addUnAckedMessages(-removed);
+        }
+
+        assertThat(persistentDispatcher.getTotalUnackedMessages()).isZero();
+    }
+
     @Test(timeOut = 30_000)
     public void testMarkDeleteCleanupDoesNotLeavePhantomStickyKeyHash() throws Exception {
         int stickyKeyHash = 123;
