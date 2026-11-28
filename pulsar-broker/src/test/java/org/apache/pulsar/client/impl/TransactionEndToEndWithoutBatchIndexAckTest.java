@@ -34,6 +34,7 @@ public class TransactionEndToEndWithoutBatchIndexAckTest extends TransactionEndT
     protected void setup() throws Exception {
         conf.setAcknowledgmentAtBatchIndexLevelEnabled(false);
         setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
+        pulsarTestContexts.get(0).getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
         admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
     }
 

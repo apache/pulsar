@@ -27,6 +27,8 @@ pluginManagement {
 
 dependencyResolutionManagement {
     @Suppress("UnstableApiUsage")
+    repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
+    @Suppress("UnstableApiUsage")
     repositories {
         mavenCentral()
         maven {
@@ -76,6 +78,9 @@ include("pulsar-client-api-v5")
 // Focused, dependency-light SPI modules (PIP-478): TLS factory SPI and HTTP client SPI
 include("pulsar-tls-factory-api")
 include("pulsar-http-client-api")
+// The log4j2 appender that counts log events on the Prometheus Java client 1.x
+include("pulsar-log4j2-prometheus-metrics")
+project(":pulsar-log4j2-prometheus-metrics").projectDir = file("log4j2-prometheus-metrics")
 
 // Tier 1
 include("pulsar-client-admin-api")
@@ -174,6 +179,10 @@ include("pulsar-broker")
 
 include("pulsar-package-management:pulsar-package-bookkeeper-storage")
 project(":pulsar-package-management:pulsar-package-bookkeeper-storage").projectDir = file("pulsar-package-management/bookkeeper-storage")
+
+// Tier 6.5 — BookKeeper stats provider on the Prometheus Java client 1.x
+include("pulsar-bookkeeper-prometheus-metrics-provider")
+project(":pulsar-bookkeeper-prometheus-metrics-provider").projectDir = file("bookkeeper-prometheus-metrics-provider")
 
 // Tier 6.5 — jetty upgrade modules
 include("jetty-upgrade:pulsar-zookeeper-prometheus-metrics")
@@ -281,6 +290,7 @@ include("tests:pulsar-client-shade-test")
 project(":tests:pulsar-client-shade-test").projectDir = file("tests/pulsar-client-shade-test")
 include("tests:pulsar-client-admin-v5-test")
 include("tests:pulsar-client-v5-shade-test")
+include("tests:pulsar-client-only-shade-test")
 include("tests:pulsar-client-v5-all-test")
 include("tests:pulsar-client-admin-shade-test")
 project(":tests:pulsar-client-admin-shade-test").projectDir = file("tests/pulsar-client-admin-shade-test")

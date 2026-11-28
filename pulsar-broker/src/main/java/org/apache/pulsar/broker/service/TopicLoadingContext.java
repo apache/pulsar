@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -41,6 +42,9 @@ public class TopicLoadingContext extends LatencyTracer {
     @Getter
     private final CompletableFuture<Optional<Topic>> topicFuture;
     private final PulsarStats pulsarStats;
+    @Getter
+    @Setter
+    @Nullable private Supplier<CompletableFuture<Boolean>> ownershipChecker;
     @Nullable
     private volatile Long timeoutTimeInMillis;
     @Getter
@@ -143,7 +147,8 @@ public class TopicLoadingContext extends LatencyTracer {
             case TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES, TopicLoadingTracePoints.GLOBAL_TOPIC_POLICIES ->
                     TopicLoadFailureReason.FAILED_LOAD_TOPIC_POLICIES;
             case TopicLoadingTracePoints.OPEN_ML -> TopicLoadFailureReason.FAILED_LOAD_ML;
-            case TopicLoadingTracePoints.OWNERSHIP -> TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP;
+            case TopicLoadingTracePoints.OWNERSHIP, TopicLoadingTracePoints.OWNERSHIP_BEFORE_OPEN_ML ->
+                    TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP;
             case TopicLoadingTracePoints.TOPIC_EXISTS, TopicLoadingTracePoints.PROPERTIES ->
                     TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE;
             case TopicLoadingTracePoints.INIT, TopicLoadingTracePoints.PRE_CREATE_COMPACTED_SUB,

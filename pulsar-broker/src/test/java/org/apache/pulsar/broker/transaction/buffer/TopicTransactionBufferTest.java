@@ -180,8 +180,12 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .newTopic(Mockito.eq(topic), Mockito.any(), Mockito.eq(brokerService),
                         Mockito.eq(PersistentTopic.class));
 
-        brokerService.createPersistentTopic0(new TopicLoadingContext(TopicName.get(topic), true,
-                new CompletableFuture<>(), Mockito.mock(PulsarStats.class)));
+        // This direct fixture bypasses the load entry point. Ownership is not its target; allow the pre-open
+        // check explicitly so that the deduplication failure below still exercises transaction-buffer cleanup.
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get(topic), true,
+                new CompletableFuture<>(), Mockito.mock(PulsarStats.class));
+        context.setOwnershipChecker(() -> CompletableFuture.completedFuture(true));
+        brokerService.createPersistentTopic0(context);
 
         Awaitility.waitAtMost(1, TimeUnit.MINUTES).until(() -> reference.get() != null);
         PersistentTopic persistentTopic = reference.get();
@@ -223,7 +227,8 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         Assert.assertTrue(buffer instanceof TopicTransactionBuffer);
         TopicTransactionBuffer ttb = (TopicTransactionBuffer) buffer;
         TopicTransactionBufferState.State expectState = TopicTransactionBufferState.State.Close;
-        Assert.assertEquals(ttb.getState(), expectState);
+        // The broker closes the topic, whose load timed out, once its initialization after newTopic completes
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(ttb.getState(), expectState));
         Assert.assertTrue(f.isCompletedExceptionally());
     }
 

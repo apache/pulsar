@@ -29,7 +29,7 @@ plugins {
 // Jetty to 12.x and Jersey to 3.x (jakarta), which MiniDFSCluster's Jetty 9 web app rejects with
 // "org.glassfish.jersey.servlet.ServletContainer is not a javax.servlet.Servlet". These forces are
 // scoped to test configurations only; production code uses Jetty 12 / Jersey 3 (jakarta).
-configurations.matching { it.name.startsWith("test") }.all {
+configurations.matching { it.name.startsWith("test") }.configureEach {
     resolutionStrategy.force(
         "org.eclipse.jetty:jetty-server:9.4.58.v20250814",
         "org.eclipse.jetty:jetty-servlet:9.4.58.v20250814",
@@ -94,7 +94,7 @@ dependencies {
         exclude(group = "org.slf4j")
         exclude(group = "dnsjava", module = "dnsjava")
     }
-    testImplementation(libs.simpleclient)
+    testImplementation(libs.prometheus.metrics.core)
     testImplementation(libs.bcpkix.jdk18on)
     testImplementation(libs.netty.codec.http)
     // Hadoop's MiniDFSCluster embeds a Jetty 9 web UI that needs the legacy javax.ws.rs,

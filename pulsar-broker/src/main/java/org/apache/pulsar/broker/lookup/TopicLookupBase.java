@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.service.BrokerServiceException.MetadataSessionLostException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
@@ -88,7 +89,7 @@ public class TopicLookupBase extends PulsarWebResource {
                         if (exists) {
                             return CompletableFuture.completedFuture(true);
                         }
-                        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName);
+                        return isAllowAutoTopicCreationAsync(topicName);
                     });
                 })
                 .thenCompose(exist -> {
@@ -144,10 +145,24 @@ public class TopicLookupBase extends PulsarWebResource {
                 }).handle((lookupData, throwable) -> {
                     lookupRequestSemaphore.release();
                     if (throwable != null) {
+                        Throwable sessionLost = getMetadataSessionLostException(throwable);
+                        if (sessionLost != null) {
+                            // the client looks the topic up again, as after a ServiceNotReady of the binary lookup
+                            throw FutureUtil.wrapToCompletionException(new RestException(
+                                    Response.Status.SERVICE_UNAVAILABLE, sessionLost.getMessage()));
+                        }
                         throw FutureUtil.wrapToCompletionException(throwable);
                     }
                     return lookupData;
                 });
+    }
+
+    private static Throwable getMetadataSessionLostException(Throwable throwable) {
+        Throwable unwrapped = FutureUtil.unwrapCompletionException(throwable);
+        if (unwrapped instanceof PulsarServerException) {
+            unwrapped = FutureUtil.unwrapCompletionException(unwrapped.getCause());
+        }
+        return unwrapped instanceof MetadataSessionLostException ? unwrapped : null;
     }
 
     protected String internalGetNamespaceBundle(TopicName topicName) {
@@ -359,6 +374,13 @@ public class TopicLookupBase extends PulsarWebResource {
                     .attr("errorMessage", errorMsg)
                     .log("Failed to lookup topic");
             lookupFuture.complete(newLookupErrorResponse(ServerError.MetadataError, errorMsg, requestId));
+        } else if (unwrapEx instanceof MetadataSessionLostException) {
+            // the client looks the topic up again, so it's expected for every lookup while the session is lost
+            LOG.debug()
+                    .attr("topic", topicName)
+                    .attr("errorMessage", errorMsg)
+                    .log("Failed to lookup topic");
+            lookupFuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady, errorMsg, requestId));
         } else if (unwrapEx instanceof MetadataStoreException) {
             // Load bundle ownership or acquire lock failed.
             // Differ with "IllegalStateException", print warning LOG.

@@ -26,6 +26,7 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
+import java.util.Collection;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
@@ -44,6 +45,11 @@ import org.apache.pulsar.common.protocol.Commands;
 @CustomLog
 public final class EntryImpl extends AbstractCASReferenceCounted
         implements ReferenceCountedEntry, Comparable<EntryImpl> {
+    /**
+     * The expected read count of an entry that isn't cached and has no read count handler.
+     */
+    public static final int NO_EXPECTED_READ_COUNT = -1;
+
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
@@ -84,9 +90,14 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.data.retain();
         entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
         // Reset the lazily-cached position LAST, after the id assignments: a recycled object can
-        // carry a stale Position materialized by a getPosition() call that raced past the recycle
-        // (deallocation nulls the field, but a late reader re-materializes it from the reset ids
-        // as (-1, -1)), and any racy lazy rebuild must observe the fresh legitimate ids.
+        // carry a Position poisoned by a getPosition() call that slipped in after the release
+        // (deallocation nulls the field, but the late reader re-materializes it from the reset
+        // ids as (-1, -1) and caches it in the pooled object), so the next create() would deliver
+        // the poisoned position with otherwise legitimate ids. This closes the SEQUENTIAL
+        // poison-and-reuse case; it is best-effort hardening only — a getPosition() concurrent
+        // with this create() can still read the old ids and publish its stale value after the
+        // reset (unsynchronized fields, no generation check). Post-release access is a caller
+        // bug and must be fixed at the call site, not here.
         entry.position = null;
         entry.setRefCnt(1);
         return entry;
@@ -116,7 +127,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     @VisibleForTesting
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
-        return create(ledgerId, entryId, data, 0);
+        return create(ledgerId, entryId, data, NO_EXPECTED_READ_COUNT);
     }
 
     @VisibleForTesting
@@ -133,7 +144,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
-        return create(ledgerId, entryId, data, 0);
+        return create(ledgerId, entryId, data, NO_EXPECTED_READ_COUNT);
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data, int expectedReadCount) {
@@ -344,6 +355,38 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     public void setDecreaseReadCountOnRelease(boolean enabled) {
         decreaseReadCountOnRelease = enabled;
+    }
+
+    /**
+     * Releases an entry that is discarded without having been delivered to a reader, tolerating
+     * the null slots of a sparse batch. The discard must not count as a read on the shared
+     * expected-read count — otherwise the cached entry becomes eligible for eviction before its
+     * expected readers got to it — while the deallocation hooks still run, e.g. to return the
+     * in-flight read permits.
+     */
+    static void releaseDiscarded(Entry entry) {
+        if (entry == null) {
+            return;
+        }
+        if (entry instanceof EntryImpl entryImpl) {
+            entryImpl.setDecreaseReadCountOnRelease(false);
+        }
+        entry.release();
+    }
+
+    /**
+     * Releases every entry of the given collection as {@link #releaseDiscarded(Entry) discarded},
+     * ignoring a null or empty collection and the null elements a read may deliver as placeholders.
+     *
+     * @param entries the entries to release
+     */
+    public static void releaseDiscarded(Collection<Entry> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        for (Entry entry : entries) {
+            releaseDiscarded(entry);
+        }
     }
 
     public synchronized void initializeMessageMetadataIfNeeded(String managedLedgerName) {

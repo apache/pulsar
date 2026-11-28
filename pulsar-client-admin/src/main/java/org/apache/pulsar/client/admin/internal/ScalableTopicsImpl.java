@@ -23,8 +23,11 @@ import jakarta.ws.rs.client.WebTarget;
 import jakarta.ws.rs.core.GenericType;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response.Status;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
@@ -32,25 +35,23 @@ import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.glassfish.jersey.uri.UriComponent;
 
 public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     private final WebTarget adminScalable;
     private final WebTarget adminSegments;
-    private final WebTarget adminScalableV3;
-    private final WebTarget adminSegmentsV3;
 
     public ScalableTopicsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
         super(auth, requestTimeoutMs);
         adminScalable = web.path("/admin/v2/scalable");
         adminSegments = web.path("/admin/v2/segments");
-        adminScalableV3 = web.path("/admin/v3/scalable");
-        adminSegmentsV3 = web.path("/admin/v3/segments");
     }
 
     private WebTarget namespacePath(NamespaceName ns) {
@@ -58,19 +59,16 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     }
 
     private WebTarget topicPath(TopicName tn) {
-        return topicPath(adminScalable, adminScalableV3, tn);
+        return topicPath(adminScalable, tn);
+    }
+
+    private static WebTarget topicPath(WebTarget root, TopicName tn) {
+        return root.path(tn.getTenant()).path(tn.getNamespacePortion())
+                .path(UriComponent.encode(tn.getLocalName(), UriComponent.Type.PATH_SEGMENT));
     }
 
     private WebTarget segmentPath(TopicName tn) {
-        return topicPath(adminSegments, adminSegmentsV3, tn).path(tn.getSegmentDescriptor());
-    }
-
-    private static WebTarget topicPath(WebTarget v2, WebTarget v3, TopicName tn) {
-        String encodedLocalName = tn.getEncodedLocalName();
-        // Preserve v2 compatibility for names whose encoding is unchanged. Encoded names require v3:
-        // an older owner must reject them with 404 rather than operate on a different topic via v2.
-        WebTarget root = encodedLocalName.equals(tn.getLocalName()) ? v2 : v3;
-        return root.path(tn.getTenant()).path(tn.getNamespacePortion()).path(encodedLocalName);
+        return topicPath(adminSegments, tn).path(tn.getSegmentDescriptor());
     }
 
     // --- List ---
@@ -204,6 +202,57 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<Void> removeAutoScalePolicyAsync(String topic) {
         TopicName tn = validateTopic(topic);
         return asyncDeleteRequest(topicPath(tn).path("autoScalePolicy"));
+    }
+
+    // --- Permissions ---
+
+    @Override
+    public Map<String, Set<AuthAction>> getPermissions(String topic) throws PulsarAdminException {
+        return sync(() -> getPermissionsAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String topic) {
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncGetRequest(topicPath(tn).path("permissions"),
+                    new GenericType<Map<String, Set<AuthAction>>>() {});
+        });
+    }
+
+    @Override
+    public void grantPermission(String topic, String role, Set<AuthAction> actions) throws PulsarAdminException {
+        sync(() -> grantPermissionAsync(topic, role, actions));
+    }
+
+    @Override
+    public CompletableFuture<Void> grantPermissionAsync(String topic, String role, Set<AuthAction> actions) {
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncPostRequest(permissionsPath(tn, role), Entity.entity(actions, MediaType.APPLICATION_JSON));
+        });
+    }
+
+    @Override
+    public void revokePermissions(String topic, String role) throws PulsarAdminException {
+        sync(() -> revokePermissionsAsync(topic, role));
+    }
+
+    @Override
+    public CompletableFuture<Void> revokePermissionsAsync(String topic, String role) {
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncDeleteRequest(permissionsPath(tn, role));
+        });
+    }
+
+    /**
+     * The role as a single path component, even if it contains a '/'. Unlike the form encoding of
+     * {@link URLEncoder}, a space must be "%20" in a path: the broker reads a '+' of the path as a '+'.
+     */
+    private WebTarget permissionsPath(TopicName tn, String role) {
+        String encodedRole = URLEncoder.encode(role, StandardCharsets.UTF_8).replace("+", "%20");
+        return topicPath(tn).path("permissions").path(encodedRole);
     }
 
     // --- Delete ---
@@ -371,20 +420,6 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     // --- Segment topic operations ---
 
     @Override
-    public CompletableFuture<Void> checkSegmentOwnerAsync(String segmentTopic) {
-        return FutureUtil.supplySafely(() -> {
-            TopicName tn = TopicName.get(segmentTopic);
-            if (!tn.isSegment()) {
-                return FutureUtil.failedFuture(
-                        new IllegalArgumentException("Expected a segment name: " + segmentTopic));
-            }
-            WebTarget path = adminSegmentsV3.path(tn.getTenant()).path(tn.getNamespacePortion())
-                    .path(tn.getEncodedLocalName()).path(tn.getSegmentDescriptor()).path("check");
-            return asyncGetRequest(path, Void.class);
-        });
-    }
-
-    @Override
     public void createSegment(String segmentTopic, List<String> subscriptions) throws PulsarAdminException {
         sync(() -> createSegmentAsync(segmentTopic, subscriptions));
     }
@@ -428,10 +463,20 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     @Override
     public CompletableFuture<Void> createSegmentSubscriptionAsync(String segmentTopic,
                                                                    String subscription) {
+        return createSegmentSubscriptionAsync(segmentTopic, subscription, Map.of());
+    }
+
+    @Override
+    public CompletableFuture<Void> createSegmentSubscriptionAsync(String segmentTopic, String subscription,
+                                                                   Map<String, String> subscriptionProperties) {
         TopicName tn = TopicName.get(segmentTopic);
         WebTarget path = segmentPath(tn)
-                .path("subscription").path(subscription);
-        return asyncPutRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+                .path("subscription").path("{subscription}")
+                .resolveTemplate("subscription", subscription, true);
+        Entity<?> entity = (subscriptionProperties != null && !subscriptionProperties.isEmpty())
+                ? Entity.entity(subscriptionProperties, MediaType.APPLICATION_JSON)
+                : Entity.entity("", MediaType.APPLICATION_JSON);
+        return asyncPutRequest(path, entity);
     }
 
     @Override
@@ -439,7 +484,8 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
                                                                    String subscription) {
         TopicName tn = TopicName.get(segmentTopic);
         WebTarget path = segmentPath(tn)
-                .path("subscription").path(subscription);
+                .path("subscription").path("{subscription}")
+                .resolveTemplate("subscription", subscription, true);
         return asyncDeleteRequest(path);
     }
 
@@ -448,7 +494,9 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
                                                                       String subscription) {
         TopicName tn = TopicName.get(segmentTopic);
         WebTarget path = segmentPath(tn)
-                .path("subscription").path(subscription).path("backlog");
+                .path("subscription").path("{subscription}")
+                .resolveTemplate("subscription", subscription, true)
+                .path("backlog");
         return asyncGetRequest(path, Long.class);
     }
 
@@ -458,7 +506,9 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
                                                                  long timestampMs) {
         TopicName tn = TopicName.get(segmentTopic);
         WebTarget path = segmentPath(tn)
-                .path("subscription").path(subscription).path("seek")
+                .path("subscription").path("{subscription}")
+                .resolveTemplate("subscription", subscription, true)
+                .path("seek")
                 .queryParam("timestamp", timestampMs);
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
@@ -468,7 +518,9 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
                                                                         String subscription) {
         TopicName tn = TopicName.get(segmentTopic);
         WebTarget path = segmentPath(tn)
-                .path("subscription").path(subscription).path("skip-all");
+                .path("subscription").path("{subscription}")
+                .resolveTemplate("subscription", subscription, true)
+                .path("skip-all");
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 

@@ -25,11 +25,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
+import org.apache.pulsar.metadata.impl.ListenerRegistrationWarnings;
 
 /**
  * Metadata store client interface.
@@ -201,7 +202,8 @@ public interface MetadataStore extends AutoCloseable {
     default CompletableFuture<Void> deleteIfExists(String path, Optional<Long> expectedVersion, Set<Option> opts) {
         return delete(path, expectedVersion, opts)
                 .exceptionally(e -> {
-                    if (e.getCause() instanceof NotFoundException) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(e);
+                    if (cause instanceof NotFoundException) {
                         LOG.info().attr("path", path).log("Path not found while deleting (this is not a problem)");
                         return null;
                     } else {
@@ -211,7 +213,7 @@ public interface MetadataStore extends AutoCloseable {
                             LOG.info().attr("path", path).attr("expectedVersion", expectedVersion).exception(e)
                                     .log("Failed to delete path");
                         }
-                        throw new CompletionException(e);
+                        throw FutureUtil.wrapToCompletionException(cause);
                     }
                 });
     }
@@ -245,8 +247,40 @@ public interface MetadataStore extends AutoCloseable {
      *
      * @param listener
      *            a consumer of notifications
+     * @deprecated use {@link #registerCancellableListener(Consumer)}, and run the returned callback when the
+     *             listener is no longer needed. Implementations implement
+     *             {@link #registerCancellableListener(Consumer)} instead of this method.
      */
-    void registerListener(Consumer<Notification> listener);
+    @Deprecated
+    default void registerListener(Consumer<Notification> listener) {
+        ListenerRegistrationWarnings.deprecatedMethodCalled("MetadataStore.registerListener",
+                "registerCancellableListener");
+        registerCancellableListener(listener);
+    }
+
+    /**
+     * Register a listener that will be called on changes in the underlying store.
+     *
+     * <p>The caller must run the returned callback when the listener is no longer needed, at the latest when the
+     * component that registered it is closed, so that the store stops notifying it and doesn't keep it reachable.
+     * Running the callback more than once has no further effect.
+     *
+     * <p>Implementations must override this method. The default implementation is only there for the
+     * implementations that were written for the deprecated {@link #registerListener(Consumer)}: it registers the
+     * listener with that method and returns a callback that can't unregister it. Since the default implementations
+     * of the two methods call each other, an implementation that overrides neither fails with a
+     * {@link StackOverflowError} when a listener is registered.
+     *
+     * @param listener
+     *            a consumer of notifications
+     * @return a callback that unregisters the listener
+     */
+    default Runnable registerCancellableListener(Consumer<Notification> listener) {
+        ListenerRegistrationWarnings.cancellableMethodNotImplemented(getClass(),
+                "MetadataStore.registerCancellableListener");
+        registerListener(listener);
+        return () -> { };
+    }
 
     /**
      * Create a metadata cache specialized for a specific class.
@@ -357,7 +391,7 @@ public interface MetadataStore extends AutoCloseable {
      * the records whose {@code indexName} key is missing or outside the bounds.
      *
      * <p>Results are streamed to {@code consumer} as they become available — {@link ScanConsumer#onNext}
-     * once per match, then exactly one of {@link ScanConsumer#onCompleted} or
+     * once per match, in no particular order, then exactly one of {@link ScanConsumer#onCompleted} or
      * {@link ScanConsumer#onError}. The returned future completes when the scan terminates and
      * mirrors the terminal callback.
      *

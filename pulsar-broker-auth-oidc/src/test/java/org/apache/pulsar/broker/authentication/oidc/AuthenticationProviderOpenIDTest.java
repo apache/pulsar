@@ -27,16 +27,20 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.security.Keys;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.sql.Date;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -135,6 +139,28 @@ public class AuthenticationProviderOpenIDTest {
         assertThatThrownBy(() -> basicProvider.verifyJWT(null, algorithm, null))
                 .isInstanceOf(AuthenticationException.class)
                 .hasMessage("Unsupported algorithm: " + algorithm);
+    }
+
+    @DataProvider(name = "outOfRangeNumericDates")
+    public static Object[][] outOfRangeNumericDates() {
+        return new Object[][] {{Long.MAX_VALUE}, {Long.MIN_VALUE}};
+    }
+
+    @Test(dataProvider = "outOfRangeNumericDates")
+    public void testOutOfRangeNumericDateFailsAuthenticationAsynchronously(long numericDate) {
+        Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
+        String header = encoder.encodeToString("{\"alg\":\"RS256\",\"typ\":\"JWT\"}".getBytes(StandardCharsets.UTF_8));
+        String payload = encoder.encodeToString(("{\"iss\":\"https://my-issuer.com\",\"sub\":\"my-subject\","
+                + "\"iat\":0,\"exp\":" + numericDate + "}").getBytes(StandardCharsets.UTF_8));
+        String token = header + "." + payload + "." + encoder.encodeToString(new byte[]{1});
+
+        assertThatThrownBy(() -> basicProvider.decodeJWT(token))
+                .isInstanceOf(AuthenticationException.class);
+        CompletableFuture<String> result = basicProvider.authenticateAsync(new AuthenticationDataCommand(token));
+        assertThat(result).failsWithin(Duration.ofSeconds(5))
+                .withThrowableThat()
+                .havingCause()
+                .isInstanceOf(AuthenticationException.class);
     }
 
     @SuppressWarnings("deprecation")

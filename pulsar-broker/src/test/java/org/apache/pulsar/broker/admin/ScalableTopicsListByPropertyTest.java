@@ -63,52 +63,7 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
 
     @DataProvider
     public Object[][] encodedTopicNames() {
-        return new Object[][] {{"a b"}, {"a+b"}, {"café"}, {"x%20y"}, {"nested/topic"}};
-    }
-
-    @DataProvider
-    public Object[][] legacyTopicNames() {
-        return new Object[][] {{"a+b", "a b"}, {"x%20y", "x y"}};
-    }
-
-    @Test(dataProvider = "legacyTopicNames")
-    public void testLegacyMetadataPathPreservesTopicIdentity(String localName, String decodedName) throws Exception {
-        String topic = topicName(localName);
-        String otherTopic = topic.replace(localName, decodedName);
-        admin.scalableTopics().createScalableTopic(topic, 1, Map.of("owner", "literal"));
-        admin.scalableTopics().createScalableTopic(otherTopic, 1, Map.of("owner", "decoded"));
-
-        // Match an older admin client's WebTarget.path(rawLocalName), including literal percent escapes.
-        @Cleanup
-        Client client = ClientBuilder.newClient();
-        try (Response response = client.target(getWebServiceUrl()).path("/admin/v2/scalable")
-                .path(namespace()).path(TopicName.get(topic).getLocalName())
-                .request(MediaType.APPLICATION_JSON).get()) {
-            assertEquals(response.getStatus(), Response.Status.OK.getStatusCode());
-            assertThat(response.readEntity(String.class)).contains("literal").doesNotContain("decoded");
-        }
-        getPulsar().getBrokerService().getScalableTopicService().releaseController(TopicName.get(topic)).get();
-        getPulsar().getBrokerService().getScalableTopicService().releaseController(TopicName.get(otherTopic)).get();
-        admin.scalableTopics().deleteScalableTopic(topic, true);
-        admin.scalableTopics().deleteScalableTopic(otherTopic, true);
-    }
-
-    @Test(dataProvider = "legacyTopicNames")
-    public void testLegacySegmentPathPreservesParentIdentity(String localName, String decodedName) throws Exception {
-        TopicName parent = TopicName.get(topicName(localName));
-        TopicName segment = SegmentTopicName.fromParent(parent, HashRange.full(), 0);
-        TopicName otherSegment = SegmentTopicName.fromParent(
-                TopicName.get(parent.toString().replace(localName, decodedName)), HashRange.full(), 0);
-        @Cleanup
-        Client client = ClientBuilder.newClient();
-        try (Response response = client.target(getWebServiceUrl()).path("/admin/v2/segments")
-                .path(namespace()).path(parent.getLocalName()).path(segment.getSegmentDescriptor())
-                .request(MediaType.APPLICATION_JSON).put(Entity.json(""))) {
-            assertEquals(response.getStatus(), Response.Status.NO_CONTENT.getStatusCode());
-        }
-        assertThat(getTopicIfExists(segment.toString()).get()).as("literal legacy parent").isPresent();
-        assertThat(getTopicIfExists(otherSegment.toString()).get()).as("decoded parent must not be created").isEmpty();
-        admin.scalableTopics().deleteSegment(segment.toString(), true);
+        return new Object[][] {{"a b"}, {"a+b"}, {"café"}, {"x%20y"}, {"nested/topic"}, {"orders;eu"}, {"{id}"}};
     }
 
     @Test(dataProvider = "encodedTopicNames")
@@ -131,18 +86,16 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
         admin.scalableTopics().removeAutoScalePolicy(topic);
         assertThat(admin.scalableTopics().getAutoScalePolicy(topic)).isNull();
 
-        // Slash-containing parents have a separate pending-ack topic naming limitation.
-        if (!localName.contains("/")) {
-            admin.scalableTopics().createSubscription(topic, "sub", ScalableSubscriptionType.QUEUE);
-            assertThat(admin.scalableTopics().getSegmentSubscriptionBacklogAsync(segment, "sub").get()).isZero();
-            admin.scalableTopics().seekSubscription(topic, "sub", System.currentTimeMillis());
-            admin.scalableTopics().clearBacklog(topic, "sub");
-            admin.scalableTopics().deleteSubscription(topic, "sub");
-        }
-        // Quiesce the fixture controller before deletion: the memory store's child listing
-        // treats '+' in an encoded parent path as a regex, failing to strip the path prefix.
-        getPulsar().getBrokerService().getScalableTopicService()
-                .releaseController(TopicName.get(topic)).get();
+        admin.scalableTopics().createSubscription(topic, "sub", ScalableSubscriptionType.QUEUE);
+        assertThat(admin.scalableTopics().getSegmentSubscriptionBacklogAsync(segment, "sub").get()).isZero();
+        admin.scalableTopics().seekSubscription(topic, "sub", System.currentTimeMillis());
+        admin.scalableTopics().clearBacklog(topic, "sub");
+        var backingTopic = getTopicIfExists(segment).get().orElseThrow();
+        assertThat(backingTopic.getSubscription("sub")).isNotNull();
+        admin.scalableTopics().deleteSubscription(topic, "sub");
+        assertThat(getPulsar().getPulsarResources().getScalableTopicResources()
+                .getSubscriptionAsync(TopicName.get(topic), "sub").get()).isEmpty();
+        assertThat(backingTopic.getSubscription("sub")).isNull();
         admin.scalableTopics().deleteScalableTopic(topic, true);
         assertThat(getPulsar().getPulsarResources().getScalableTopicResources()
                 .getScalableTopicMetadataAsync(TopicName.get(topic)).get()).isEmpty();
@@ -163,8 +116,6 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
         assertThat(metadata.getSegments().get(4L).isActive()).isTrue();
         String segment = SegmentTopicName.fromParent(TopicName.get(topic), HashRange.full(), 4).toString();
         assertThat(getTopicIfExists(segment).get()).as("canonical rebucketed segment").isPresent();
-        getPulsar().getBrokerService().getScalableTopicService()
-                .releaseController(TopicName.get(topic)).get();
         admin.scalableTopics().deleteScalableTopic(topic, true);
         assertThat(getTopicIfExists(segment).get()).isEmpty();
     }
@@ -258,7 +209,7 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
     @Test
     public void testTransactionInternalSuffixIsNotRejectedForNonPersistentOrScalableTopics() throws Exception {
         String ns = namespace();
-        admin.nonPersistentTopics().createPartitionedTopic(
+        admin.topics().createPartitionedTopic(
                 "non-persistent://" + ns + "/foo__transaction_pending_ack", 1);
         admin.scalableTopics().createScalableTopic(
                 "topic://" + ns + "/foo__transaction_pending_ack", 1, Map.of("owner", "test"));

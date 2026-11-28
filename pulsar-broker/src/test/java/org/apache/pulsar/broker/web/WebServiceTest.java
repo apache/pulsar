@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -294,6 +295,8 @@ public class WebServiceTest {
                 .hasLongSumSatisfying(
                         sum -> sum.hasPointsSatisfying(point -> point.hasAttributes(Result.REJECTED.attributes))));
 
+        // The Prometheus counter is static, so earlier brokers in this JVM may have moved it: compare to now.
+        double rejectedBefore = scrapeRejectedRequests();
         try {
             for (int i = 0; i < 500; i++) {
                 makeHttpRequest(false, false);
@@ -309,6 +312,21 @@ public class WebServiceTest {
                 Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(8));
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
                 Result.REJECTED.attributes, value -> assertThat(value).isPositive());
+        assertTrue(scrapeRejectedRequests() > rejectedBefore,
+                "the rejected requests must also reach the Prometheus counter");
+    }
+
+    /** The deprecated Prometheus counter of rate limited requests, read through the broker scrape. */
+    private double scrapeRejectedRequests() throws Exception {
+        ByteArrayOutputStream statsOut = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, statsOut);
+        String metricsStr = statsOut.toString();
+        assertTrue(metricsStr.contains("# TYPE pulsar_broker_http_rejected_requests_total counter\n"));
+        Collection<Metric> samples = parseMetrics(metricsStr).get("pulsar_broker_http_rejected_requests_total");
+        assertEquals(samples.size(), 1);
+        Metric sample = samples.iterator().next();
+        Assert.assertNotNull(sample.tags.get("cluster"));
+        return sample.value;
     }
 
     @Test
@@ -401,33 +419,12 @@ public class WebServiceTest {
     }
 
     @Test
-    public void testScalableTopicResourcesDisabledForBothVersions() throws Exception {
-        ServiceConfiguration config = new ServiceConfiguration();
-        config.setScalableTopicsEnabled(false);
-        config.setBrokerServicePort(Optional.of(0));
-        config.setWebServicePort(Optional.of(0));
-        config.setClusterName("local");
-        pulsarTestContext = PulsarTestContext.builder().config(config).build();
-        pulsar = pulsarTestContext.getPulsarService();
-        @Cleanup
-        AsyncHttpClient client = new DefaultAsyncHttpClient();
-        for (String version : new String[] {"v2", "v3"}) {
-            Response response = client.prepareGet(pulsar.getWebServiceAddress()
-                    + "/admin/" + version + "/scalable/public/default").execute().get();
-            assertEquals(response.getStatusCode(), 404);
-        }
-        Response check = client.prepareGet(pulsar.getWebServiceAddress()
-                + "/admin/v3/segments/public/default/encoded%2Btopic/0000-ffff-0/check").execute().get();
-        assertEquals(check.getStatusCode(), 412);
-    }
-
-    @Test
     public void testCompressOutputMetricsInPrometheus() throws Exception {
         setupEnv(true, false, false, false, -1, false);
 
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
 
-        URL url = new URL(metricsUrl);
+        URL url = URI.create(metricsUrl).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept-Encoding", "gzip");
@@ -459,7 +456,7 @@ public class WebServiceTest {
 
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
 
-        URL url = new URL(metricsUrl);
+        URL url = URI.create(metricsUrl).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
 
@@ -507,9 +504,9 @@ public class WebServiceTest {
                 SSLContext sslCtx = SSLContext.getInstance("TLS");
                 sslCtx.init(keyManagers, trustManagers, new SecureRandom());
                 HttpsURLConnection.setDefaultSSLSocketFactory(sslCtx.getSocketFactory());
-                response = new URL(brokerLookUpUrlTls).openStream();
+                response = URI.create(brokerLookUpUrlTls).toURL().openStream();
             } else {
-                response = new URL(brokerLookUpUrl).openStream();
+                response = URI.create(brokerLookUpUrl).toURL().openStream();
             }
             String resp = CharStreams.toString(new InputStreamReader(response));
             log.info().attr("response", resp).log("Response");

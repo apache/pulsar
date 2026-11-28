@@ -38,6 +38,18 @@ public class DeliveryCheckTest {
         assertThat(deliveredIncorrectly(workload, "{\"invalidMessages\": 2}")).isTrue();
     }
 
+    @Test
+    public void matchesTheDevicesStatesOfAnApplicationThatSkippedMessages() {
+        long[] produced = {10, 20, 30};
+
+        assertThat(PerformanceLauncher.statesMatch(produced, new long[] {10, 20, 30}, false)).isTrue();
+        assertThat(PerformanceLauncher.statesMatch(produced, new long[] {10, 0, 30}, false)).isFalse();
+        // a device whose messages the application all skipped has no state
+        assertThat(PerformanceLauncher.statesMatch(produced, new long[] {10, 0, 30}, true)).isTrue();
+        assertThat(PerformanceLauncher.statesMatch(produced, new long[] {10, 19, 30}, true)).isFalse();
+        assertThat(PerformanceLauncher.statesMatch(produced, new long[] {10, 20}, true)).isFalse();
+    }
+
     // The first application received every message correctly, the second one the given summary
     private boolean deliveredIncorrectly(JsonNode workload, String secondSummary) throws Exception {
         Path run = Files.createTempDirectory("delivery-check");

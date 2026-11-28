@@ -24,7 +24,7 @@ package org.apache.pulsar.client.api;
 public interface MessageListenerExecutor {
 
     /**
-     * select a thread by message to execute the runnable!
+     * select a thread by message to execute the runnable.
      * <p>
      * Suggestions:
      * <p>

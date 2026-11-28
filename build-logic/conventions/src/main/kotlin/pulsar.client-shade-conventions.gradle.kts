@@ -18,6 +18,7 @@
  */
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import java.util.zip.ZipFile
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.LibraryElements
@@ -25,7 +26,6 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.attributes.java.TargetJvmVersion
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.tasks.PathSensitivity
-import java.util.zip.ZipFile
 
 // Convention plugin for Pulsar client shaded modules (pulsar-client-shaded,
 // pulsar-client-admin-shaded, pulsar-client-all, pulsar-client-v5-shaded). Configures the shadow jar
@@ -79,7 +79,7 @@ val shadowApiElements = configurations.consumable("shadowApiElements") {
 (components["shadow"] as AdhocComponentWithVariants)
     .addVariantsFromConfiguration(shadowApiElements.get()) { mapToMavenScope("compile") }
 
-tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
+tasks.named<ShadowJar>("shadowJar") {
 
     // ---- Dependency includes ----
     dependencies {
@@ -110,7 +110,6 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
         include(dependency("io.netty:.*"))
         include(dependency("io.opencensus:.*"))
         include(dependency("io.perfmark:.*"))
-        include(dependency("io.prometheus:.*"))
         include(dependency("io.swagger.core.v3:.*"))
         include(dependency("jakarta.activation:jakarta.activation-api"))
         include(dependency("jakarta.annotation:jakarta.annotation-api"))
@@ -198,7 +197,6 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     relocateWithPrefix(shadePrefix, "io.grpc")
     relocateWithPrefix(shadePrefix, "io.netty")
     relocateWithPrefix(shadePrefix, "io.opencensus")
-    relocateWithPrefix(shadePrefix, "io.prometheus.client")
     relocateWithPrefix(shadePrefix, "io.swagger")
     relocateWithPrefix(shadePrefix, "it.unimi.dsi.fastutil")
     relocateWithPrefix(shadePrefix, "javassist")
@@ -233,7 +231,7 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
         "pulsar-client-api", "pulsar-client-admin-api", "pulsar-client-api-v5",
         "pulsar-tls-factory-api", "pulsar-http-client-api",
     ).forEach { module ->
-        val sourceRoot = rootProject.file("$module/src/main/java")
+        val sourceRoot = rootDir.resolve("$module/src/main/java")
         publicPulsarTypes.addAll(fileTree(sourceRoot) { include("**/*.java") }.elements.map { sources ->
             sources.map { source ->
                 source.asFile.relativeTo(sourceRoot).invariantSeparatorsPath.removeSuffix(".java")

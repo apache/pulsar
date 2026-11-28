@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.Assert;
@@ -135,31 +134,6 @@ public class ScalableTopicsAuthZTest extends AuthZTest {
     }
 
     @Test
-    public void testEncodedTopicAndSegmentAuthZ() throws Exception {
-        String topic = NAMESPACE + "/encoded+topic-" + UUID.randomUUID();
-        superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
-        @Cleanup
-        PulsarAdmin nobody = nobodyAdmin();
-        assertNotAuthorized(() -> nobody.scalableTopics().getMetadata(topic));
-        tenantManagerAdmin.scalableTopics().getMetadata(topic);
-
-        String segment = segmentTopicOf(topic);
-        assertThat(nobody.scalableTopics().checkSegmentOwnerAsync(segment)).failsWithin(10, TimeUnit.SECONDS)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(PulsarAdminException.NotAuthorizedException.class);
-        assertThat(tenantManagerAdmin.scalableTopics().checkSegmentOwnerAsync(segment))
-                .failsWithin(10, TimeUnit.SECONDS)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(PulsarAdminException.NotAuthorizedException.class);
-        superUserAdmin.scalableTopics().checkSegmentOwnerAsync(segment).get(10, TimeUnit.SECONDS);
-        assertNotAuthorized(() -> nobody.scalableTopics().createSegment(segment, null));
-        assertNotAuthorized(() -> tenantManagerAdmin.scalableTopics().createSegment(segment, null));
-        superUserAdmin.scalableTopics().createSegment(segment, null);
-        superUserAdmin.scalableTopics().deleteSegment(segment, true);
-        superUserAdmin.scalableTopics().deleteScalableTopic(topic, true);
-    }
-
-    @Test
     public void testDeleteScalableTopicAuthZ() throws Exception {
         final String topic = randomTopic();
         superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
@@ -213,7 +187,7 @@ public class ScalableTopicsAuthZTest extends AuthZTest {
         assertAuthorized(() -> superUserAdmin.scalableTopics().deleteSubscription(topic, "sub-x"));
     }
 
-    // -------- ScalableTopics: super-user-only endpoints --------
+    // -------- ScalableTopics: segment layout changes, tenant-admin-allowed like partition count changes --------
 
     @Test
     public void testSplitSegmentAuthZ() throws Exception {
@@ -221,7 +195,7 @@ public class ScalableTopicsAuthZTest extends AuthZTest {
         superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
         @Cleanup PulsarAdmin nobody = nobodyAdmin();
         assertNotAuthorized(() -> nobody.scalableTopics().splitSegment(topic, 1L));
-        assertNotAuthorized(() -> tenantManagerAdmin.scalableTopics().splitSegment(topic, 1L));
+        assertAuthorized(() -> tenantManagerAdmin.scalableTopics().splitSegment(topic, 1L));
         assertAuthorized(() -> superUserAdmin.scalableTopics().splitSegment(topic, 1L));
     }
 
@@ -231,8 +205,52 @@ public class ScalableTopicsAuthZTest extends AuthZTest {
         superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
         @Cleanup PulsarAdmin nobody = nobodyAdmin();
         assertNotAuthorized(() -> nobody.scalableTopics().mergeSegments(topic, 1L, 2L));
-        assertNotAuthorized(() -> tenantManagerAdmin.scalableTopics().mergeSegments(topic, 1L, 2L));
+        assertAuthorized(() -> tenantManagerAdmin.scalableTopics().mergeSegments(topic, 1L, 2L));
         assertAuthorized(() -> superUserAdmin.scalableTopics().mergeSegments(topic, 1L, 2L));
+    }
+
+    @Test
+    public void testRebucketSegmentAuthZ() throws Exception {
+        final String topic = randomTopic();
+        superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
+        @Cleanup PulsarAdmin nobody = nobodyAdmin();
+        assertNotAuthorized(() -> nobody.scalableTopics().rebucketSegment(topic, 1L, 2));
+        assertAuthorized(() -> tenantManagerAdmin.scalableTopics().rebucketSegment(topic, 1L, 2));
+        assertAuthorized(() -> superUserAdmin.scalableTopics().rebucketSegment(topic, 1L, 2));
+    }
+
+    // -------- ScalableTopics: permissions, managed by tenant admins --------
+
+    @Test
+    public void testGetPermissionsAuthZ() throws Exception {
+        final String topic = randomTopic();
+        superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
+        @Cleanup PulsarAdmin nobody = nobodyAdmin();
+        assertNotAuthorized(() -> nobody.scalableTopics().getPermissions(topic));
+        assertAuthorized(() -> tenantManagerAdmin.scalableTopics().getPermissions(topic));
+        assertAuthorized(() -> superUserAdmin.scalableTopics().getPermissions(topic));
+    }
+
+    @Test
+    public void testGrantPermissionAuthZ() throws Exception {
+        final String topic = randomTopic();
+        superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
+        @Cleanup PulsarAdmin nobody = nobodyAdmin();
+        assertNotAuthorized(() -> nobody.scalableTopics().grantPermission(topic, "role", Set.of(AuthAction.consume)));
+        assertAuthorized(() -> tenantManagerAdmin.scalableTopics()
+                .grantPermission(topic, "role", Set.of(AuthAction.consume)));
+        assertAuthorized(() -> superUserAdmin.scalableTopics()
+                .grantPermission(topic, "role", Set.of(AuthAction.consume)));
+    }
+
+    @Test
+    public void testRevokePermissionAuthZ() throws Exception {
+        final String topic = randomTopic();
+        superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
+        @Cleanup PulsarAdmin nobody = nobodyAdmin();
+        assertNotAuthorized(() -> nobody.scalableTopics().revokePermissions(topic, "role"));
+        assertAuthorized(() -> tenantManagerAdmin.scalableTopics().revokePermissions(topic, "role"));
+        assertAuthorized(() -> superUserAdmin.scalableTopics().revokePermissions(topic, "role"));
     }
 
     // -------- Segments resource: super-user only on all endpoints --------

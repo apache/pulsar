@@ -40,6 +40,7 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -77,8 +78,7 @@ public class NamespaceResources extends BaseResources<Policies> {
         try {
             return getPoliciesReadOnlyAsync().get(getOperationTimeoutSec(), TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
-                    : new MetadataStoreException(e.getCause());
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to check exist " + POLICIES_READONLY_FLAG_PATH, e);
         }
@@ -142,6 +142,14 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public CompletableFuture<Optional<Policies>> getPoliciesAsync(NamespaceName ns) {
         return getCache().get(joinPath(BASE_POLICIES_PATH, ns.toString()));
+    }
+
+    /**
+     * Get the namespace policies from the metadata store, rather than from the cache, which may not have caught up
+     * with an update made on another broker yet.
+     */
+    public CompletableFuture<Optional<Policies>> refreshAndGetPoliciesAsync(NamespaceName ns) {
+        return refreshAndGetAsync(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
 
     public void setPolicies(NamespaceName ns, Function<Policies, Policies> function) throws MetadataStoreException {
@@ -260,6 +268,30 @@ public class NamespaceResources extends BaseResources<Policies> {
         public PartitionedTopicResources(MetadataStore configurationStore, int operationTimeoutSec, Executor executor) {
             super(configurationStore, PartitionedTopicMetadata.class, operationTimeoutSec);
             this.executor = executor;
+        }
+
+        /**
+         * Returns the partitioned topic whose metadata is stored at the path, if it is such a path.
+         */
+        public static Optional<TopicName> topicNameFromPath(String path) {
+            if (!path.startsWith(PARTITIONED_TOPIC_PATH + "/")) {
+                return Optional.empty();
+            }
+            // PARTITIONED_TOPIC_PATH/{namespace}/{domain}/{encodedLocalName}
+            String rest = path.substring(PARTITIONED_TOPIC_PATH.length() + 1);
+            int localNameIndex = rest.lastIndexOf('/');
+            int domainIndex = rest.lastIndexOf('/', localNameIndex - 1);
+            if (domainIndex <= 0) {
+                return Optional.empty();
+            }
+            try {
+                return Optional.of(TopicName.get(rest.substring(domainIndex + 1, localNameIndex),
+                        NamespaceName.get(rest.substring(0, domainIndex)),
+                        Codec.decode(rest.substring(localNameIndex + 1))));
+            } catch (IllegalArgumentException e) {
+                // A namespace or domain node above the topics
+                return Optional.empty();
+            }
         }
 
         public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn, Function<PartitionedTopicMetadata,
@@ -381,11 +413,12 @@ public class NamespaceResources extends BaseResources<Policies> {
             markPartitionedTopicDeletedAsync(topic).whenCompleteAsync((markResult, markExc) -> {
                 final boolean mdFound;
                 if (markExc != null) {
-                    if (markExc.getCause() instanceof MetadataStoreException.NotFoundException) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(markExc);
+                    if (cause instanceof MetadataStoreException.NotFoundException) {
                         mdFound = false;
                     } else {
                         log.error().attr("topic", topic).exception(markExc).log("Failed to mark the topic as deleted");
-                        future.completeExceptionally(markExc);
+                        future.completeExceptionally(cause);
                         return;
                     }
                 } else {
@@ -393,19 +426,20 @@ public class NamespaceResources extends BaseResources<Policies> {
                 }
 
                 supplier.get().whenComplete((deleteResult, deleteExc) -> {
-                    if (deleteExc != null && mdFound) {
+                    Throwable deleteCause = FutureUtil.unwrapCompletionException(deleteExc);
+                    if (deleteCause != null && mdFound) {
                         unmarkPartitionedTopicDeletedAsync(topic)
-                                .thenRun(() -> future.completeExceptionally(deleteExc))
+                                .thenRun(() -> future.completeExceptionally(deleteCause))
                                 .exceptionally(ex -> {
                                     log.warn()
                                             .attr("topic", topic)
                                             .exception(ex)
                                             .log("Failed to unmark the topic as deleted");
-                                    future.completeExceptionally(deleteExc);
+                                    future.completeExceptionally(deleteCause);
                                     return null;
                                 });
-                    } else if (deleteExc != null) {
-                        future.completeExceptionally(deleteExc);
+                    } else if (deleteCause != null) {
+                        future.completeExceptionally(deleteCause);
                     } else {
                         future.complete(deleteResult);
                     }

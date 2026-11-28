@@ -21,9 +21,12 @@ package org.apache.pulsar.broker.namespace;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -34,12 +37,17 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.BrokerServiceException.MetadataSessionLostException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
@@ -96,6 +104,28 @@ public class OwnershipCache {
      * The loading cache of locally owned <code>NamespaceBundle</code> objects.
      */
     private final AsyncLoadingCache<NamespaceBundle, OwnedBundle> ownedBundlesCache;
+
+    // Markers retain no Topic and are removed with the captured ownership generation.
+    private final Map<String, FencedTopicReadmission> fencedTopicReadmissions = new ConcurrentHashMap<>();
+
+    private static final class FencedTopicReadmission {
+        private final NamespaceBundle bundle;
+        private final CompletableFuture<OwnedBundle> ownership;
+        private final Map<NamespaceBundle, CompletableFuture<OwnedBundle>> unresolvedOwnerships;
+        private CompletableFuture<Boolean> verification;
+
+        private FencedTopicReadmission(NamespaceBundle bundle, CompletableFuture<OwnedBundle> ownership) {
+            this.bundle = bundle;
+            this.ownership = ownership;
+            this.unresolvedOwnerships = Map.of();
+        }
+
+        private FencedTopicReadmission(Map<NamespaceBundle, CompletableFuture<OwnedBundle>> unresolvedOwnerships) {
+            this.bundle = null;
+            this.ownership = null;
+            this.unresolvedOwnerships = unresolvedOwnerships;
+        }
+    }
 
     /**
      * The <code>NamespaceService</code> which using <code>OwnershipCache</code>.
@@ -198,6 +228,8 @@ public class OwnershipCache {
         this.ownedBundlesCache = Caffeine.newBuilder()
                 .executor(MoreExecutors.directExecutor())
                 .recordStats()
+                .removalListener((NamespaceBundle bundle, OwnedBundle ownedBundle, RemovalCause cause) ->
+                        discardFencedTopicReadmissions(ownedBundle))
                 .buildAsync(new OwnedServiceUnitCacheLoader());
         CacheMetricsCollector.CAFFEINE.addCache("owned-bundles", this.ownedBundlesCache);
     }
@@ -217,6 +249,209 @@ public class OwnershipCache {
                 .thenApply(bd -> bd != null && bd.isActive());
     }
 
+    /** Bind every stage of a pending load to the ownership that existed before its topic future was published. */
+    Supplier<CompletableFuture<Boolean>> newTopicOwnershipChecker(TopicName topicName) {
+        FencedTopicReadmission readmission = fencedTopicReadmissions.get(topicName.toString());
+        Optional<NamespaceBundle> resolved = namespaceService.getBundleIfPresent(topicName);
+        if (resolved.isEmpty()) {
+            // Only the cold-cache fallback snapshots local generations. Resolve through the configured strategy
+            // asynchronously, without adopting ownership acquired after this load began.
+            Map<NamespaceBundle, CompletableFuture<OwnedBundle>> captured = captureNamespaceOwnerships(topicName);
+            CompletableFuture<Supplier<CompletableFuture<Boolean>>> checker =
+                    FutureUtil.supplySafely(() -> namespaceService.getBundleAsync(topicName))
+                            .thenApply(bundle -> newTopicOwnershipChecker(topicName, bundle, captured.get(bundle),
+                                    readmission));
+            return () -> checker.thenCompose(Supplier::get);
+        }
+        NamespaceBundle bundle = resolved.get();
+        return newTopicOwnershipChecker(topicName, bundle, ownedBundlesCache.getIfPresent(bundle), readmission);
+    }
+
+    private Supplier<CompletableFuture<Boolean>> newTopicOwnershipChecker(TopicName topicName, NamespaceBundle bundle,
+            CompletableFuture<OwnedBundle> ownership, FencedTopicReadmission readmission) {
+        if (ownership == null) {
+            return () -> CompletableFuture.completedFuture(false);
+        }
+        return () -> {
+            if (ownedBundlesCache.getIfPresent(bundle) != ownership
+                    || (readmission != null
+                        && fencedTopicReadmissions.get(topicName.toString()) != readmission)) {
+                return CompletableFuture.completedFuture(false);
+            }
+            return ownership.thenCompose(ownedBundle -> {
+                if (ownedBundle == null || !ownedBundle.isActive()
+                        || ownedBundlesCache.getIfPresent(bundle) != ownership) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return checkOwnershipAsync(topicName, bundle).thenApply(owned -> owned
+                        && ownedBundlesCache.getIfPresent(bundle) == ownership && ownedBundle.isActive()
+                        && (readmission == null
+                            || fencedTopicReadmissions.get(topicName.toString()) == readmission));
+            });
+        };
+    }
+
+    private Map<NamespaceBundle, CompletableFuture<OwnedBundle>> captureNamespaceOwnerships(TopicName topicName) {
+        Map<NamespaceBundle, CompletableFuture<OwnedBundle>> captured = new HashMap<>();
+        ownedBundlesCache.asMap().forEach((bundle, ownership) -> {
+            if (bundle.getNamespaceObject().equals(topicName.getNamespaceObject())
+                    && (!ownership.isDone()
+                        || (!ownership.isCompletedExceptionally() && ownership.join().isActive()))) {
+                captured.put(bundle, ownership);
+            }
+        });
+        return Map.copyOf(captured);
+    }
+
+    /** Capture locally; the namespace bundle metadata cache may be cold during an outage. */
+    void requireFreshOwnershipBeforeReadmission(TopicName topicName) {
+        String topic = topicName.toString();
+        Optional<NamespaceBundle> resolved = namespaceService.getBundleIfPresent(topicName);
+        if (resolved.isEmpty()) {
+            // Do not lose the gate when an invalidation made the bundle metadata unavailable. Bind it to the
+            // strategy-selected bundle on the next check, before allowing authoritative validation to proceed.
+            Map<NamespaceBundle, CompletableFuture<OwnedBundle>> captured = captureNamespaceOwnerships(topicName);
+            if (!captured.isEmpty()) {
+                FencedTopicReadmission check = new FencedTopicReadmission(captured);
+                FencedTopicReadmission installed = fencedTopicReadmissions.compute(topic, (name, previous) ->
+                        previous != null && previous.ownership != null
+                                && captured.get(previous.bundle) == previous.ownership ? previous : check);
+                if (installed == check && !hasCapturedOwnership(check)) {
+                    // A release can finish between the snapshot and publication of this marker.
+                    fencedTopicReadmissions.remove(topic, check);
+                }
+            }
+            return;
+        }
+        NamespaceBundle bundle = resolved.get();
+        ownedBundlesCache.asMap().computeIfPresent(bundle, (key, current) -> {
+            if (current.isDone() && !current.isCompletedExceptionally() && current.join().isActive()) {
+                fencedTopicReadmissions.compute(topic, (name, previous) ->
+                        previous != null && previous.ownership == current
+                                ? previous : new FencedTopicReadmission(bundle, current));
+            }
+            return current;
+        });
+    }
+
+    CompletableFuture<Boolean> checkOwnershipAsync(TopicName topicName, NamespaceBundle bundle) {
+        String topic = topicName.toString();
+        FencedTopicReadmission check = fencedTopicReadmissions.get(topic);
+        if (check == null) {
+            return checkOwnershipAsync(bundle);
+        }
+        if (check.ownership == null) {
+            CompletableFuture<OwnedBundle> ownership = ownedBundlesCache.getIfPresent(bundle);
+            if (ownership != check.unresolvedOwnerships.get(bundle)) {
+                fencedTopicReadmissions.remove(topic, check);
+                return CompletableFuture.completedFuture(false);
+            }
+            if (ownership == null || !ownership.isDone() || ownership.isCompletedExceptionally()
+                    || !ownership.join().isActive()) {
+                return CompletableFuture.completedFuture(false);
+            }
+            FencedTopicReadmission resolved = new FencedTopicReadmission(bundle, ownership);
+            if (!fencedTopicReadmissions.replace(topic, check, resolved)) {
+                return CompletableFuture.completedFuture(false);
+            }
+            check = resolved;
+        }
+        if (!bundle.equals(check.bundle) || ownedBundlesCache.getIfPresent(check.bundle) != check.ownership) {
+            fencedTopicReadmissions.remove(topic, check);
+            return CompletableFuture.completedFuture(false);
+        }
+        return verifyFencedTopicOwnership(topic, check);
+    }
+
+    private CompletableFuture<Boolean> verifyFencedTopicOwnership(String topic, FencedTopicReadmission check) {
+        final CompletableFuture<Boolean> result;
+        try {
+            synchronized (check) {
+                if (check.verification != null) {
+                    return check.verification;
+                }
+                result = FutureUtil.createFutureWithTimeout(
+                        Duration.ofSeconds(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds()),
+                        pulsar.getExecutor(), () -> new ServiceUnitNotReadyException(
+                                "Timed out verifying namespace ownership before reloading fenced topic " + topic));
+                check.verification = result;
+            }
+            // The lock serializes its authoritative read with in-place revalidation, updates and release.
+            // Foreign ownership expires it through the normal lock-manager and namespace expiry callbacks.
+            FutureUtil.supplySafely(() -> check.ownership.join().getResourceLock().validate())
+                    .whenComplete((__, error) -> {
+                        try {
+                            if (error != null) {
+                                result.completeExceptionally(new ServiceUnitNotReadyException(
+                                        "Cannot verify namespace ownership before reloading fenced topic " + topic,
+                                        FutureUtil.unwrapCompletionException(error)));
+                                return;
+                            }
+                            synchronized (check) {
+                                if (check.verification != result || result.isDone()) {
+                                    return;
+                                }
+                                if (fencedTopicReadmissions.get(topic) != check
+                                        || ownedBundlesCache.getIfPresent(check.bundle) != check.ownership) {
+                                    // This pending load cannot become a load of a later ownership generation.
+                                    result.complete(false);
+                                    return;
+                                }
+                                fencedTopicReadmissions.remove(topic, check);
+                                // The next attempt starts after this proof. Do not authorize a pending future that an
+                                // earlier unload may already have captured, even if this lock was restored in place.
+                                result.complete(false);
+                            }
+                        } finally {
+                            // A caller timeout does not cancel the lock's queued operation. Keep sharing that
+                            // timed-out future until the actual operation ends instead of adding more validations.
+                            synchronized (check) {
+                                if (check.verification == result) {
+                                    check.verification = null;
+                                }
+                            }
+                        }
+                    });
+            return result;
+        } catch (RuntimeException error) {
+            return FutureUtil.failedFuture(new ServiceUnitNotReadyException(
+                    "Cannot verify namespace ownership before reloading fenced topic " + topic, error));
+        }
+    }
+
+    private void discardFencedTopicReadmissions(OwnedBundle ownedBundle) {
+        fencedTopicReadmissions.forEach((topic, check) -> {
+            boolean obsolete = check.ownership != null ? check.ownership.getNow(null) == ownedBundle
+                    : !hasCapturedOwnership(check);
+            if (obsolete && fencedTopicReadmissions.remove(topic, check)) {
+                completeObsoleteReadmission(check);
+            }
+        });
+    }
+
+    private boolean hasCapturedOwnership(FencedTopicReadmission check) {
+        return check.unresolvedOwnerships.entrySet().stream()
+                .anyMatch(entry -> ownedBundlesCache.getIfPresent(entry.getKey()) == entry.getValue());
+    }
+
+    private static void completeObsoleteReadmission(FencedTopicReadmission check) {
+        CompletableFuture<Boolean> pending;
+        synchronized (check) {
+            pending = check.verification;
+        }
+        if (pending != null) {
+            pending.complete(false);
+        }
+    }
+
+    void clearFencedTopicReadmissions() {
+        fencedTopicReadmissions.forEach((topic, check) -> {
+            if (fencedTopicReadmissions.remove(topic, check)) {
+                completeObsoleteReadmission(check);
+            }
+        });
+    }
+
     /**
      * Method to get the current owner of the <code>ServiceUnit</code>.
      *
@@ -227,6 +462,10 @@ public class OwnershipCache {
      */
     public CompletableFuture<Optional<NamespaceEphemeralData>> getOwnerAsync(NamespaceBundle suName) {
         CompletableFuture<OwnedBundle> ownedBundleFuture = ownedBundlesCache.getIfPresent(suName);
+        if (ownedBundleFuture != null && !ownedBundleFuture.isDone() && pulsar.isMetadataSessionLost()) {
+            // an acquisition that started before the session was lost waits for the metadata store
+            return FutureUtil.failedFuture(sessionLostException(suName));
+        }
         if (ownedBundleFuture != null) {
             // Either we're the owners or we're trying to become the owner.
             return ownedBundleFuture.thenApply(serviceUnit -> {
@@ -240,6 +479,12 @@ public class OwnershipCache {
         return lockManager.readLock(path).thenCompose(owner -> {
             // If the current broker is the owner, attempt to reacquire ownership to avoid cache loss.
             if (owner.isPresent() && owner.get().equals(selfOwnerInfo)) {
+                if (pulsar.isMetadataSessionLost()) {
+                    // The metadata cache can still hold this broker's lock value although the store deleted it with
+                    // the session, and another broker may own the bundle now. Reacquiring it would wait for the
+                    // metadata store, so fail at once, and the client looks the topic up at another broker.
+                    return FutureUtil.failedFuture(sessionLostException(suName));
+                }
                 log.warn()
                         .attr("broker", selfOwnerInfo)
                         .attr("bundle", suName)
@@ -260,6 +505,11 @@ public class OwnershipCache {
         });
     }
 
+    private static MetadataSessionLostException sessionLostException(NamespaceBundle bundle) {
+        return new MetadataSessionLostException("Namespace bundle " + bundle
+                + " can't be acquired by this broker while its metadata session is lost");
+    }
+
     /**
      * Method to get the current owner of the <code>NamespaceBundle</code>
      * or set the local broker as the owner if absent.
@@ -270,6 +520,10 @@ public class OwnershipCache {
      * @throws Exception
      */
     public CompletableFuture<NamespaceEphemeralData> tryAcquiringOwnership(NamespaceBundle bundle) throws Exception {
+        if (pulsar.isMetadataSessionLost()) {
+            // acquiring the lock would wait for the session to be reestablished
+            return FutureUtil.failedFuture(sessionLostException(bundle));
+        }
         if (!refreshSelfOwnerInfo()) {
             return FutureUtil.failedFuture(
                     new RuntimeException("Namespace service is not ready for acquiring ownership"));
@@ -280,12 +534,29 @@ public class OwnershipCache {
         // Doing a get() on the ownedBundlesCache will trigger an async metadata write to acquire the lock over the
         // service unit. Serialized against both removeOwnership(NamespaceBundle) and removeOwnership(OwnedBundle)
         // for the same bundle: see bundleOperationBarriers.
-        return serialize(bundle, () -> ownedBundlesCache.get(bundle)
-                .thenApply(namespaceBundle -> {
-                    log.info().attr("bundle", namespaceBundle).log("Successfully acquired ownership");
-                    namespaceService.onNamespaceBundleOwned(bundle);
-                    return selfOwnerInfo;
-                }));
+        return serialize(bundle, () -> {
+            // Again when the acquisition's turn comes: an acquisition queued behind another operation of the bundle
+            // may start after the session was lost
+            if (pulsar.isMetadataSessionLost()) {
+                return FutureUtil.failedFuture(sessionLostException(bundle));
+            }
+            // Concurrent lookups of the bundle with different options (e.g. an HTTP and a binary lookup) aren't
+            // merged, so another acquisition may already have published the generation that get() returns. Only the
+            // acquisition that publishes a generation notifies the listeners: the generation's single unload event
+            // matches only one owned event, and the topic-policies service, which counts the owned bundles of each
+            // namespace, would otherwise keep the namespace's state after its last bundle is unloaded.
+            OwnedBundle ownedBefore = getOwnedBundle(bundle);
+            return ownedBundlesCache.get(bundle)
+                    .thenApply(namespaceBundle -> {
+                        if (namespaceBundle != ownedBefore) {
+                            log.info().attr("bundle", namespaceBundle).log("Successfully acquired ownership");
+                            namespaceService.onNamespaceBundleOwned(bundle);
+                        } else {
+                            log.debug().attr("bundle", namespaceBundle).log("Bundle already acquired");
+                        }
+                        return selfOwnerInfo;
+                    });
+        });
     }
 
     /**
@@ -503,6 +774,128 @@ public class OwnershipCache {
 
     public void invalidateLocalOwnerCache(NamespaceBundle namespaceBundle) {
         this.ownedBundlesCache.synchronous().invalidate(namespaceBundle);
+    }
+
+    /**
+     * Stops serving the bundle of a topic whose ledger another broker fenced after this broker lost its metadata
+     * session, which shows that the other broker took the bundle over.
+     *
+     * <p>A broker that has lost its metadata session keeps serving its bundles from this cache until it can
+     * revalidate their locks. When the metadata store expires the session, it deletes the session's locks, and
+     * another broker can acquire a bundle's lock and load its topics, fencing the topics' ledgers. This broker's
+     * writes then fail: that is the only sign of the takeover it gets before its session is reestablished. Without
+     * acting on it, this broker keeps answering lookups for the bundle with itself and keeps loading its topics,
+     * which wait for the metadata store, so the clients can't move to the new owner until then.
+     *
+     * <p>This removes the bundle's ownership generation from the cache and closes the bundle's topics, as an unload
+     * does, but doesn't release the lock, since releasing it needs the metadata store and another broker holds it.
+     * While the session is lost, this broker doesn't acquire bundles (see {@link #tryAcquiringOwnership}) nor
+     * reacquire a bundle whose lock value the metadata cache still holds as its own (see
+     * {@link #getOwnerAsync(NamespaceBundle)}), and topic loads fail the ownership check, so the clients look the
+     * topic up again until they reach the new owner. When the session is reestablished, the lock manager
+     * revalidates the lock: it finds another broker's lock and expires it, and its expiry listener finds this
+     * generation gone and has nothing left to do. If no other broker holds the lock after all, the lock revalidates,
+     * and the next lookup reacquires the ownership from it with a new lock instance, as after any loss of the cache
+     * entry; the revalidated instance is then no longer tracked and needs nothing.
+     *
+     * <p>The handling runs on the broker's executor in the bundle's operation order with the acquisitions (see
+     * {@link #serialize}), until the closing of the topics has started, and only while the session is lost, when no
+     * acquisition can complete, so it can't race with an acquisition. A report that comes after the session was
+     * reestablished is ignored, leaving the takeover to the lock's revalidation. The report applies to the ownership
+     * generation that served the topic when it was made and to that loss of the session only, so a report that runs
+     * after the bundle was acquired again, or after the session came back and was lost again, changes nothing.
+     * Besides, only the loaded instance of a topic reports (see {@code PersistentTopic.addFailed}).
+     *
+     * @return a future that completes when the report has been handled: the bundle is no longer served and its
+     *     topics' closing has started, or the report was ignored
+     */
+    CompletableFuture<Void> handleOwnershipTakenOver(TopicName topicName) {
+        // Read before the session state: a session loss counts before it shows as lost, so a loss that came after the
+        // one seen below makes the report change nothing
+        long sessionLoss = pulsar.getMetadataSessionLossCount();
+        // Find the bundle among the owned ones, which needs no metadata, rather than in the namespace's bundles,
+        // which can have been invalidated in the cache.
+        OwnedBundle reported = null;
+        for (CompletableFuture<OwnedBundle> future : ownedBundlesCache.asMap().values()) {
+            OwnedBundle candidate = future.isDone() && !future.isCompletedExceptionally() ? future.join() : null;
+            if (candidate != null && candidate.getNamespaceBundle().includes(topicName)) {
+                reported = candidate;
+                break;
+            }
+        }
+        if (reported == null || !pulsar.isMetadataSessionLost()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        // The report applies to this ownership generation and this loss of the session only: a report that runs
+        // after the bundle was reacquired, or after the session came back and was lost again, changes nothing
+        OwnedBundle reportedBundle = reported;
+        NamespaceBundle takenOverBundle = reported.getNamespaceBundle();
+        // On the broker's executor, not on the thread that reported the takeover, and the bundle's next operation
+        // waits until the closing of its topics has started, so that the closing can't reach a newer generation's
+        return serialize(takenOverBundle, () -> {
+            try {
+                return CompletableFuture.runAsync(() -> stopServingTakenOverBundle(takenOverBundle, reportedBundle,
+                                sessionLoss, topicName), pulsar.getExecutor());
+            } catch (RejectedExecutionException e) {
+                // the broker is shutting down
+                stopServingTakenOverBundle(takenOverBundle, reportedBundle, sessionLoss, topicName);
+                return CompletableFuture.completedFuture(null);
+            }
+        });
+    }
+
+    private void stopServingTakenOverBundle(NamespaceBundle bundle, OwnedBundle ownedBundle, long sessionLoss,
+                                            TopicName topicName) {
+        if (!pulsar.isMetadataSessionLost() || pulsar.getMetadataSessionLossCount() != sessionLoss) {
+            return;
+        }
+        if (getOwnedBundle(bundle) != ownedBundle) {
+            // another topic of the bundle reported the takeover first, or the bundle was acquired again since
+            return;
+        }
+        AtomicBoolean invalidated = new AtomicBoolean();
+        // the entry is a completed future, so the invalidation runs synchronously
+        invalidateLocalOwnerCache(bundle, ownedBundle, () -> invalidated.set(true));
+        if (!invalidated.get()) {
+            return;
+        }
+        ownedBundle.setActive(false);
+        // The lock stays with the lock manager only, for its revalidation: no later release of the bundle's
+        // ownership by bundle, such as a split's, may delete the lock that another broker holds now
+        locallyAcquiredLocks.remove(bundle, ownedBundle.getResourceLock());
+        log.warn().attr("bundle", bundle).attr("topic", topicName)
+                .log("Another broker took the bundle over after the metadata session was lost; stopped serving it"
+                        + " and closing its topics");
+        Map<String, CompletableFuture<Optional<Topic>>> topicFutures;
+        try {
+            topicFutures = pulsar.getBrokerService().getTopicFuturesInBundle(bundle);
+        } catch (RuntimeException e) {
+            log.warn().attr("bundle", bundle).exception(e)
+                    .log("Failed to close the topics of a bundle that another broker took over");
+            namespaceService.onNamespaceBundleUnload(bundle);
+            return;
+        }
+        closeTakenOverTopics(bundle, topicFutures);
+    }
+
+    private void closeTakenOverTopics(NamespaceBundle bundle,
+                                      Map<String, CompletableFuture<Optional<Topic>>> topicFutures) {
+        CompletableFuture<Integer> unloadFuture;
+        try {
+            unloadFuture = pulsar.getBrokerService().unloadServiceUnit(bundle, true, true,
+                    pulsar.getConfiguration().getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS,
+                    topicFutures);
+        } catch (RuntimeException e) {
+            unloadFuture = FutureUtil.failedFuture(e);
+        }
+        unloadFuture.whenComplete((unloadedTopics, ex) -> {
+            if (ex != null) {
+                log.warn().attr("bundle", bundle).exception(ex)
+                        .log("Failed to close the topics of a bundle that another broker took over");
+            }
+            pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
+            namespaceService.onNamespaceBundleUnload(bundle);
+        });
     }
 
     /**

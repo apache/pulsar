@@ -381,7 +381,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Close interrupted", e);
         } catch (ExecutionException e) {
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 

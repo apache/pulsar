@@ -81,7 +81,7 @@ public class HashRangeExclusiveStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public synchronized Optional<ImpactedConsumersResult> removeConsumer(Consumer consumer) {
-        rangeMap.entrySet().removeIf(entry -> entry.getValue().getRight().equals(consumer));
+        rangeMap.entrySet().removeIf(entry -> entry.getValue().getRight() == consumer);
         return Optional.empty();
     }
 

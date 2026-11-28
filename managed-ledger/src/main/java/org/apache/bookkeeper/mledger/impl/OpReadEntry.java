@@ -24,6 +24,8 @@ import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ForkJoinPool;
@@ -32,12 +34,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesWithStartCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.commons.collections4.CollectionUtils;
 
 @CustomLog
 class OpReadEntry implements ReadEntriesCallback {
@@ -80,8 +84,8 @@ class OpReadEntry implements ReadEntriesCallback {
     private static final AtomicInteger opReadIdGenerator = new AtomicInteger(1);
     /**
      * id for this read operation. Value can be negative when integer value overflow happens.
-     * Used for waitingReadOp consistency so the the correct instance is handled after the instance has already been
-     * recycled.
+     * A pooled instance gets a new id each time it is created, so logs can tell its reads apart. The cursor's wait
+     * slot does not rely on it: it claims a registration by its never-reused {@code ManagedCursorImpl.WaitingRead}.
      */
     int id;
     ManagedCursorImpl cursor;
@@ -89,6 +93,7 @@ class OpReadEntry implements ReadEntriesCallback {
     private int count;
     long maxSizeBytes;
     private ReadEntriesCallback callback;
+    private ReadEntriesWithStartCallback startCallback;
     Object ctx;
 
     // Results
@@ -97,6 +102,11 @@ class OpReadEntry implements ReadEntriesCallback {
     Position maxPosition;
 
     Predicate<Position> skipCondition;
+    /**
+     * Whether {@link #skipCondition} is only the cursor's {@code isMessageDeleted} check, which allows the skip
+     * loop to avoid allocating {@link Position} objects.
+     */
+    boolean skipOnlyMessageDeleted = false;
     boolean skipOpenLedgerFullyAcked = false;
     /**
      * Whether the last ledger read of this operation ended at the managed ledger's last confirmed entry. Such a read
@@ -116,6 +126,7 @@ class OpReadEntry implements ReadEntriesCallback {
         op.count = count;
         op.maxSizeBytes = maxSizeBytes;
         op.callback = callback;
+        op.startCallback = callback instanceof ReadEntriesWithStartCallback observer ? observer : null;
         op.entries = new ArrayList<>();
         if (maxPosition == null) {
             maxPosition = PositionFactory.LATEST;
@@ -129,11 +140,33 @@ class OpReadEntry implements ReadEntriesCallback {
         return op;
     }
 
-    private void internalReadEntriesComplete(List<Entry> returnedEntries) {
-        if (returnedEntries.isEmpty()) {
+    void notifyReadStarted() {
+        if (startCallback != null && readPosition.compareTo(maxPosition) <= 0
+                && readPosition.compareTo(cursor.ledger.getLastConfirmedEntry()) <= 0) {
+            var observer = startCallback;
+            startCallback = null;
+            observer.readEntriesStarted(ctx);
+        }
+    }
+
+    void internalReadEntriesComplete(List<Entry> returnedEntries, Position lastReadPosition)
+            throws ManagedLedgerException {
+        if (returnedEntries.isEmpty() && lastReadPosition == null) {
             log.warn().attr("op", this).log("Read no entries unexpectedly");
             checkReadCompletion();
             return;
+        }
+        // The size loop below dereferences every slot. A null slot (e.g. a mixed range-cache
+        // read whose storage leg answers short of the missing range leaves the slot unfilled)
+        // would throw a bare NPE whose fallback path leaks the whole batch's buffers. Fail the
+        // read explicitly instead: discard the batch and surface a proper read failure.
+        for (int i = 0; i < returnedEntries.size(); i++) {
+            if (returnedEntries.get(i) == null) {
+                log.warn().attr("op", this).attr("slot", i)
+                        .log("Delivered entry batch contains a null slot");
+                returnedEntries.forEach(EntryImpl::releaseDiscarded);
+                throw new ManagedLedgerException("Delivered entry batch contains a null slot at index " + i);
+            }
         }
         // Filter the returned entries for individual deleted messages
         int entriesCount = returnedEntries.size();
@@ -152,12 +185,13 @@ class OpReadEntry implements ReadEntriesCallback {
                 .log("Read entries succeeded");
 
         // Entries might be released after `filterReadEntries`, so retrieve the last position before that
-        final var lastPosition = returnedEntries.get(entriesCount - 1).getPosition();
+        final var lastPosition = lastReadPosition != null ? lastReadPosition
+                : returnedEntries.get(entriesCount - 1).getPosition();
         final var filteredEntries = cursor.filterReadEntries(returnedEntries);
         entries.addAll(filteredEntries);
 
         // if entries have been filtered out then try to skip reading of already deletedMessages in that range
-        final Position nexReadPosition = entriesCount != filteredEntries.size()
+        final Position nexReadPosition = lastReadPosition != null || entriesCount != filteredEntries.size()
                 ? cursor.getNextAvailablePosition(lastPosition) : lastPosition.getNext();
         updateReadPosition(nexReadPosition);
         checkReadCompletion();
@@ -165,32 +199,25 @@ class OpReadEntry implements ReadEntriesCallback {
 
     @Override
     public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
-        try {
-            internalReadEntriesComplete(returnedEntries);
-        } catch (Throwable throwable) {
-            log.error().attr("op", this).exception(throwable)
-                    .log("Fallback to readEntriesFailed for exception in readEntriesComplete");
-            readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
-        }
+        readEntriesCompleteGuarded(returnedEntries, null, ctx);
     }
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-        try {
-            internalReadEntriesFailed(exception, ctx);
-        } catch (Throwable throwable) {
-            // At least we should complete the callback
-            fail(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
-        }
+        readEntriesFailedGuarded(Collections.emptyList(), exception, ctx);
     }
 
-    private void internalReadEntriesFailed(ManagedLedgerException exception, Object ctx) {
-        cursor.readOperationCompleted();
-
+    void internalReadEntriesFailed(Collection<Entry> ret, ManagedLedgerException exception, Object ctx) {
+        if (CollectionUtils.isNotEmpty(ret)) {
+            entries.addAll(ret);
+        }
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
+            cursor.readOperationCompleted();
             complete(ctx);
-        } else if (!cursor.isClosed() && cursor.getConfig().isAutoSkipNonRecoverableData()
+            return;
+        }
+        if (!cursor.isClosed() && cursor.getConfig().isAutoSkipNonRecoverableData()
                 && exception instanceof NonRecoverableLedgerException) {
             log.warn()
                     .attr("managedLedger", cursor.ledger.getName())
@@ -198,46 +225,99 @@ class OpReadEntry implements ReadEntriesCallback {
                     .attr("readPosition", readPosition)
                     .exceptionMessage(exception)
                     .log("Read failed from ledger");
-            final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
-            Position nexReadPosition;
-            Long lostLedger = null;
-            if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
-                // try to find and move to next valid ledger
-                nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
-                lostLedger = readPosition.getLedgerId();
-            } else {
-                // Skip this read operation
-                nexReadPosition = ledger.getValidPositionAfterSkippedEntries(readPosition, count);
+            try {
+                final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
+                Position nexReadPosition;
+                Long lostLedger = null;
+                if (exception instanceof ManagedLedgerException.LedgerNotExistException) {
+                    // try to find and move to next valid ledger
+                    nexReadPosition = cursor.getNextLedgerPosition(readPosition.getLedgerId());
+                    lostLedger = readPosition.getLedgerId();
+                } else {
+                    // Skip this read operation
+                    nexReadPosition = ledger.getValidPositionAfterSkippedEntries(readPosition, count);
+                }
+                // fail callback if it couldn't find next valid ledger
+                if (nexReadPosition == null) {
+                    cursor.readOperationCompleted();
+                    fail(exception, ctx);
+                    return;
+                }
+                updateReadPosition(nexReadPosition);
+                if (lostLedger != null) {
+                    cursor.getManagedLedger().skipNonRecoverableLedger(lostLedger);
+                } else {
+                    cursor.skipNonRecoverableEntries(readPosition, nexReadPosition);
+                }
+                // The read continues on the next ledger and keeps the pending-read count: its terminal
+                // completion decrements it once, and the catch below does if the continuation fails.
+                checkReadCompletion();
+            } catch (Throwable t) {
+                cursor.readOperationCompleted();
+                fail(ManagedLedgerException.getManagedLedgerException(t), ctx);
             }
-            // fail callback if it couldn't find next valid ledger
-            if (nexReadPosition == null) {
-                fail(exception, ctx);
-                return;
-            }
-            updateReadPosition(nexReadPosition);
-            if (lostLedger != null) {
-                cursor.getManagedLedger().skipNonRecoverableLedger(lostLedger);
-            } else {
-                cursor.skipNonRecoverableEntries(readPosition, nexReadPosition);
-            }
-            checkReadCompletion();
+            return;
+        }
+        if (!(exception instanceof TooManyRequestsException)) {
+            log.warn()
+                    .attr("managedLedger", cursor.ledger.getName())
+                    .attr("cursor", cursor.getName())
+                    .attr("readPosition", readPosition)
+                    .exception(exception)
+                    .log("Read failed from ledger");
         } else {
-            if (!(exception instanceof TooManyRequestsException)) {
-                log.warn()
-                        .attr("managedLedger", cursor.ledger.getName())
-                        .attr("cursor", cursor.getName())
-                        .attr("readPosition", readPosition)
-                        .exception(exception)
-                        .log("Read failed from ledger");
-            } else {
-                log.debug()
-                        .attr("managedLedger", cursor.ledger.getName())
-                        .attr("cursor", cursor.getName())
-                        .attr("readPosition", readPosition)
-                        .log("Read throttled failed from ledger");
-            }
+            log.debug()
+                    .attr("managedLedger", cursor.ledger.getName())
+                    .attr("cursor", cursor.getName())
+                    .attr("readPosition", readPosition)
+                    .log("Read throttled failed from ledger");
+        }
 
-            fail(exception, ctx);
+        cursor.readOperationCompleted();
+        fail(exception, ctx);
+    }
+
+    /**
+     * Guarded completion entry point: falls back to {@code readEntriesFailed} on any Throwable so the
+     * pending-read accounting is always settled, while supporting the last-read position of a batched
+     * scan window ({@code null} for a plain sequential read completion). Must only be invoked without
+     * holding a batch callback's monitor.
+     */
+    void readEntriesCompleteGuarded(List<Entry> returnedEntries, Position lastReadPosition, Object ctx) {
+        try {
+            internalReadEntriesComplete(returnedEntries, lastReadPosition);
+        } catch (Throwable throwable) {
+            log.error().attr("op", this).exception(throwable)
+                    .log("Fallback to readEntriesFailed for exception in batched read completion");
+            readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+        }
+    }
+
+    /**
+     * Guarded failure entry point: optionally advances the read position past a delivered prefix
+     * (filtering entries that were individually deleted while batched range reads were in flight, and
+     * releasing the entries the filter drops), delegates to {@link #internalReadEntriesFailed}, and
+     * converts any Throwable into the failure callback so the pending-read accounting is always
+     * settled. Must only be invoked without holding a batch callback's monitor.
+     */
+    void readEntriesFailedGuarded(List<Entry> prefix, ManagedLedgerException exception, Object ctx) {
+        try {
+            // Entries that were individually deleted while the range reads were in flight must not be
+            // delivered; filterReadEntries releases the entries it drops. Matches the sequential path,
+            // which filters every delivered batch in internalReadEntriesComplete.
+            List<Entry> filteredPrefix = prefix.isEmpty() ? prefix : cursor.filterReadEntries(prefix);
+            if (!filteredPrefix.isEmpty()) {
+                // Move the read position of the cursor to the next position of the last read entry,
+                // or the same entry would be delivered to the consumer more than once.
+                Entry entry = filteredPrefix.get(filteredPrefix.size() - 1);
+                Position nextReadPosition = cursor.getNextAvailablePosition(entry.getPosition());
+                updateReadPosition(nextReadPosition);
+            }
+            internalReadEntriesFailed(filteredPrefix, exception, ctx);
+        } catch (Throwable throwable) {
+            log.error().attr("op", this).exception(throwable)
+                    .log("Fallback to readEntriesFailed for exception in batched read failure finalize");
+            fail(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
         }
     }
 
@@ -252,7 +332,8 @@ class OpReadEntry implements ReadEntriesCallback {
         if (entries.size() < count && !(readUpToLastConfirmedEntry && !entries.isEmpty())
                 && cursor.hasMoreEntries() && maxPosition.compareTo(readPosition) > 0) {
 
-            // We still have more entries to read from the next ledger, schedule a new async operation
+            // The read continues on the next ledger: asyncReadEntries never fails synchronously, and
+            // the pending-read count is decremented at the continuation's terminal point.
             cursor.ledger.getExecutor().execute(() -> {
                 readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition);
                 cursor.ledger.asyncReadEntries(OpReadEntry.this);
@@ -311,11 +392,13 @@ class OpReadEntry implements ReadEntriesCallback {
         cursor = null;
         readPosition = null;
         callback = null;
+        startCallback = null;
         ctx = null;
         entries = null;
         nextReadPosition = null;
         maxPosition = null;
         skipCondition = null;
+        skipOnlyMessageDeleted = false;
         skipOpenLedgerFullyAcked = false;
         readUpToLastConfirmedEntry = false;
         recyclerHandle.recycle(this);

@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -28,6 +29,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import io.opentelemetry.api.OpenTelemetry;
@@ -289,6 +291,38 @@ public class PendingReadsManagerTest  {
     }
 
     @Test
+    public void singleEntryReadsShareAnIncludingReadAndNotEachOther() throws Exception {
+        IntSupplier expectedReadCount = () -> 0;
+        PreparedReadFromStorage range = prepareReadFromStorage(lh, rangeEntryCache, 100, 199, expectedReadCount);
+        PreparedReadFromStorage single1 = prepareReadFromStorage(lh, rangeEntryCache, 300, 300, expectedReadCount);
+        PreparedReadFromStorage single2 = prepareReadFromStorage(lh, rangeEntryCache, 305, 305, expectedReadCount);
+
+        CapturingReadEntriesCallback rangeCallback = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 100, 199, NO_MAX_SIZE_LIMIT, expectedReadCount, rangeCallback, CTX);
+        // as a dispatcher's replay reads single entries: one inside the pending range read, two outside of it
+        CapturingReadEntriesCallback included = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 150, 150, NO_MAX_SIZE_LIMIT, expectedReadCount, included, CTX2);
+        CapturingReadEntriesCallback separate1 = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 300, 300, NO_MAX_SIZE_LIMIT, expectedReadCount, separate1, CTX);
+        CapturingReadEntriesCallback separate2 = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, 305, 305, NO_MAX_SIZE_LIMIT, expectedReadCount, separate2, CTX);
+
+        range.storageReadCompleted();
+        single1.storageReadCompleted();
+        single2.storageReadCompleted();
+
+        for (CapturingReadEntriesCallback callback : List.of(rangeCallback, included, separate1, separate2)) {
+            callback.get();
+        }
+        verifyRange(rangeCallback.entries, 100, 199);
+        // the included single entry came from the range read
+        verifyRange(included.entries, 150, 150);
+        assertNull(entryRangeReadCount.get(Pair.of(150L, 150L)));
+        verifyRange(separate1.entries, 300, 300);
+        verifyRange(separate2.entries, 305, 305);
+    }
+
+    @Test
     public void simpleConcurrentReadIncluding() throws Exception {
 
         long firstEntry = 100;
@@ -374,6 +408,63 @@ public class PendingReadsManagerTest  {
         verifyRange(callback.entries, firstEntry, endEntry);
         verifyRange(callback2.entries, firstEntrySecondRead, endEntrySecondRead);
 
+    }
+
+    @Test
+    public void concurrentReadMissingLeftWithSparseLeftLegReleasesAllEntriesOnFailure() throws Exception {
+        // The left leg of an overlapped read is a nested read through the cache, which can
+        // deliver a sparse list still carrying null slots. When a sibling leg fails, the
+        // fallback release of the collected legs must skip the null slots and still release
+        // the entries after them — a plain release loop would stop at the null slot and leak
+        // every entry behind it.
+        long firstEntry = 100;
+        long endEntry = 199;
+        long firstEntrySecondRead = firstEntry - 10;
+
+        IntSupplier expectedReadCount = () -> 0;
+
+        PreparedReadFromStorage read1 =
+                prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, expectedReadCount);
+
+        List<EntryImpl> leftEntries = new ArrayList<>();
+        List<Entry> sparseLeftAnswer = new ArrayList<>();
+        for (long entryId = firstEntrySecondRead; entryId < firstEntry; entryId++) {
+            if (entryId == firstEntrySecondRead + 1) {
+                // the slot the nested read left unfilled carries no entry at all
+                sparseLeftAnswer.add(null);
+            } else {
+                EntryImpl entry = EntryImpl.create(LEDGER_ID, entryId, "data".getBytes(StandardCharsets.UTF_8));
+                leftEntries.add(entry);
+                sparseLeftAnswer.add(entry);
+            }
+        }
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            Object ctx = invocation.getArgument(6);
+            callback.readEntriesComplete(sparseLeftAnswer, ctx);
+            return null;
+        }).when(rangeEntryCache).asyncReadEntry0(any(), eq(firstEntrySecondRead), eq(firstEntry - 1),
+                anyLong(), any(), any(), any(), anyBoolean());
+
+        CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, callback, CTX);
+
+        CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntry, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, callback2, CTX2);
+
+        // the storage read of the overlapped pending read fails: the second read fails and
+        // releases the legs it collected
+        read1.completeExceptionally(new ManagedLedgerException("Injected test failure"));
+
+        await().untilAsserted(() -> assertTrue(callback2.isCompletedExceptionally(),
+                "the overlapped read must fail"));
+        await().untilAsserted(() -> {
+            for (EntryImpl entry : leftEntries) {
+                assertEquals(entry.refCnt(), 0, "the sparse left leg's entries must all be released");
+            }
+        });
     }
 
     @Test

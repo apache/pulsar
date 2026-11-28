@@ -179,13 +179,14 @@ public class TxnMetadataStore {
     /**
      * Stream all {@code /txn/op} records for {@code txnId} via the {@link TxnPaths#IDX_OPS_BY_TXN}
      * index. Used by the v5 TC at end-txn time to enumerate participants — distinct segments for
-     * writes, distinct {@code (segment, subscription)} pairs for acks.
+     * writes, distinct {@code (segment, subscription)} pairs for acks. The records share the txn's
+     * partition key, so the scan only reads the shard that holds them.
      */
     public CompletableFuture<Void> listOpsByTxn(String txnId, ScanConsumer consumer) {
         return store.scanByIndex(TxnPaths.TXN_OP_PREFIX, TxnPaths.IDX_OPS_BY_TXN,
                 txnId, txnId,
                 gr -> txnId.equals(TxnPaths.txnIdFromOpPath(gr.getStat().getPath())),
-                consumer);
+                consumer, Set.of(new Option.PartitionKey(txnId)));
     }
 
     /**
@@ -483,7 +484,8 @@ public class TxnMetadataStore {
      * Stream all aborted-txn records for {@code segment} whose max position falls in
      * {@code [fromKeyInclusive, toKeyInclusive]} (use {@code null} on either bound for
      * unbounded). Use {@link TxnPaths#abortedByPositionSegmentLowerBound} /
-     * {@link TxnPaths#abortedByPositionSegmentUpperBound} for the segment-scoped full range.
+     * {@link TxnPaths#abortedByPositionSegmentUpperBound} for the segment-scoped full range. The records
+     * share the segment's partition key, so the scan only reads the shard that holds them.
      */
     public CompletableFuture<Void> scanAbortedTxns(String segment,
                                                    String fromKeyInclusive, String toKeyInclusive,
@@ -497,7 +499,7 @@ public class TxnMetadataStore {
                     // of TXN_SEGMENT_ABORTED_PREFIX named "<segKey>:<txnId>" — match by segKey.
                     return segKey.equals(TxnPaths.segmentKeyFromAbortedPath(gr.getStat().getPath()));
                 },
-                consumer);
+                consumer, Set.of(new Option.PartitionKey(segKey)));
     }
 
     /**

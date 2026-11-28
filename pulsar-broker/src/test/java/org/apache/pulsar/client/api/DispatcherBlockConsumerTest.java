@@ -874,7 +874,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
     /**
      * Verifies if broker is already blocked multiple subscriptions if one of them acked back perBrokerDispatcherLimit
-     * messages then that dispatcher gets unblocked and starts consuming messages
+     * messages then that dispatcher gets unblocked and starts consuming messages.
      *
      * <pre>
      * 1. subscription-1 consume messages and doesn't ack so it reaches maxUnAckPerBroker(200) and blocks sub-1

@@ -204,6 +204,14 @@ public class NetworkSettingsTest {
     }
 
     @Test
+    public void namesTheOffloadStorageOnlyWhenTheScenarioOffloads() {
+        assertThat(NetworkSettings.containers(List.of("brokers", "offload-storage"),
+                TOPOLOGY.withOffloadStorage(true))).containsExactly("broker-0", "broker-1", "offload-storage");
+        assertThatThrownBy(() -> NetworkSettings.containers("offload-storage", TOPOLOGY))
+                .hasMessageContaining("the tiered storage of the offloads, which the scenario hasn't");
+    }
+
+    @Test
     public void pairsBothDirectionsOfBetween() throws Exception {
         Impairment impairment = read("""
                 impairments:

@@ -91,6 +91,8 @@ record NetworkSettings(Offloads offloads, List<Impairment> impairments) {
     static final String ZOOKEEPER = "zookeeper";
     static final String CONFIGURATION_STORE = "configuration-store";
     static final String METADATA = "metadata";
+    /** The tiered storage that the brokers offload to, which a scenario with {@code offload} has. */
+    static final String OFFLOAD_STORAGE = "offload-storage";
     /** The endpoints of the remote cluster, which a scenario with {@code cluster.remote} has. */
     static final String REMOTE_PREFIX = "remote-";
     static final String REMOTE_BROKERS = REMOTE_PREFIX + BROKERS;
@@ -251,12 +253,22 @@ record NetworkSettings(Offloads offloads, List<Impairment> impairments) {
     }
 
     /**
-     * The containers that the endpoints can name: how many brokers and bookies the cluster has, and the remote cluster,
-     * when the scenario has one, with its brokers and bookies; a topology without a remote cluster has none of them.
+     * The containers that the endpoints can name: how many brokers and bookies the cluster has, the remote cluster,
+     * when the scenario has one, with its brokers and bookies, a topology without a remote cluster having none of
+     * them, and whether it has the offloads' tiered storage.
      */
-    record Topology(int brokers, int bookies, int remoteBrokers, int remoteBookies) {
+    record Topology(int brokers, int bookies, int remoteBrokers, int remoteBookies, boolean offloadStorage) {
         Topology(int brokers, int bookies) {
             this(brokers, bookies, 0, 0);
+        }
+
+        Topology(int brokers, int bookies, int remoteBrokers, int remoteBookies) {
+            this(brokers, bookies, remoteBrokers, remoteBookies, false);
+        }
+
+        /** The topology with the offloads' tiered storage, when the scenario has {@code offload}. */
+        Topology withOffloadStorage(boolean offloadStorage) {
+            return new Topology(brokers, bookies, remoteBrokers, remoteBookies, offloadStorage);
         }
 
         /** Whether the scenario has a remote cluster. */
@@ -327,10 +339,15 @@ record NetworkSettings(Offloads offloads, List<Impairment> impairments) {
 
     /**
      * The containers that an endpoint names, as the launcher names them: {@code gateways}, {@code applications},
-     * {@code broker-N}, {@code bookie-N}, {@code zookeeper} and {@code configuration-store}, and with a remote cluster
-     * {@code remote-broker-N}, {@code remote-bookie-N}, {@code remote-zookeeper} and {@code remote-applications}.
+     * {@code broker-N}, {@code bookie-N}, {@code zookeeper} and {@code configuration-store}, with offloading
+     * {@code offload-storage}, and with a remote cluster {@code remote-broker-N}, {@code remote-bookie-N},
+     * {@code remote-zookeeper} and {@code remote-applications}.
      */
     static List<String> containers(String endpoint, Topology topology) {
+        if (endpoint.equals(OFFLOAD_STORAGE) && !topology.offloadStorage()) {
+            throw new IllegalArgumentException("is the tiered storage of the offloads, which the scenario hasn't: add"
+                    + " offload, as iot-telemetry-offload does");
+        }
         if (!topology.remote()) {
             Matcher indexed = INDEXED.matcher(endpoint);
             if (endpoint.equals(LOCAL_REGION)) {
@@ -343,7 +360,8 @@ record NetworkSettings(Offloads offloads, List<Impairment> impairments) {
             }
         }
         return switch (endpoint) {
-            case GATEWAYS, APPLICATIONS, ZOOKEEPER, CONFIGURATION_STORE, REMOTE_ZOOKEEPER, REMOTE_APPLICATIONS ->
+            case GATEWAYS, APPLICATIONS, ZOOKEEPER, CONFIGURATION_STORE, REMOTE_ZOOKEEPER, REMOTE_APPLICATIONS,
+                 OFFLOAD_STORAGE ->
                     List.of(endpoint);
             case CLIENTS -> List.of(GATEWAYS, APPLICATIONS);
             case METADATA -> List.of(ZOOKEEPER, CONFIGURATION_STORE);
@@ -358,7 +376,8 @@ record NetworkSettings(Offloads offloads, List<Impairment> impairments) {
                 Matcher matcher = INDEXED.matcher(endpoint);
                 if (!matcher.matches()) {
                     throw new IllegalArgumentException("isn't an endpoint; the endpoints are " + GROUPS
-                            + ", broker-N and bookie-N, and with a remote cluster " + REMOTE_GROUPS
+                            + ", broker-N and bookie-N, with offload " + OFFLOAD_STORAGE
+                            + ", and with a remote cluster " + REMOTE_GROUPS
                             + ", remote-broker-N and remote-bookie-N");
                 }
                 boolean remote = !matcher.group(1).isEmpty();

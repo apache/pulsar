@@ -1,0 +1,58 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# OTA firmware distribution with chunked messages: a device maker's four update services publish firmware images of
+# 1 MiB for 2,000 device models, 40 images per second, to two topics, keyed by the model. The producers chunk each
+# image into 128 KiB chunks, so the chunks of the four services' images interleave in a topic. Three regional
+# distributors, each a Key_Shared subscription with two pods, put each image together from its chunks, and each
+# distributor restarts one of its pods every 30 seconds, mid-transfer: the broker redelivers the chunks that the pod
+# hadn't acknowledged, and the pod that takes the model over gets the image's chunks again. It measures the chunked
+# messages' throughput and latency, and checks that every image arrives whole, once and in order for its model.
+extends: iot-telemetry-base.yaml
+workloads:
+  iotTelemetry:
+    rate: 40
+    payload:
+      size: 1048576
+    devices:
+      count: 2000
+    gateways:
+      count: 4
+      # Room for the images in flight: each gateway's client buffers up to 64 MB of messages
+      env:
+        PULSAR_MEM: -Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
+      producer:
+        maxOutstanding: 64
+        batchingEnabled: false
+        precreate: true
+        chunkMaxMessageSizeBytes: 131072
+    topics:
+      count: 2
+      prefix: persistent://public/default/iot-firmware-
+    applications:
+      count: 3
+      podsPerApplication: 2
+      subscriptionPrefix: firmware-distributor-
+      # Room for the images: the receiver queues and the chunks being put together
+      env:
+        PULSAR_MEM: -Xms2g -Xmx2g -XX:MaxDirectMemorySize=1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
+      client:
+        receiverQueueSize: 16
+    behaviors:
+      podRestarts:
+        intervalSeconds: 30
+        fraction: 0.5

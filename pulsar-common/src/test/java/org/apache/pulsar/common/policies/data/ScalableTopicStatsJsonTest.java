@@ -54,7 +54,7 @@ public class ScalableTopicStatsJsonTest {
     public void testTopicStatsKeys() throws Exception {
         JsonNode json = toJson(new ScalableTopicStats());
 
-        assertEquals(keys(json), Set.of("layout", "msgRateIn", "byteRateIn", "msgRateOut", "byteRateOut",
+        assertEquals(keys(json), Set.of("layout", "autoScale", "msgRateIn", "byteRateIn", "msgRateOut", "byteRateOut",
                 "averageMsgSize", "storageSize", "backlogSize", "producers", "subscriptions"));
         assertEquals(keys(json.get("layout")), Set.of("epoch", "segments"));
         assertTrue(json.get("producers").isArray());
@@ -118,10 +118,10 @@ public class ScalableTopicStatsJsonTest {
                         "address", "connectedSince", "clientVersion"));
         JsonNode s = json.get("subscriptions").get("s");
         assertEquals(keys(s), Set.of("type", "msgBacklog", "backlogSize", "unackedMessages", "msgRateOut",
-                "byteRateOut", "msgRateRedeliver", "messageAckRate", "segments", "consumers"));
+                "byteRateOut", "msgRateRedeliver", "messageAckRate", "uncoveredSegmentIds", "segments", "consumers"));
         assertEquals(s.get("type").asText(), "QUEUE");
         assertEquals(keys(s.get("segments").get("0")), Set.of("msgBacklog", "backlogSize", "unackedMessages",
-                "msgRateOut", "byteRateOut", "consumerCount"));
+                "msgRateOut", "byteRateOut", "consumerCount", "blocked", "drainingBuckets"));
         assertEquals(keys(s.get("consumers").get(0)), Set.of("consumerName", "connected", "segmentIds",
                 "msgRateOut", "byteRateOut", "unackedMessages", "availablePermits",
                 "address", "connectedSince", "clientVersion"));
@@ -146,19 +146,98 @@ public class ScalableTopicStatsJsonTest {
 
         JsonNode json = toJson(stats);
 
-        assertEquals(keys(json), Set.of("ownerBroker", "msgRateIn", "byteRateIn", "msgRateOut", "byteRateOut",
-                "averageMsgSize", "storageSize", "backlogSize", "offloadedStorageSize",
+        assertEquals(keys(json), Set.of("ownerBroker", "msgRateIn", "byteRateIn",
+                "msgRateOut", "byteRateOut", "averageMsgSize", "storageSize", "backlogSize", "offloadedStorageSize",
                 "oldestBacklogMessageAgeSeconds", "waitingPublishers", "producers", "subscriptions"));
         assertFalse(json.has("topicCreationTime"), "an unknown creation time is omitted, not null");
+        assertFalse(json.has("terminated"), "unknown termination is omitted, not reported as false");
         assertEquals(keys(json.get("producers").get(0)),
                 Set.of("producerName", "msgRateIn", "byteRateIn", "averageMsgSize"));
         JsonNode s = json.get("subscriptions").get("s");
         assertEquals(keys(s), Set.of("type", "msgRateOut", "byteRateOut", "msgRateRedeliver", "messageAckRate",
                 "msgBacklog", "backlogSize", "unackedMessages", "oldestBacklogMessageAgeSeconds",
-                "blockedSubscriptionOnUnackedMsgs", "lastConsumedTime", "consumers"));
+                "blockedSubscriptionOnUnackedMsgs", "drainingBuckets", "lastConsumedTime", "consumers"));
         assertEquals(keys(s.get("consumers").get(0)), Set.of("consumerName", "msgRateOut", "byteRateOut",
                 "msgRateRedeliver", "messageAckRate", "availablePermits", "unackedMessages",
                 "blockedConsumerOnUnackedMsgs"));
+    }
+
+    @Test
+    public void testSegmentTerminationTriStateJson() throws Exception {
+        for (Boolean terminated : new Boolean[]{null, Boolean.FALSE, Boolean.TRUE}) {
+            SegmentTopicStats stats = new SegmentTopicStats();
+            stats.setTerminated(terminated);
+            JsonNode json = toJson(stats);
+            if (terminated == null) {
+                assertFalse(json.has("terminated"), "unknown termination must be omitted");
+                assertFalse(new ObjectMapper().valueToTree(stats).has("terminated"),
+                        "field annotation must omit unknown state independently of mapper defaults");
+            } else {
+                assertEquals(json.get("terminated").booleanValue(), terminated.booleanValue());
+            }
+            SegmentTopicStats roundTrip = MAPPER.readValue(MAPPER.writeValueAsString(stats), SegmentTopicStats.class);
+            assertEquals(roundTrip.getTerminated(), terminated, "round trip preserves all three termination states");
+        }
+        assertNull(MAPPER.readValue("{}", SegmentTopicStats.class).getTerminated(),
+                "responses from older brokers do not establish a termination state");
+        assertNull(MAPPER.readValue("{\"terminated\":null}", SegmentTopicStats.class).getTerminated());
+    }
+
+    @Test
+    public void testDiagnosticsRoundTripAndOptionalFields() throws Exception {
+        ScalableTopicStats stats = new ScalableTopicStats();
+        JsonNode empty = toJson(stats);
+        assertFalse(empty.has("controllerBroker"));
+        assertFalse(empty.get("layout").has("lastOperation"));
+        assertFalse(empty.get("autoScale").has("policy"), "an unavailable policy is omitted, not null");
+        assertFalse(empty.get("autoScale").has("blockedReason"));
+        assertFalse(empty.get("autoScale").has("lastSplitAt"));
+
+        stats.setControllerBroker("pulsar://controller:6650");
+        var autoScale = stats.getAutoScale();
+        AutoScalePolicyOverride policy = new AutoScalePolicyOverride();
+        policy.setEnabled(true);
+        policy.setMaxSegments(16);
+        autoScale.setPolicy(policy);
+        autoScale.setBlockedReason("max_segments");
+        autoScale.setLastSplitAt("2026-09-17T00:00:00Z");
+        autoScale.setLastMergeAt("2026-09-17T01:00:00Z");
+        autoScale.setLastRebucketAt("2026-09-17T02:00:00Z");
+        var operation = new ScalableTopicStats.LayoutOperationStats();
+        operation.setOperation("split");
+        operation.setTrigger("manual");
+        operation.setSegmentIds(List.of(1L));
+        operation.setStatus("partial");
+        operation.setAt("2026-09-17T00:00:00Z");
+        operation.setError("metadata unavailable");
+        stats.getLayout().setLastOperation(operation);
+        var segment = new ScalableTopicStats.LayoutSegment();
+        segment.setCreatedAt("2026-09-16T00:00:00Z");
+        segment.setSealedAt("2026-09-17T00:00:00Z");
+        segment.setTerminated(true);
+        var load = new ScalableTopicStats.SegmentLoadStats();
+        load.setMsgRateIn(1.25);
+        load.setByteRateIn(10);
+        load.setMsgRateOut(2.5);
+        load.setByteRateOut(20);
+        load.setAgeSeconds(3.5);
+        segment.setLoad(load);
+        stats.getLayout().getSegments().put(1L, segment);
+        var checkpoint = new ScalableTopicStats.SubscriptionStats();
+        checkpoint.setUncoveredSegmentIds(null);
+        stats.getSubscriptions().put("checkpoint", checkpoint);
+
+        JsonNode json = toJson(stats);
+        assertEquals(keys(json.get("autoScale")), Set.of("policy", "blockedReason",
+                "lastSplitAt", "lastMergeAt", "lastRebucketAt"));
+        assertEquals(keys(json.get("layout").get("lastOperation")),
+                Set.of("operation", "trigger", "segmentIds", "status", "at", "error"));
+        assertEquals(keys(json.get("layout").get("segments").get("1").get("load")),
+                Set.of("msgRateIn", "byteRateIn", "msgRateOut", "byteRateOut", "ageSeconds"));
+        assertFalse(json.get("subscriptions").get("checkpoint").has("uncoveredSegmentIds"));
+        // An omitted list defaults to empty when read, as with older broker responses.
+        stats.getSubscriptions().clear();
+        assertEquals(MAPPER.readValue(MAPPER.writeValueAsString(stats), ScalableTopicStats.class), stats);
     }
 
     @Test

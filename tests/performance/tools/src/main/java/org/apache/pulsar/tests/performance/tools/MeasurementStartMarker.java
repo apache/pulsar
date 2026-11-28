@@ -27,10 +27,10 @@ import java.nio.file.StandardCopyOption;
 import java.util.concurrent.TimeoutException;
 
 /**
- * The gateways' measurement start, for the applications that join after it: a file in the coordination directory
- * with the start's epoch milliseconds, written atomically.
+ * The gateways' measurement start, for the applications that join after it and the launcher, which prepares their
+ * join: a file in the coordination directory with the start's epoch milliseconds, written atomically.
  */
-final class MeasurementStartMarker {
+public final class MeasurementStartMarker {
     private static final long POLL_INTERVAL_MILLIS = 20;
 
     private MeasurementStartMarker() {
@@ -49,7 +49,7 @@ final class MeasurementStartMarker {
      *
      * @throws TimeoutException when the measurement doesn't start before the deadline
      */
-    static long await(Path directory, String runId, long deadlineNanos) throws Exception {
+    public static long await(Path directory, String runId, long deadlineNanos) throws Exception {
         Path marker = marker(directory, runId);
         while (deadlineNanos - System.nanoTime() > 0) {
             try {

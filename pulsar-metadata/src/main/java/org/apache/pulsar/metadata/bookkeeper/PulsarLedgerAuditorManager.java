@@ -37,9 +37,11 @@ public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
 
     private final CoordinationService coordinationService;
     private final LeaderElection<String> leaderElection;
+    private final Runnable cancelSessionListener;
     private LeaderElectionState leaderElectionState;
     private String bookieId;
     private boolean sessionExpired = false;
+    private boolean closed = false;
 
     PulsarLedgerAuditorManager(MetadataStoreExtended store, String ledgersRoot) {
         this.coordinationService = new CoordinationServiceImpl(store);
@@ -49,7 +51,7 @@ public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
         this.leaderElection =
                 coordinationService.getLeaderElection(String.class, electionPath, this::handleStateChanges);
         this.leaderElectionState = LeaderElectionState.NoLeader;
-        store.registerSessionListener(event -> {
+        cancelSessionListener = store.registerCancellableSessionListener(event -> {
             if (SessionEvent.SessionLost == event) {
                 synchronized (this) {
                     sessionExpired = true;
@@ -81,6 +83,9 @@ public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
         while (true) {
             try {
                 synchronized (this) {
+                    if (closed) {
+                        throw new IllegalStateException("Auditor manager closed, give up to become auditor.");
+                    }
                     if (sessionExpired) {
                         throw new IllegalStateException("Zookeeper session expired, give up to become auditor.");
                     }
@@ -106,6 +111,12 @@ public class PulsarLedgerAuditorManager implements LedgerAuditorManager {
 
     @Override
     public void close() throws Exception {
+        // Release a candidate waiting in tryToBecomeAuditor(), which would otherwise wait until interrupted
+        synchronized (this) {
+            closed = true;
+            notifyAll();
+        }
+        cancelSessionListener.run();
         leaderElection.close();
         coordinationService.close();
     }

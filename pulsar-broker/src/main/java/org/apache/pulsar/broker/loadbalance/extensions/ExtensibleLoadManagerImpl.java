@@ -91,6 +91,8 @@ import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -130,6 +132,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     protected PulsarService pulsar;
 
     private ServiceConfiguration conf;
+    private final AtomicReference<PulsarClient> client = new AtomicReference<>();
 
     @Getter
     private BrokerRegistry brokerRegistry;
@@ -216,7 +219,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     private final ConcurrentHashMap<String, CompletableFuture<Optional<BrokerLookupData>>>
             lookupRequests = new ConcurrentHashMap<>();
-    private final CompletableFuture<Boolean> initWaiter = new CompletableFuture<>();
+    private volatile CompletableFuture<Boolean> initWaiter = new CompletableFuture<>();
 
     /**
      * Get all the bundles that are owned by this broker.
@@ -363,7 +366,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         if (state.get() != State.INIT) {
             return;
         }
+        initWaiter = new CompletableFuture<>();
         try {
+            PulsarClient startingClient = pulsar.createClientImpl(null, null);
+            client.set(startingClient);
             this.brokerRegistry = createBrokerRegistry(pulsar);
             this.leaderElectionService = new LeaderElectionService(
                     pulsar.getCoordinationService(), pulsar.getBrokerId(),
@@ -387,6 +393,10 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             this.serviceUnitStateChannel.listen(splitManager);
             this.leaderElectionService.start();
 
+            if (this.antiAffinityGroupPolicyHelper != null) {
+                // Left by a start that failed or was closed before it completed
+                this.antiAffinityGroupPolicyHelper.close();
+            }
             this.antiAffinityGroupPolicyHelper =
                     new AntiAffinityGroupPolicyHelper(pulsar, serviceUnitStateChannel);
             antiAffinityGroupPolicyHelper.listenFailureDomainUpdate();
@@ -396,9 +406,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
             this.isolationPoliciesHelper = new IsolationPoliciesHelper(policies);
             this.brokerFilterPipeline.add(new BrokerIsolationPoliciesFilter(isolationPoliciesHelper));
             this.brokerLoadDataStore = LoadDataStoreFactory
-                    .create(pulsar, BROKER_LOAD_DATA_STORE_TOPIC, BrokerLoadData.class);
+                    .create(pulsar, client.get(), BROKER_LOAD_DATA_STORE_TOPIC, BrokerLoadData.class);
             this.topBundlesLoadDataStore = LoadDataStoreFactory
-                    .create(pulsar, TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
+                    .create(pulsar, client.get(), TOP_BUNDLES_LOAD_DATA_STORE_TOPIC, TopBundlesLoadData.class);
 
             this.context = LoadManagerContextImpl.builder()
                     .configuration(conf)
@@ -419,9 +429,13 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     serviceUnitStateChannel, unloadCounter, unloadMetrics);
             this.splitScheduler = new SplitScheduler(
                     pulsar, serviceUnitStateChannel, splitManager, splitCounter, splitMetrics, context);
-            this.serviceUnitStateTableViewSyncer = new ServiceUnitStateTableViewSyncer();
+            this.serviceUnitStateTableViewSyncer = new ServiceUnitStateTableViewSyncer(client.get());
 
             pulsar.runWhenReadyForIncomingRequests(() -> {
+                // A close or a subsequent start may have replaced this startup's client before readiness.
+                if (client.get() != startingClient) {
+                    return;
+                }
                 try {
                     this.serviceUnitStateChannel.start();
                     var interval = conf.getLoadBalancerReportUpdateMinIntervalMillis();
@@ -462,10 +476,11 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                     MONITOR_INTERVAL_IN_MILLIS, TimeUnit.MILLISECONDS);
 
                     this.splitScheduler.start();
-                    this.initWaiter.complete(true);
+                    // The role changes waiting for the initWaiter check that the load manager is running
                     if (!state.compareAndSet(State.INIT, State.RUNNING)) {
                         failForUnexpectedState("start");
                     }
+                    this.initWaiter.complete(true);
                     log.info("Started load manager.");
                 } catch (Throwable e) {
                     failStarting(e);
@@ -477,19 +492,28 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
     }
 
     private void failStarting(Throwable throwable) {
-        if (this.brokerRegistry != null) {
-            try {
-                brokerRegistry.close();
-            } catch (PulsarServerException e) {
-                // If close failed, this broker might still exist in the metadata store. Then it could be found by other
-                // brokers as an available broker. Hence, print a warning log for it.
-                log.warn().exceptionMessage(e).log("Failed to close the broker registry");
+        try {
+            if (this.antiAffinityGroupPolicyHelper != null) {
+                this.antiAffinityGroupPolicyHelper.close();
             }
+            if (this.brokerRegistry != null) {
+                try {
+                    brokerRegistry.close();
+                } catch (PulsarServerException e) {
+                    // If close failed, this broker might still be advertised as available.
+                    log.warn().exceptionMessage(e).log("Failed to close the broker registry");
+                }
+            }
+        } finally {
+            try {
+                closeClient();
+            } catch (PulsarServerException closeException) {
+                throwable.addSuppressed(closeException);
+            }
+            initWaiter.complete(false); // exit the background thread gracefully
         }
-        initWaiter.complete(false); // exit the background thread gracefully
         throw PulsarServerException.toUncheckedException(PulsarServerException.from(throwable));
     }
-
 
     @Override
     public void initialize(PulsarService pulsar) {
@@ -743,8 +767,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                                long timeout,
                                                TimeUnit timeoutUnit) {
         Unload unload = unloadDecision.getUnload();
-        CompletableFuture<Void> future = serviceUnitStateChannel.publishUnloadEventAsync(unload);
-        return unloadManager.waitAsync(future, unload.serviceUnit(), unloadDecision, timeout, timeoutUnit)
+        return unloadManager.waitAsync(() -> serviceUnitStateChannel.publishUnloadEventAsync(unload),
+                        unload.serviceUnit(), unloadDecision, timeout, timeoutUnit)
                 .thenRun(() -> unloadCounter.updateUnloadBrokerCount(1));
     }
 
@@ -759,34 +783,50 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle.toString());
         NamespaceBundle namespaceBundle =
                 pulsar.getNamespaceService().getNamespaceBundleFactory().getBundle(namespaceName, bundleRange);
-        return pulsar.getNamespaceService().getSplitBoundary(namespaceBundle, splitAlgorithm, boundaries)
-                .thenCompose(splitBundlesPair -> {
-                    if (splitBundlesPair == null) {
-                        String msg = format("Bundle %s not found under namespace", namespaceBundle);
-                        log.error(msg);
-                        return FutureUtil.failedFuture(new IllegalStateException(msg));
+        return pulsar.getNamespaceService().getSplitBoundary(namespaceBundle, boundaries, splitAlgorithm)
+                .thenCompose(splitBoundaries -> {
+                    if (splitBoundaries == null || splitBoundaries.isEmpty()) {
+                        log.info()
+                                .attr("namespaceObject", namespaceBundle.getNamespaceObject().toString())
+                                .attr("boundaries", boundaries)
+                                .attr("bundle", namespaceBundle.getBundleRange())
+                                .log("No valid boundary found to split bundle");
+                        return CompletableFuture.completedFuture(null);
                     }
-
-                    return getOwnershipAsync(Optional.empty(), bundle)
-                            .thenCompose(brokerOpt -> {
-                                if (brokerOpt.isEmpty()) {
-                                    String msg = String.format("Namespace bundle: %s is not owned by any broker.",
-                                            bundle);
-                                    log.warn(msg);
-                                    throw new IllegalStateException(msg);
+                    return pulsar.getNamespaceService().getNamespaceBundleFactory()
+                            .splitBundles(namespaceBundle, splitBoundaries.size() + 1, splitBoundaries)
+                            .thenCompose(splitBundlesPair -> {
+                                if (splitBundlesPair == null) {
+                                    String msg = format("Bundle %s not found under namespace", namespaceBundle);
+                                    log.error(msg);
+                                    return FutureUtil.failedFuture(new IllegalStateException(msg));
                                 }
-                                String sourceBroker = brokerOpt.get();
-                                SplitDecision splitDecision = new SplitDecision();
-                                List<NamespaceBundle> splitBundles = splitBundlesPair.getRight();
-                                Map<String, Optional<String>> splitServiceUnitToDestBroker = new HashMap<>();
-                                splitBundles.forEach(splitBundle -> splitServiceUnitToDestBroker
-                                        .put(splitBundle.getBundleRange(), Optional.empty()));
-                                splitDecision.setSplit(
-                                        new Split(bundle.toString(), sourceBroker, splitServiceUnitToDestBroker));
-                                splitDecision.setLabel(Success);
-                                splitDecision.setReason(Admin);
-                                return splitAsync(splitDecision,
-                                        conf.getNamespaceBundleUnloadingTimeoutMs(), TimeUnit.MILLISECONDS);
+
+                                return getOwnershipAsync(Optional.empty(), bundle)
+                                        .thenCompose(brokerOpt -> {
+                                            if (brokerOpt.isEmpty()) {
+                                                String msg = String.format(
+                                                        "Namespace bundle: %s is not owned by any broker.",
+                                                        bundle);
+                                                log.warn(msg);
+                                                throw new IllegalStateException(msg);
+                                            }
+                                            String sourceBroker = brokerOpt.get();
+                                            SplitDecision splitDecision = new SplitDecision();
+                                            List<NamespaceBundle> splitBundles = splitBundlesPair.getRight();
+                                            Map<String, Optional<String>> splitServiceUnitToDestBroker =
+                                                    new HashMap<>();
+                                            splitBundles.forEach(splitBundle -> splitServiceUnitToDestBroker
+                                                    .put(splitBundle.getBundleRange(), Optional.empty()));
+                                            splitDecision.setSplit(
+                                                    new Split(bundle.toString(), sourceBroker,
+                                                            splitServiceUnitToDestBroker));
+                                            splitDecision.setLabel(Success);
+                                            splitDecision.setReason(Admin);
+                                            return splitAsync(splitDecision,
+                                                    conf.getNamespaceBundleUnloadingTimeoutMs(),
+                                                    TimeUnit.MILLISECONDS);
+                                        });
                             });
                 });
     }
@@ -795,16 +835,56 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                                                long timeout,
                                                TimeUnit timeoutUnit) {
         Split split = decision.getSplit();
-        CompletableFuture<Void> future = serviceUnitStateChannel.publishSplitEventAsync(split);
-        return splitManager.waitAsync(future, decision.getSplit().serviceUnit(), decision, timeout, timeoutUnit);
+        return splitManager.waitAsync(() -> serviceUnitStateChannel.publishSplitEventAsync(split),
+                split.serviceUnit(), decision, timeout, timeoutUnit);
     }
 
     @Override
     public void close() throws PulsarServerException {
+        try {
+            closeResources();
+        } finally {
+            try {
+                closeClient();
+            } finally {
+                initWaiter.complete(false);
+                state.set(State.INIT);
+            }
+        }
+    }
+
+    private void closeClient() throws PulsarServerException {
+        PulsarClient clientToClose = client.getAndSet(null);
+        if (clientToClose != null) {
+            try {
+                clientToClose.close();
+            } catch (PulsarClientException e) {
+                throw new PulsarServerException(e);
+            }
+        }
+    }
+
+    @VisibleForTesting
+    PulsarClient getClient() {
+        return client.get();
+    }
+
+    private void closeResources() throws PulsarServerException {
         if (state.get() == State.INIT) {
+            // The start may have registered metadata store listeners before it failed or before the broker was
+            // ready for incoming requests
+            if (antiAffinityGroupPolicyHelper != null) {
+                antiAffinityGroupPolicyHelper.close();
+            }
+            if (brokerRegistry != null) {
+                brokerRegistry.close();
+            }
             return;
         }
         try {
+            if (antiAffinityGroupPolicyHelper != null) {
+                antiAffinityGroupPolicyHelper.close();
+            }
             stopLoadDataReportTasks();
             this.unloadScheduler.close();
             this.splitScheduler.close();
@@ -823,8 +903,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                         this.leaderElectionService.close();
                     } catch (Exception e) {
                         throw new PulsarServerException(e);
-                    } finally {
-                        state.set(State.INIT);
                     }
                 }
 
@@ -886,7 +964,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         boolean becameFollower = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                if (!initWaiter.get() || disabled()) {
+                // Not once the broker is disabled, nor once the load manager is closed, which puts it back in INIT
+                if (!initWaiter.get() || !running()) {
                     return;
                 }
                 try {
@@ -902,7 +981,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     }
                 }
 
-                if (disabled()) {
+                if (!running()) {
                     return;
                 }
                 // Confirm the system topics have been created or create them if they do not exist.
@@ -919,9 +998,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 }
                 break;
             } catch (Throwable e) {
-                if (disabled()) {
+                if (!running()) {
                     log.warn().attr("broker", pulsar.getBrokerId()).exception(e)
-                            .log("The broker: failed to set the role but exit because it's disabled");
+                            .log("The broker: failed to set the role but exit because it's disabled or closed");
                     return;
                 }
                 log.warn().attr("broker", pulsar.getBrokerId()).attr("retrying", ++retry).exception(e)
@@ -935,7 +1014,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 }
             }
         }
-        if (disabled()) {
+        if (!running()) {
             return;
         }
 
@@ -962,7 +1041,8 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
         boolean becameLeader = false;
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                if (!initWaiter.get() || disabled()) {
+                // Not once the broker is disabled, nor once the load manager is closed, which puts it back in INIT
+                if (!initWaiter.get() || !running()) {
                     return;
                 }
                 try {
@@ -978,7 +1058,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                     }
                 }
 
-                if (disabled()) {
+                if (!running()) {
                     return;
                 }
                 unloadScheduler.close();
@@ -990,9 +1070,9 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 serviceUnitStateTableViewSyncer.close();
                 break;
             } catch (Throwable e) {
-                if (disabled()) {
+                if (!running()) {
                     log.warn().attr("broker", pulsar.getBrokerId()).exception(e)
-                            .log("The broker: failed to set the role but exit because it's disabled");
+                            .log("The broker: failed to set the role but exit because it's disabled or closed");
                     return;
                 }
                 log.warn().attr("broker", pulsar.getBrokerId()).attr("retrying", ++retry).exception(e)
@@ -1006,7 +1086,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
                 }
             }
         }
-        if (disabled()) {
+        if (!running()) {
             return;
         }
 
@@ -1183,7 +1263,7 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     @VisibleForTesting
     protected ServiceUnitStateChannel createServiceUnitStateChannel(PulsarService pulsar) {
-        return new ServiceUnitStateChannelImpl(pulsar);
+        return new ServiceUnitStateChannelImpl(pulsar, client.get());
     }
 
     private void failForUnexpectedState(String msg) {
@@ -1192,10 +1272,6 @@ public class ExtensibleLoadManagerImpl implements ExtensibleLoadManager, BrokerS
 
     boolean running() {
         return state.get() == State.RUNNING;
-    }
-
-    private boolean disabled() {
-        return state.get() == State.DISABLED;
     }
 
     private boolean isPersistentSystemTopicUsed() {

@@ -90,6 +90,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -116,6 +117,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private static final long MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS = 1000;
 
     private final PulsarService pulsar;
+    private final PulsarClient client;
     private final ServiceConfiguration config;
     private final Schema<ServiceUnitStateData> schema;
     private final Map<String, CompletableFuture<String>> getOwnerRequests;
@@ -150,6 +152,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private volatile long lastOwnEventHandledAt = 0;
     private long lastOwnedServiceUnitCountAt = 0;
     private int totalOwnedServiceUnitCnt = 0;
+    // Guarded by this
+    private Runnable cancelSessionListener;
 
     public enum EventType {
         Assign,
@@ -197,7 +201,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     @VisibleForTesting
     public ServiceUnitStateChannelImpl(PulsarService pulsar) {
+        this(pulsar, null);
+    }
+
+    public ServiceUnitStateChannelImpl(PulsarService pulsar, PulsarClient client) {
         this.pulsar = pulsar;
+        this.client = client;
         this.config = pulsar.getConfig();
         this.brokerId = pulsar.getBrokerId();
         this.schema = Schema.JSON(ServiceUnitStateData.class);
@@ -351,12 +360,14 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                             pulsar.getConfiguration().getDefaultNumberOfSystemNamespaceBundles());
 
             tableview = createServiceUnitStateTableView();
-            tableview.start(pulsar, this::handleEvent, this::handleExisting, this::handleInvalidate);
+            tableview.start(pulsar, client, this::handleEvent, this::handleExisting, this::handleInvalidate);
 
             if (debug) {
                 log.info("Successfully started the channel tableview.");
             }
-            pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
+            unregisterSessionListener();
+            cancelSessionListener =
+                    pulsar.getLocalMetadataStore().registerCancellableSessionListener(this::handleMetadataSessionEvent);
             if (debug) {
                 log.info("Successfully registered the handleMetadataSessionEvent");
             }
@@ -398,11 +409,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return pulsar.getAdminClient();
     }
 
+    private void unregisterSessionListener() {
+        if (cancelSessionListener != null) {
+            cancelSessionListener.run();
+            cancelSessionListener = null;
+        }
+    }
+
     @Override
     public synchronized void close() throws PulsarServerException {
         channelState = Closed;
         try {
             leaderElectionService = null;
+            unregisterSessionListener();
 
             if (tableview != null) {
                 tableview.close();
@@ -825,6 +844,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     .log("Loaded the service unit state data");
         }
         ServiceUnitState state = state(data);
+        if (state.equals(Owned)) {
+            // The table view is refilled with the existing items after the metadata store session is reestablished.
+            // A lookup waiting for an owner misses the event that set it if it came while the session was lost:
+            // answer the lookup now, instead of when it times out.
+            var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
+            if (getOwnerRequest != null) {
+                getOwnerRequest.complete(data.dstBroker());
+            }
+        }
         if (state.equals(Owned) && isTargetBroker(data.dstBroker())) {
             pulsar.getNamespaceService()
                     .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
@@ -1173,7 +1201,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                 .exception(ex)
                                 .log("Failed to close topics under bundle");
                         if (!disconnectClients) {
-                            pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
+                            // The failed transfer leaves the bundle owned by this broker, so a topic whose close
+                            // failed keeps serving its clients until a later close of the bundle closes it.
+                            pulsar.getBrokerService().cleanFencedTopicsFromCache(bundle, topicFutures);
                         }
                     } else {
                         log.info().attr("bundle", bundle).attr("topicCount", unloadedTopics)
