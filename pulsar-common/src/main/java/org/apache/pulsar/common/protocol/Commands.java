@@ -122,6 +122,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
+import org.jspecify.annotations.Nullable;
 
 @UtilityClass
 @CustomLog
@@ -1122,6 +1123,18 @@ public class Commands {
         return serializeWithSize(newLookupErrorResponseCommand(error, errorMsg, requestId));
     }
 
+    /**
+     * Serialize a transaction ack command for the given entries.
+     *
+     * @param consumerId consumer identifier
+     * @param txnID      transaction ID
+     * @param entries    ack entries, each a triple of ledger ID, entry ID and ack set
+     * @return the serialized ACK command
+     * @deprecated Use {@link #newMultiMessageAck(long, TxnID, List, long)} and pass the transaction ID
+     *             as the second parameter; the request ID is now the last parameter. This overload is
+     *             retained for source compatibility and is slated for removal.
+     */
+    @Deprecated
     public static ByteBuf newMultiTransactionMessageAck(long consumerId, TxnID txnID,
             List<Triple<Long, Long, ConcurrentBitSet>> entries) {
         BaseCommand cmd = newMultiMessageAckCommon(entries);
@@ -1155,6 +1168,18 @@ public class Commands {
         return cmd;
     }
 
+    /**
+     * Serialize an ack command for the given entries, without a transaction ID.
+     *
+     * @param consumerId consumer identifier
+     * @param entries    ack entries, each a triple of ledger ID, entry ID and ack set
+     * @param requestId  request ID, or any negative value to omit it
+     * @return the serialized ACK command
+     * @deprecated Use {@link #newMultiMessageAck(long, TxnID, List, long)} and pass null for the
+     *             transaction ID. This overload is retained for source compatibility and is
+     *             slated for removal.
+     */
+    @Deprecated
     public static ByteBuf newMultiMessageAck(long consumerId,
                                              List<Triple<Long, Long, ConcurrentBitSet>> entries,
                                              long requestId) {
@@ -1172,7 +1197,17 @@ public class Commands {
      * Serialize existing message IDs without allocating a tuple and boxed coordinates for each acknowledgement.
      * Individual IDs are written first, followed by batch-index IDs with their supplied acknowledgement masks.
      * Both lists and the masks are read synchronously and are not retained by the returned command.
+     *
+     * @param consumerId    consumer identifier
+     * @param individualAcks individual IDs to acknowledge
+     * @param batchIndexAcks batch-index IDs and their acknowledgement masks
+     * @param requestId     request ID, or any negative value to omit it
+     * @return the serialized ACK command
+     * @deprecated Use {@link #newMultiMessageAck(long, TxnID, List, long)} instead. Build the entry list
+     *             from the individual acknowledgments and batch-index entries, and pass a null transaction
+     *             ID (or the transaction ID when in a transaction). This overload is slated for removal.
      */
+    @Deprecated
     public static ByteBuf newMultiMessageAck(long consumerId,
                                             List<? extends MessageIdAdv> individualAcks,
                                             List<? extends Map.Entry<? extends MessageIdAdv, ConcurrentBitSet>>
@@ -1204,12 +1239,54 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
+    /**
+     * Create the ack command for the given entries. This is the only public ack-command factory that carries
+     * the request ID.
+     * <p>
+     * The transaction ID is optional: pass null when the consumer is not acknowledging messages as part of a
+     * transaction. Pass any negative value for {@code requestId} to omit the request ID from the command.
+     *
+     * @param consumerId consumer identifier
+     * @param txnID      transaction ID, or null when not in a transaction
+     * @param entries    ack entries, each a triple of ledger ID, entry ID and ack set
+     * @param requestId  request ID, or any negative value to omit it
+     * @return the serialized ACK command
+     */
+    public static ByteBuf newMultiMessageAck(long consumerId, @Nullable TxnID txnID,
+                                             List<Triple<Long, Long, ConcurrentBitSet>> entries,
+                                             long requestId) {
+        BaseCommand cmd = newMultiMessageAckCommon(entries);
+        cmd.getAck()
+                .setConsumerId(consumerId)
+                .setAckType(AckType.Individual);
+        if (txnID != null) {
+            cmd.getAck()
+                    .setTxnidLeastBits(txnID.getLeastSigBits())
+                    .setTxnidMostBits(txnID.getMostSigBits());
+        }
+        if (requestId >= 0) {
+            cmd.getAck().setRequestId(requestId);
+        }
+        return serializeWithSize(cmd);
+    }
+
+    /**
+     * @deprecated Use {@link #newMultiMessageAck(long, TxnID, List, long)}. This overload remains functional,
+     *             in particular for callers that rely on the validation-error and properties path; it will be
+     *             removed in a later release.
+     */
+    @Deprecated
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long requestId) {
         return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError,
                 properties, -1L, -1L, requestId, -1);
     }
 
+    /**
+     * @deprecated Use {@link #newMultiMessageAck(long, TxnID, List, long)}. This overload remains functional;
+     *             it will be removed in a later release.
+     */
+    @Deprecated
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits, long requestId, int batchSize) {
@@ -1234,6 +1311,11 @@ public class Commands {
         return newAck(validationError, properties, txnIdLeastBits, txnIdMostBits, requestId, ack, cmd);
     }
 
+    /**
+     * @deprecated Use {@link #newMultiMessageAck(long, TxnID, List, long)}. This overload remains functional, in
+     *             particular for cumulative acknowledgments; it will be removed in a later release.
+     */
+    @Deprecated
     public static ByteBuf newAck(long consumerId, List<MessageIdData> messageIds, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits, long requestId) {
@@ -1270,6 +1352,11 @@ public class Commands {
     }
 
 
+    /**
+     * @deprecated Use {@link #newMultiMessageAck(long, TxnID, List, long)}. This overload remains functional;
+     *             it will be removed in a later release.
+     */
+    @Deprecated
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long txnIdLeastBits,
                                  long txnIdMostBits, long requestId) {
