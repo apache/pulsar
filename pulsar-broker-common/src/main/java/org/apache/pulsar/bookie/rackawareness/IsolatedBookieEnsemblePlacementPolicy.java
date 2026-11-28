@@ -96,7 +96,7 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         try {
             store = BookieRackAffinityMapping.getMetadataStore(conf);
         } catch (MetadataException e) {
-            throw new RuntimeException(METADATA_STORE_INSTANCE + " failed initialized");
+            throw new RuntimeException(METADATA_STORE_INSTANCE + " failed initialized: " + e.getMessage(), e);
         }
         // The rack configuration is loaded even without default isolation groups, because the groups of a namespace
         // bookie affinity group reach this policy through the custom metadata of each ledger.

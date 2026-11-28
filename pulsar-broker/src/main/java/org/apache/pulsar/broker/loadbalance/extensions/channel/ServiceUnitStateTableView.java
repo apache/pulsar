@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 
 /**
@@ -59,6 +60,17 @@ public interface ServiceUnitStateTableView extends Closeable {
                BiConsumer<String, ServiceUnitStateData> tailItemListener,
                BiConsumer<String, ServiceUnitStateData> existingItemListener,
                BiConsumer<String, ServiceUnitStateData> itemOutdatedListeners) throws IOException;
+
+    /**
+     * Starts the tableview with a client owned by the caller. Implementations must not close the client.
+     * The default delegates to the original entry point for compatibility with custom tableviews.
+     */
+    default void start(PulsarService pulsar, PulsarClient client,
+                       BiConsumer<String, ServiceUnitStateData> tailItemListener,
+                       BiConsumer<String, ServiceUnitStateData> existingItemListener,
+                       BiConsumer<String, ServiceUnitStateData> itemOutdatedListeners) throws IOException {
+        start(pulsar, tailItemListener, existingItemListener, itemOutdatedListeners);
+    }
 
 
     /**

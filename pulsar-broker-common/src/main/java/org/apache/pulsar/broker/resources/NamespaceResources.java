@@ -40,6 +40,7 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -77,8 +78,7 @@ public class NamespaceResources extends BaseResources<Policies> {
         try {
             return getPoliciesReadOnlyAsync().get(getOperationTimeoutSec(), TimeUnit.SECONDS);
         } catch (ExecutionException e) {
-            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
-                    : new MetadataStoreException(e.getCause());
+            throw unwrapAsMetadataStoreException(e);
         } catch (Exception e) {
             throw new MetadataStoreException("Failed to check exist " + POLICIES_READONLY_FLAG_PATH, e);
         }
@@ -413,11 +413,12 @@ public class NamespaceResources extends BaseResources<Policies> {
             markPartitionedTopicDeletedAsync(topic).whenCompleteAsync((markResult, markExc) -> {
                 final boolean mdFound;
                 if (markExc != null) {
-                    if (markExc.getCause() instanceof MetadataStoreException.NotFoundException) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(markExc);
+                    if (cause instanceof MetadataStoreException.NotFoundException) {
                         mdFound = false;
                     } else {
                         log.error().attr("topic", topic).exception(markExc).log("Failed to mark the topic as deleted");
-                        future.completeExceptionally(markExc);
+                        future.completeExceptionally(cause);
                         return;
                     }
                 } else {
@@ -425,19 +426,20 @@ public class NamespaceResources extends BaseResources<Policies> {
                 }
 
                 supplier.get().whenComplete((deleteResult, deleteExc) -> {
-                    if (deleteExc != null && mdFound) {
+                    Throwable deleteCause = FutureUtil.unwrapCompletionException(deleteExc);
+                    if (deleteCause != null && mdFound) {
                         unmarkPartitionedTopicDeletedAsync(topic)
-                                .thenRun(() -> future.completeExceptionally(deleteExc))
+                                .thenRun(() -> future.completeExceptionally(deleteCause))
                                 .exceptionally(ex -> {
                                     log.warn()
                                             .attr("topic", topic)
                                             .exception(ex)
                                             .log("Failed to unmark the topic as deleted");
-                                    future.completeExceptionally(deleteExc);
+                                    future.completeExceptionally(deleteCause);
                                     return null;
                                 });
-                    } else if (deleteExc != null) {
-                        future.completeExceptionally(deleteExc);
+                    } else if (deleteCause != null) {
+                        future.completeExceptionally(deleteCause);
                     } else {
                         future.complete(deleteResult);
                     }

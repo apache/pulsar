@@ -50,6 +50,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
@@ -68,6 +70,7 @@ import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -100,6 +103,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     private boolean useStaticPorts = false;
     // When set, what the broker's getCreateAdminClientBuilder() returns instead of a builder of its own
     private volatile PulsarAdminBuilder brokerAdminClientBuilder;
+    private volatile Function<Consumer<PulsarClientImpl.PulsarClientImplBuilder>, PulsarClientImpl>
+            healthCheckerClientFactory;
 
     @Override
     protected void setup() throws Exception {
@@ -115,6 +120,11 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             PulsarAdminBuilder builder = brokerAdminClientBuilder;
             return builder != null ? builder : invocation.callRealMethod();
         }).when(pulsar).getCreateAdminClientBuilder();
+        doAnswer(invocation -> {
+            Function<Consumer<PulsarClientImpl.PulsarClientImplBuilder>, PulsarClientImpl> factory =
+                    healthCheckerClientFactory;
+            return factory != null ? factory.apply(invocation.getArgument(0)) : invocation.callRealMethod();
+        }).when(pulsar).createClientImpl(any(Consumer.class));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -123,6 +133,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
         useStaticPorts = false;
         brokerAdminClientBuilder = null;
+        healthCheckerClientFactory = null;
     }
 
     @Override
@@ -585,6 +596,36 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertThat(pulsar.getAdminClient()).isSameAs(adminClient);
         assertThat(closingThread.join(Duration.ofSeconds(30))).as("close finished").isTrue();
         verify(adminClient).close();
+    }
+
+    @Test
+    public void testCloseClosesHealthCheckerBeingCreated() throws Exception {
+        setup();
+        PulsarClientImpl healthCheckerClient = mock(PulsarClientImpl.class);
+        AtomicBoolean monitorHeldOnClose = new AtomicBoolean(false);
+        doAnswer(inv -> {
+            monitorHeldOnClose.set(Thread.holdsLock(pulsar));
+            return null;
+        }).when(healthCheckerClient).close();
+        Thread closingThread = new Thread(pulsar::closeAsync, "closing-broker");
+        // The broker starts closing while getHealthChecker() creates the health checker under the service's lock,
+        // and the creation ends once the close waits for that lock
+        healthCheckerClientFactory = customizer -> {
+            Thread creatingThread = Thread.currentThread();
+            closingThread.start();
+            Awaitility.await().until(() -> {
+                ThreadInfo threadInfo = ManagementFactory.getThreadMXBean().getThreadInfo(closingThread.threadId());
+                return threadInfo != null
+                        && threadInfo.getThreadState() == Thread.State.BLOCKED
+                        && threadInfo.getLockOwnerId() == creatingThread.threadId();
+            });
+            return healthCheckerClient;
+        };
+
+        pulsar.getHealthChecker();
+        assertThat(closingThread.join(Duration.ofSeconds(30))).as("close finished").isTrue();
+        verify(healthCheckerClient).close();
+        assertThat(monitorHeldOnClose.get()).isFalse();
     }
 
     @Test
