@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Predicate;
 import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -392,6 +393,36 @@ public class TxnMetadataStoreTest {
                 }).get();
         assertThat(remaining).isEmpty();
         assertThat(txn.getSegmentWatermark(segment).get()).isEmpty();
+    }
+
+    @Test
+    public void replaceOpsAsksTheStoreToConfirmARewriteWhoseReplyWasLost() throws Exception {
+        List<Set<Option>> rewriteOptions = new CopyOnWriteArrayList<>();
+        @Cleanup MetadataStore store = new LocalMemoryMetadataStore("memory:local",
+                MetadataStoreConfig.builder().fsyncEnable(false).build()) {
+            @Override
+            public CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
+                                                    Set<Option> options) {
+                if (optExpectedVersion.isPresent()) {
+                    rewriteOptions.add(options);
+                }
+                return super.storePut(path, data, optExpectedVersion, options);
+            }
+        };
+        TxnMetadataStore txn = new TxnMetadataStore(store);
+        String segment = "segment://public/default/topic/0000-ffff-0";
+        Stat appended = txn.appendOp("tx-1", new TxnOp(TxnOpKind.ACK, segment, "sub", 3L, 5L, null)).get();
+        rewriteOptions.clear();
+        TxnOp marked = new TxnOp(TxnOpKind.ACK, segment, "sub", 3L, 5L, null);
+        marked.setResetPending(true);
+
+        txn.replaceOps(List.of(new TxnMetadataStore.OpImage(
+                new TxnMetadataStore.OpRecord(appended.getPath(), "tx-1", appended.getVersion()), marked)),
+                true, replaced -> { }).get();
+        // A store that loses the reply of a versioned write it applied reports a version conflict on retry unless it
+        // reads the write back; the rewrite would then count as failed and stay untracked.
+        assertThat(rewriteOptions).singleElement()
+                .satisfies(options -> assertThat(options).contains(Option.VerifyPublication.INSTANCE));
     }
 
     // ---- helpers -----------------------------------------------------------

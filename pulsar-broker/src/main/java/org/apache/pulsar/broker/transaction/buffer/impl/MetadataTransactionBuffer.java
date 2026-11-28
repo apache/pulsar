@@ -142,6 +142,9 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     /** Current maxReadPosition; never moves above the watermark while recovery-discovered opens exist. */
     private Position maxReadPosition;
 
+    /** Guarded by {@link #lock}; no retained data is dispatchable until recovery has hydrated all state. */
+    private boolean recoveryComplete;
+
     /**
      * Serialised chain for watermark-persist + op-record-cleanup. Each apply enqueues itself on the
      * tail so we never have two in-flight watermark CASes racing.
@@ -183,7 +186,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         this.txnStore = txnStore;
         this.segmentName = topic.getName();
         this.maxReadPositionCallBack = topic.getMaxReadPositionCallBack();
-        this.maxReadPosition = ledger.getLastConfirmedEntry();
+        this.maxReadPosition = PositionFactory.EARLIEST;
         recover();
         this.abortedGcTask = scheduleAbortedGc();
     }
@@ -243,7 +246,9 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         try {
             handle = txnStore.subscribeSegmentEvents(segmentName, path -> triggerReconcile());
         } catch (MetadataStoreException e) {
+            log.error().attr("segment", segmentName).exception(e).log("TB recovery failed");
             recoveryFuture.completeExceptionally(e);
+            closeTopicAfterFailedRecovery();
             return;
         }
         subscription = handle;
@@ -255,10 +260,8 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                         synchronized (lock) {
                             watermark = opt.get().value();
                             watermarkVersion = opt.get().version();
-                            // Initialise maxReadPosition at the watermark so we don't expose anything
-                            // above it until in-memory state catches up.
-                            maxReadPosition = PositionFactory.create(
-                                    watermark.ledgerId(), watermark.entryId());
+                            // Keep dispatch blocked until the aborted set and unresolved writes
+                            // below and above this watermark have also been recovered.
                         }
                     }
                 });
@@ -326,14 +329,53 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                 log.error().attr("segment", segmentName).exception(err).log("TB recovery failed");
                 closeSubscriptionQuietly();
                 recoveryFuture.completeExceptionally(err);
+                closeTopicAfterFailedRecovery();
                 return;
             }
             synchronized (lock) {
+                recoveryComplete = true;
                 recomputeMaxReadPositionLocked();
             }
             recoveryFuture.complete(null);
             // Drain any events that fired between subscribe and now.
             triggerReconcile();
+        });
+    }
+
+    /**
+     * Close the topic after a failed recovery, so that it reloads and recovers again: nothing retained becomes
+     * dispatchable before recovery completes. {@code TopicTransactionBuffer} closes its topic in the same case. The
+     * topic creates this buffer in its constructor, and its close() closes its buffer, so the close runs on the broker
+     * executor once the topic has published this buffer.
+     */
+    private void closeTopicAfterFailedRecovery() {
+        ScheduledExecutorService executor = brokerExecutor();
+        if (executor == null) {
+            closeTopic();
+            return;
+        }
+        executor.execute(Runnables.catchingAndLoggingThrowables(() -> {
+            TransactionBuffer published = topic.getTransactionBuffer();
+            if (published == null) {
+                // The topic constructor is still creating this buffer.
+                executor.schedule(this::closeTopicAfterFailedRecovery, 100, TimeUnit.MILLISECONDS);
+            } else if (published == this) {
+                closeTopic();
+            }
+        }));
+    }
+
+    private void closeTopic() {
+        if (closed || topic.isClosingOrDeleting()) {
+            return;
+        }
+        log.warn().attr("segment", segmentName)
+                .log("Closing the topic so that it reloads and recovers its transaction buffer again");
+        FutureUtil.supplySafely(() -> topic.close(true)).whenComplete((__, error) -> {
+            if (error != null) {
+                log.warn().attr("segment", segmentName).exception(error)
+                        .log("Failed to close the topic after its transaction buffer failed to recover");
+            }
         });
     }
 
@@ -805,7 +847,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         long expectedVersion;
         synchronized (lock) {
             Position desired = maxReadPosition;
-            if (deleted || desired == null) {
+            if (deleted || !recoveryComplete || desired == null) {
                 return CompletableFuture.completedFuture(null);
             }
             if (watermark != null
@@ -858,6 +900,11 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     // ---- maxReadPosition ---------------------------------------------------
 
     private void recomputeMaxReadPositionLocked() {
+        if (!recoveryComplete) {
+            // Normal publishes and terminal applies can run while metadata recovery is pending.
+            // Neither may expose retained entries before all visibility state has been hydrated.
+            return;
+        }
         Position next;
         Position watermarkPos = (watermark == null) ? null
                 : PositionFactory.create(watermark.ledgerId(), watermark.entryId());
@@ -865,7 +912,10 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         if (recoveryDiscoveredOpen > 0) {
             // Pinned at the durable watermark while any recovery-discovered open txn remains:
             // we don't know their first positions and mustn't advance past them.
-            next = watermarkPos != null ? watermarkPos : maxReadPosition;
+            // A segment's first OPEN transaction may have crashed before any watermark was
+            // persisted. The constructor's LAC includes its uncommitted entries, so without a
+            // watermark no retained data can be exposed until the recovered transactions resolve.
+            next = watermarkPos != null ? watermarkPos : PositionFactory.EARLIEST;
         } else {
             Position min = null;
             boolean anyOpen = false;

@@ -44,6 +44,8 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -58,6 +60,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.metadata.AbortedTxnRecord;
 import org.apache.pulsar.broker.transaction.metadata.SegmentWatermark;
 import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
@@ -68,6 +71,7 @@ import org.apache.pulsar.broker.transaction.metadata.TxnOp;
 import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
 import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
 import org.apache.pulsar.broker.transaction.metadata.TxnState;
+import org.apache.pulsar.broker.transaction.metadata.Versioned;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -79,6 +83,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -486,6 +491,66 @@ public class MetadataTransactionBufferTest {
         assertThat(tb.getOngoingTxnCount()).isOne();
         // An OPEN recovery-discovered txn is not in the aborted set.
         assertThat(tb.isTxnAborted(openTxn, PositionFactory.create(5, 0))).isFalse();
+    }
+
+    @DataProvider
+    public Object[][] recoveryWatermarks() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "recoveryWatermarks")
+    public void recoveryBlocksDispatchUntilAllVisibilityStateIsLoaded(boolean hasWatermark) throws Exception {
+        if (hasWatermark) {
+            txnStore.casSegmentWatermark(SEGMENT, new SegmentWatermark(5, 0), Optional.of(-1L)).get();
+        }
+        TxnID abortedTxn = new TxnID(1, 1);
+        txnStore.putAbortedTxn(SEGMENT, TxnIds.toKey(abortedTxn), 5, 0).get();
+        Optional<Versioned<SegmentWatermark>> persistedWatermark = txnStore.getSegmentWatermark(SEGMENT).get();
+        TxnMetadataStore delayedStore = spy(txnStore);
+        CompletableFuture<Optional<Versioned<SegmentWatermark>>> watermarkRead = new CompletableFuture<>();
+        CompletableFuture<Void> abortedScanReleased = new CompletableFuture<>();
+        CompletableFuture<Void> writeScanReleased = new CompletableFuture<>();
+        doReturn(watermarkRead).when(delayedStore).getSegmentWatermark(SEGMENT);
+        doAnswer(inv -> abortedScanReleased.thenCompose(__ -> txnStore.scanAbortedTxns(
+                inv.getArgument(0), inv.getArgument(1), inv.getArgument(2), inv.getArgument(3))))
+                .when(delayedStore).scanAbortedTxns(eq(SEGMENT), any(), any(), any());
+        doAnswer(inv -> writeScanReleased.thenCompose(__ ->
+                txnStore.listWritesBySegment(SEGMENT, inv.getArgument(1))))
+                .when(delayedStore).listWritesBySegment(eq(SEGMENT), any());
+        TopicTransactionBuffer.MaxReadPositionCallBack callback =
+                mock(TopicTransactionBuffer.MaxReadPositionCallBack.class);
+        when(topic.getMaxReadPositionCallBack()).thenReturn(callback);
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, delayedStore);
+        try {
+            assertThat(tb.checkIfTBRecoverCompletely()).isNotDone();
+            assertThat(tb.getMaxReadPosition()).as("before the watermark read").isEqualTo(PositionFactory.EARLIEST);
+            tb.syncMaxReadPositionForNormalPublish(ledger.getLastConfirmedEntry(), false);
+            assertThat(tb.getMaxReadPosition()).as("normal publish during recovery")
+                    .isEqualTo(PositionFactory.EARLIEST);
+
+            watermarkRead.complete(persistedWatermark);
+            verify(delayedStore, timeout(10_000)).scanAbortedTxns(eq(SEGMENT), any(), any(), any());
+            assertThat(tb.getMaxReadPosition()).as("before aborted records are loaded")
+                    .isEqualTo(PositionFactory.EARLIEST);
+            abortedScanReleased.complete(null);
+            verify(delayedStore, timeout(10_000)).listWritesBySegment(eq(SEGMENT), any());
+            assertThat(tb.isTxnAborted(abortedTxn, PositionFactory.create(5, 0))).isTrue();
+            assertThat(tb.getMaxReadPosition()).as("before unresolved writes are loaded")
+                    .isEqualTo(PositionFactory.EARLIEST);
+            tb.syncMaxReadPositionForNormalPublish(ledger.getLastConfirmedEntry(), false);
+            assertThat(tb.getMaxReadPosition()).isEqualTo(PositionFactory.EARLIEST);
+            verify(delayedStore, never()).casSegmentWatermark(any(), any(), any());
+
+            writeScanReleased.complete(null);
+            tb.checkIfTBRecoverCompletely().get(10, TimeUnit.SECONDS);
+            assertThat(tb.getMaxReadPosition()).isEqualTo(ledger.getLastConfirmedEntry());
+            verify(callback).maxReadPositionMovedForward(PositionFactory.EARLIEST, ledger.getLastConfirmedEntry());
+        } finally {
+            watermarkRead.complete(persistedWatermark);
+            abortedScanReleased.complete(null);
+            writeScanReleased.complete(null);
+            tb.closeAsync().get(10, TimeUnit.SECONDS);
+        }
     }
 
     @Test
@@ -1013,6 +1078,68 @@ public class MetadataTransactionBufferTest {
             adds.add(addPlainEntry(tb, entry, callbacks));
         }
         return adds;
+    }
+
+    @Test
+    public void recoveryFailure_closesTheTopicSoThatItReloads() throws Exception {
+        TxnMetadataStore failing = spy(txnStore);
+        CompletableFuture<Optional<Versioned<SegmentWatermark>>> watermark = new CompletableFuture<>();
+        doReturn(watermark).when(failing).getSegmentWatermark(SEGMENT);
+        AtomicReference<TransactionBuffer> published = new AtomicReference<>();
+        runTopicTasksInline(published);
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, failing);
+        published.set(tb);
+
+        MetadataStoreException injected = new MetadataStoreException("injected watermark read failure");
+        watermark.completeExceptionally(injected);
+        assertThatThrownBy(() -> tb.checkIfTBRecoverCompletely().get(5, TimeUnit.SECONDS)).hasCause(injected);
+        // Without the close, nothing ever completes recovery: no retained entry would become dispatchable again.
+        verify(topic).close(true);
+    }
+
+    @Test
+    public void recoveryFailureInTheConstructor_closesTheTopicOnceItPublishedTheBuffer() throws Exception {
+        TxnMetadataStore failing = spy(txnStore);
+        doThrow(new MetadataStoreException("injected subscription failure"))
+                .when(failing).subscribeSegmentEvents(eq(SEGMENT), any());
+        AtomicReference<TransactionBuffer> published = new AtomicReference<>();
+        List<Runnable> delayed = runTopicTasksInline(published);
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, failing);
+
+        assertThatThrownBy(() -> tb.checkIfTBRecoverCompletely().get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(MetadataStoreException.class);
+        // The topic's close() closes its buffer, which the topic constructor has not published yet.
+        verify(topic, never()).close(true);
+        published.set(tb);
+        assertThat(delayed).hasSize(1);
+        delayed.remove(0).run();
+        verify(topic).close(true);
+    }
+
+    /**
+     * Runs the broker executor's tasks inline, keeps its delayed tasks for the test to run, and makes the topic
+     * report {@code published} as its transaction buffer.
+     */
+    private List<Runnable> runTopicTasksInline(AtomicReference<TransactionBuffer> published) {
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(executor).execute(any(Runnable.class));
+        List<Runnable> delayed = new ArrayList<>();
+        doAnswer(invocation -> {
+            delayed.add(invocation.getArgument(0));
+            return mock(ScheduledFuture.class);
+        }).when(executor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        PulsarService pulsar = mock(PulsarService.class);
+        when(pulsar.getExecutor()).thenReturn(executor);
+        when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
+        BrokerService broker = mock(BrokerService.class);
+        when(broker.getPulsar()).thenReturn(pulsar);
+        when(topic.getBrokerService()).thenReturn(broker);
+        when(topic.getTransactionBuffer()).thenAnswer(invocation -> published.get());
+        when(topic.close(true)).thenReturn(CompletableFuture.completedFuture(null));
+        return delayed;
     }
 
     private List<CompletableFuture<Void>> captureTopicCloses() {
