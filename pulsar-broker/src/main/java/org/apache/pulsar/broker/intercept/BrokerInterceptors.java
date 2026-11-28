@@ -163,8 +163,9 @@ public class BrokerInterceptors implements BrokerInterceptor {
                                Consumer consumer,
                                Map<String, String> metadata) {
         if (interceptorsEnabled()) {
+            boolean createAttempted = consumer.wasBrokerInterceptorCreateAttempted();
             for (int i = 0; i < interceptors.length; i++) {
-                if (!consumer.wasBrokerInterceptorCreatedNotified(i)) {
+                if (!createAttempted && !consumer.wasBrokerInterceptorCreatedNotified(i)) {
                     continue;
                 }
                 try {
@@ -198,8 +199,9 @@ public class BrokerInterceptors implements BrokerInterceptor {
                                Producer producer,
                                Map<String, String> metadata) {
         if (interceptorsEnabled()) {
+            boolean createAttempted = producer.wasBrokerInterceptorCreateAttempted();
             for (int i = 0; i < interceptors.length; i++) {
-                if (!producer.wasBrokerInterceptorCreatedNotified(i)) {
+                if (!createAttempted && !producer.wasBrokerInterceptorCreatedNotified(i)) {
                     continue;
                 }
                 try {

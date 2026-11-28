@@ -200,6 +200,7 @@ public class Consumer {
     private final AtomicInteger brokerInterceptorCreateInProgress = new AtomicInteger();
     private final AtomicBoolean brokerInterceptorClosePendingDuringCreate = new AtomicBoolean();
     private final AtomicBoolean brokerInterceptorClosedBeforeCreate = new AtomicBoolean();
+    private final AtomicBoolean brokerInterceptorCreateAttempted = new AtomicBoolean();
 
     @Getter
     @Setter
@@ -572,7 +573,7 @@ public class Consumer {
             return;
         }
         if (brokerInterceptorClosePendingDuringCreate.getAndSet(false)
-                && hasBrokerInterceptorCreateNotifications()) {
+                && (hasBrokerInterceptorCreateNotifications() || wasBrokerInterceptorCreateAttempted())) {
             transportCnx.scheduleNotifyConsumerClosed(this);
         }
     }
@@ -591,6 +592,14 @@ public class Consumer {
 
     public boolean isBrokerInterceptorClosedBeforeCreate() {
         return brokerInterceptorClosedBeforeCreate.get();
+    }
+
+    public void markBrokerInterceptorCreateAttempted() {
+        brokerInterceptorCreateAttempted.set(true);
+    }
+
+    public boolean wasBrokerInterceptorCreateAttempted() {
+        return brokerInterceptorCreateAttempted.get();
     }
 
     public void disconnect() {
