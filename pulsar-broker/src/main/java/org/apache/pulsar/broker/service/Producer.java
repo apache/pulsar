@@ -887,7 +887,7 @@ public class Producer {
             return;
         }
         if (brokerInterceptorClosePendingDuringCreate.getAndSet(false)
-                && (hasBrokerInterceptorCreateNotifications() || wasBrokerInterceptorCreateAttempted())) {
+                && hasBrokerInterceptorCreateNotifications()) {
             transportCnx.scheduleNotifyProducerClosed(this);
         }
     }
@@ -908,6 +908,11 @@ public class Producer {
         return brokerInterceptorClosedBeforeCreate.get();
     }
 
+    /**
+     * Records that {@code ServerCnx} is about to invoke the broker {@code producerCreated} chain for this entity.
+     * Used with {@link #wasBrokerInterceptorCreateAttempted()} only for early/late close gating in {@code ServerCnx},
+     * not for per-interceptor create/close pairing ({@link #markBrokerInterceptorCreatedNotified(int)}).
+     */
     public void markBrokerInterceptorCreateAttempted() {
         brokerInterceptorCreateAttempted.set(true);
     }
