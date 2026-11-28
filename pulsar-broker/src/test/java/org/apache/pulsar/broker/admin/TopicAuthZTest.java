@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -293,6 +294,66 @@ public class TopicAuthZTest extends AuthZTest {
                         () -> subAdmin.topics().getPartitionedInternalStats(topic));
             }
             superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        superUserAdmin.topics().deletePartitionedTopic(topic, true);
+    }
+
+    @Test
+    @SneakyThrows
+    public void testGetNonPersistentPartitionedStats() {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "non-persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        superUserAdmin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        // test superuser
+        superUserAdmin.topics().getPartitionedStats(topic, false);
+
+        // test tenant manager
+        tenantManagerAdmin.topics().getPartitionedStats(topic, false);
+
+        // test nobody
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().getPartitionedStats(topic, false));
+
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            if (action == AuthAction.produce || action == AuthAction.consume) {
+                subAdmin.topics().getPartitionedStats(topic, false);
+            } else {
+                Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                        () -> subAdmin.topics().getPartitionedStats(topic, false));
+            }
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+
+        // GET_STATS is checked on the partitioned topic itself, not only LOOKUP
+        superUserAdmin.topics().grantPermission(topic, subject, Set.of(AuthAction.consume));
+        Mockito.doAnswer(invocationOnMock -> {
+            TopicOperation operation = invocationOnMock.getArgument(1);
+            String role = invocationOnMock.getArgument(2);
+            if (subject.equals(role) && operation == TopicOperation.GET_STATS) {
+                return CompletableFuture.completedFuture(false);
+            }
+            return invocationOnMock.callRealMethod();
+        }).when(authorizationService).allowTopicOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any());
+        try {
+            subAdmin.lookups().lookupPartitionedTopic(topic);
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().getPartitionedStats(topic, false));
+            superUserAdmin.topics().getPartitionedStats(topic, false);
+            tenantManagerAdmin.topics().getPartitionedStats(topic, false);
+        } finally {
+            Mockito.doCallRealMethod().when(authorizationService).allowTopicOperationAsync(Mockito.any(),
+                    Mockito.any(), Mockito.any(), Mockito.any());
         }
         superUserAdmin.topics().deletePartitionedTopic(topic, true);
     }
