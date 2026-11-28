@@ -3050,7 +3050,13 @@ public class ManagedCursorImpl implements ManagedCursor {
         // A subclass can wrap the alignment callback. The pending queue still identifies the active reset.
         ResetAckStateSnapshot resetAckStateSnapshot = mdEntry.resetsCursor ? activeReset : null;
         if (state == State.NoLedger) {
-            if (ledger.isNoMessagesAfterPos(mdEntry.newPosition)) {
+            // The metadata store persists the mark-delete position together with the individually deleted
+            // message ranges and the batch deletion index infos (see persistPositionToMetaStore), so falling
+            // back to it loses nothing as long as the cursor has no individually deleted messages to carry
+            // over. A cursor that is behind the last confirmed entry but has no such ranges (for example the
+            // __compaction cursor, which only acknowledges cumulatively) can therefore use the fallback too.
+            if (ledger.isNoMessagesAfterPos(mdEntry.newPosition)
+                    || getTotalNonContiguousDeletedMessagesRange() == 0) {
                 log.error("Metadata ledger creation failed, try to persist the position in the metadata store.");
                 persistPositionToMetaStore(mdEntry, cb, resetAckStateSnapshot);
             } else {
