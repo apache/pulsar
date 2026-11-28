@@ -23,22 +23,31 @@ import static com.github.tomakehurst.wiremock.client.WireMock.absent;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.apache.pulsar.client.admin.internal.TopicsImpl.CURSOR_STATS_LOCAL_ONLY_HEADER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import jakarta.ws.rs.client.WebTarget;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.net.URI;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Topics;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -279,6 +288,43 @@ public class AsyncGetRequestTest {
             assertThatThrownBy(() -> request.get(3, TimeUnit.SECONDS))
                     .cause().isInstanceOfSatisfying(PulsarAdminException.NotFoundException.class,
                             error -> assertThat(error.getStatusCode()).isEqualTo(404));
+        }
+    }
+
+    @Test
+    public void testExpiredPartitionWaitingForOAuth2RefreshSkipsTokenRequest() throws Exception {
+        server.stubFor(get(urlEqualTo("/.well-known/openid-configuration")).willReturn(
+                stringBody("{\"token_endpoint\":\"" + adminUrl + "/token\"}")));
+        server.stubFor(get(urlEqualTo("/credentials")).willReturn(
+                stringBody("{\"client_id\":\"client\",\"client_secret\":\"secret\"}")));
+        server.stubFor(post(urlEqualTo("/token")).willReturn(stringBody("{\"error\":\"invalid_client\"}")
+                .withStatus(401)));
+        var auth = AuthenticationFactoryOAuth2.clientCredentialsBuilder()
+                .issuerUrl(URI.create(adminUrl).toURL())
+                .credentialsUrl(URI.create(adminUrl + "/credentials").toURL())
+                .build();
+        try (var admin = (PulsarAdminImpl) PulsarAdmin.builder().serviceHttpUrl(adminUrl).authentication(auth).build();
+             var executor = Executors.newSingleThreadExecutor()) {
+            var topics = (TopicsImpl) admin.topics();
+            topics.setBlockingAuthExecutor(executor);
+            var worker = executor.submit(Thread::currentThread).get(5, TimeUnit.SECONDS);
+            var partitionRequest = new CompletableFuture<Void>();
+            CompletableFuture<?> prepared;
+            synchronized (auth) {
+                prepared = topics.requestAsync(admin.getRoot(), partitionRequest);
+                var threads = ManagementFactory.getThreadMXBean();
+                await().until(() -> {
+                    var info = threads.getThreadInfo(worker.threadId());
+                    return info != null && info.getThreadState() == Thread.State.BLOCKED
+                            && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(auth);
+                });
+                partitionRequest.cancel(false);
+                // The active refresh fails, leaving the token cache empty when the partition gets the lock.
+                assertThatThrownBy(() -> auth.getAuthData("localhost"))
+                        .isInstanceOf(PulsarClientException.AuthenticationException.class);
+            }
+            assertThatThrownBy(() -> prepared.get(5, TimeUnit.SECONDS)).isInstanceOf(CancellationException.class);
+            server.verify(1, postRequestedFor(urlEqualTo("/token")));
         }
     }
 

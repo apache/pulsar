@@ -57,6 +57,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.ServerSideErrorExcept
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.client.impl.auth.v5.AsyncHttpAuthenticationProvider;
 import org.apache.pulsar.client.impl.auth.v5.HttpAuthenticationDriver;
 import org.apache.pulsar.client.impl.auth.v5.V5AuthContexts;
@@ -181,8 +182,11 @@ public abstract class BaseResource {
                 if (driver.isPresent()) {
                     Duration budget = Duration.ofMillis(requestTimeoutMs > 0 ? requestTimeoutMs : 60_000L);
                     // Null transport => the driver uses the plugin's own default transport (its JAX-RS client).
-                    return driver.get().authenticateAsync(uri, null, budget)
-                            .thenApply(headers -> headers == null || headers.isEmpty() ? null : headers.asMap());
+                    var authentication = partitionRequest == null
+                            ? driver.get().authenticateAsync(uri, null, budget)
+                            : driver.get().authenticateAsync(uri, null, budget, partitionRequest);
+                    return authentication.thenApply(headers -> headers == null || headers.isEmpty()
+                            ? null : headers.asMap());
                 }
             }
             // The deprecated v4 hooks may block — an OAuth2 or Athenz shim's getAuthData() refreshes its
@@ -221,7 +225,18 @@ public abstract class BaseResource {
             if (partitionRequest != null && partitionRequest.isDone()) {
                 return CompletableFuture.completedFuture(null);
             }
-            AuthenticationDataProvider authData = auth.getAuthData(uri.getHost());
+            AuthenticationDataProvider authData;
+            if (partitionRequest != null && auth instanceof AuthenticationOAuth2) {
+                // OAuth2 refreshes the token under its own monitor. A partition can expire waiting for it.
+                synchronized (auth) {
+                    if (partitionRequest.isDone()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    authData = auth.getAuthData(uri.getHost());
+                }
+            } else {
+                authData = auth.getAuthData(uri.getHost());
+            }
             if ((partitionRequest != null && partitionRequest.isDone()) || !authData.hasDataForHttp()) {
                 return CompletableFuture.completedFuture(null);
             }

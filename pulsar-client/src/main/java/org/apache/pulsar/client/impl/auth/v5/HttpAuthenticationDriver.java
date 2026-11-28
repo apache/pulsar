@@ -116,6 +116,16 @@ public final class HttpAuthenticationDriver {
      */
     public CompletableFuture<HttpAuthHeaders> authenticateAsync(URI uri, HttpChallengeTransport transport,
             Duration budget) {
+        return authenticateAsync(uri, transport, budget, null);
+    }
+
+    /**
+     * Run the exchange while the owning request is active. When {@code requestLifetime} completes,
+     * the driver skips subsequent authentication stages and the per-request conversation expires.
+     * A {@code null} lifetime leaves the exchange subject to its own timeout budget.
+     */
+    public CompletableFuture<HttpAuthHeaders> authenticateAsync(URI uri, HttpChallengeTransport transport,
+            Duration budget, CompletableFuture<?> requestLifetime) {
         try {
             HttpAuthChallengeHandler handler = v5.capability(HttpAuthChallengeHandler.class).orElse(null);
             if (handler == null) {
@@ -136,7 +146,8 @@ public final class HttpAuthenticationDriver {
                 return CompletableFuture.failedFuture(new IllegalStateException(
                         "No HTTP challenge transport supplied and no default transport is configured"));
             }
-            HttpAuthCallContextImpl ctx = new HttpAuthCallContextImpl(uri);
+            HttpAuthCallContextImpl ctx = new HttpAuthCallContextImpl(uri, requestLifetime);
+            ctx.checkRequestActive();
             long budgetNanos = Math.max(0L, budget == null ? 0L : budget.toNanos());
             long deadlineNanos = System.nanoTime() + budgetNanos;
             // Initialization may do I/O (SPI contract), so the exchange is chained onto it rather than the
@@ -144,7 +155,10 @@ public final class HttpAuthenticationDriver {
             // is charged to this call's budget rather than extending it.
             CompletableFuture<HttpAuthHeaders> credential = initializedAsync()
                     .thenCompose(ignored -> challengeRound(ctx, handler, t, uri, null, 0, deadlineNanos))
-                    .thenCompose(ignored -> provider.getHttpHeadersAsync(ctx));
+                    .thenCompose(ignored -> {
+                        ctx.checkRequestActive();
+                        return provider.getHttpHeadersAsync(ctx);
+                    });
             // Metrics (PIP-478): time the HTTP credential acquisition and count failures by error class.
             return authMetrics.timeCredential(credential, httpAuthMethod());
         } catch (Throwable th) {
@@ -163,6 +177,7 @@ public final class HttpAuthenticationDriver {
     private CompletableFuture<Void> challengeRound(HttpAuthCallContextImpl ctx, HttpAuthChallengeHandler handler,
             HttpChallengeTransport transport, URI uri, HttpAuthHeaders serverChallenge, int round,
             long deadlineNanos) {
+        ctx.checkRequestActive();
         ctx.setServerChallengeHeaders(serverChallenge);
         long remainingNanos = deadlineNanos - System.nanoTime();
         if (remainingNanos <= 0) {
@@ -175,8 +190,11 @@ public final class HttpAuthenticationDriver {
         // deadline, so a hang in EITHER stage fails within the shared budget. boundedGet keeps its own inner
         // per-transport bound; this outer bound also covers the evaluation that runs before the GET.
         CompletableFuture<HttpChallengeTransport.Result> roundFuture = handler.respondToHttpChallengeAsync(ctx)
-                .thenCompose(reqHeaders -> boundedGet(transport, uri,
-                        reqHeaders == null ? HttpAuthHeaders.empty() : reqHeaders, remaining, round));
+                .thenCompose(reqHeaders -> {
+                    ctx.checkRequestActive();
+                    return boundedGet(transport, uri,
+                            reqHeaders == null ? HttpAuthHeaders.empty() : reqHeaders, remaining, round);
+                });
         return boundedByRemaining(roundFuture, remaining, round)
                 .thenCompose(result -> {
                     int status = result.statusCode();

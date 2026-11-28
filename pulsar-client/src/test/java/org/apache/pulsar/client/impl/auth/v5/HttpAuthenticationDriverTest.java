@@ -136,7 +136,7 @@ public class HttpAuthenticationDriverTest {
     @Test
     public void hangingChallengeEvaluationIsBoundedByTheRemainingBudget() {
         FakeChallengeAuth auth = new FakeChallengeAuth();
-        auth.hangOnRespond = true; // the plugin's challenge evaluation never completes
+        auth.pendingChallenge = new CompletableFuture<>();
         FakeTransport transport = new FakeTransport();
         transport.always(ok("RT")); // the transport would answer instantly, but the round never reaches it
 
@@ -148,6 +148,28 @@ public class HttpAuthenticationDriverTest {
 
         // The GET is never issued: the hang is in the evaluation stage, before the transport is reached.
         assertThat(transport.callCount).isZero();
+    }
+
+    @Test
+    public void expiredPartitionSkipsGetWithoutCancellingSharedChallenge() throws Exception {
+        FakeChallengeAuth auth = new FakeChallengeAuth();
+        auth.pendingChallenge = new CompletableFuture<>();
+        FakeTransport transport = new FakeTransport();
+        transport.always(ok("RT"));
+        var driver = new HttpAuthenticationDriver(auth, null, transport);
+        var partitionRequest = new CompletableFuture<Void>();
+        URI otherUri = URI.create("https://broker-b.example:8443/admin/v2/clusters");
+        Duration budget = Duration.ofSeconds(30);
+
+        var expired = driver.authenticateAsync(URI_A, null, budget, partitionRequest);
+        var live = driver.authenticateAsync(otherUri, null, budget);
+        assertThat(auth.respondCalls).isEqualTo(2);
+        partitionRequest.cancel(false);
+        assertThat(auth.pendingChallenge.complete(HttpAuthHeaders.empty())).isTrue();
+
+        assertThat(expired).isCompletedExceptionally();
+        assertThat(live.get(5, TimeUnit.SECONDS).get("role-token")).contains("RT");
+        assertThat(transport.uris).containsExactly(otherUri);
     }
 
     @Test
@@ -223,7 +245,7 @@ public class HttpAuthenticationDriverTest {
             implements Authentication, HttpAuthChallengeHandler, HttpAuthHeadersProvider {
         int respondCalls;
         int failOnRound = -1;
-        boolean hangOnRespond;
+        CompletableFuture<HttpAuthHeaders> pendingChallenge;
         final List<String> serverStatesSeen = new ArrayList<>();
 
         private static final class Conversation {
@@ -238,8 +260,8 @@ public class HttpAuthenticationDriverTest {
         @Override
         public CompletableFuture<HttpAuthHeaders> respondToHttpChallengeAsync(HttpAuthCallContext ctx) {
             respondCalls++;
-            if (hangOnRespond) {
-                return new CompletableFuture<>(); // the challenge evaluation never completes
+            if (pendingChallenge != null) {
+                return pendingChallenge;
             }
             Conversation conv = ctx.getStateObject(Conversation.class).orElse(null);
             if (conv == null) {
