@@ -166,6 +166,14 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
         return new ReadOnlyCursorImpl(bookKeeper, this, startPosition, "read-only-cursor");
     }
 
+    /**
+     * Create a read-only cursor that owns this read-only managed ledger and closes it when the cursor is closed.
+     */
+    public ReadOnlyCursor createOwnedReadOnlyCursor(Position startPosition) {
+        initializeLastConfirmedEntry();
+        return new OwnedReadOnlyCursorImpl(bookKeeper, this, startPosition, "read-only-cursor");
+    }
+
     @Override
     void asyncReadEntry(Position position, int expectedReadCount, AsyncCallbacks.ReadEntryCallback callback,
                         Object ctx) {
