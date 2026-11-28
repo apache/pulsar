@@ -89,6 +89,22 @@ public class ManagedCursorUpdatePropertiesTest extends MockedBookKeeperTestCase 
         assertThat(cursor.getCursorProperties()).doesNotContainKey("k");
     }
 
+    @Test
+    public void testRemoveMissingPropertyRejectsStaleMetadataVersion() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory externalFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedCursor externalCursor = externalFactory.open(ledger.getName()).openCursor(cursor.getName());
+        assertThat(externalCursor.putCursorProperty("k", "value")).succeedsWithin(5, TimeUnit.SECONDS);
+        assertThat(cursor.getCursorProperties()).doesNotContainKey("k");
+
+        assertThat(cursor.removeCursorProperty("k")).failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableThat()
+                .extracting(FutureUtil::unwrapCompletionException)
+                .isInstanceOf(ManagedLedgerException.BadVersionException.class);
+        assertThat(factory.getCursorPropertiesAsync(ledger.getName(), cursor.getName()).get(5, TimeUnit.SECONDS))
+                .containsEntry("k", "value");
+    }
+
     private static Function<Map<String, String>, Map<String, String>> conditionalRemoval(
             String key, String expectedValue) {
         return properties -> {

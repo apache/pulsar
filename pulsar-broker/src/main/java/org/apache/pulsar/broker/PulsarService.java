@@ -536,6 +536,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      */
     public CompletableFuture<Void> closeAsync(boolean waitForWebServiceToStop) {
         mutex.lock();
+        boolean loadManagerStopAttempted = false;
         try {
             // Close protocol handler before unloading namespace bundles because protocol handlers might maintain
             // Pulsar clients that could send lookup requests that affect unloading.
@@ -556,9 +557,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // It only tells the Pulsar clients that this service is not ready to serve for the lookup requests
             state = State.Closing;
 
-            if (healthChecker != null) {
-                healthChecker.close();
-                healthChecker = null;
+            HealthChecker healthCheckerToClose;
+            // Under the lock of getHealthChecker(), to also close a checker that is still being created
+            synchronized (this) {
+                healthCheckerToClose = this.healthChecker;
+                this.healthChecker = null;
+            }
+            if (healthCheckerToClose != null) {
+                healthCheckerToClose.close();
             }
 
             // close the service in reverse order v.s. in which they are started
@@ -692,6 +698,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             LoadManager loadManager = this.loadManager.get();
             if (loadManager != null) {
+                loadManagerStopAttempted = true;
                 loadManager.stop();
             }
 
@@ -811,6 +818,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 pse = new PulsarServerException(MetadataStoreException.unwrap(e.getCause()));
             } else {
                 pse = new PulsarServerException(e);
+            }
+            // Unloading keeps the load manager alive when another broker is available. Stop it before
+            // shutting down the shared client resources, without replacing the original shutdown failure.
+            if (state == State.Closing && !loadManagerStopAttempted) {
+                LoadManager loadManager = this.loadManager.get();
+                if (loadManager != null) {
+                    try {
+                        loadManager.stop();
+                    } catch (Exception stopException) {
+                        pse.addSuppressed(stopException);
+                    }
+                }
             }
             // A failed shutdown step must not leave this service registered with the metadata stores
             unregisterMetadataStoreListeners();

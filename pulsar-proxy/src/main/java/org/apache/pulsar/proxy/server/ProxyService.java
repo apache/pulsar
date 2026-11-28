@@ -156,12 +156,13 @@ public class ProxyService implements Closeable {
     // second factory built from the same broker-client tls* material. Closed with the ProxyService.
     private volatile PulsarTlsFactory lookupClientTlsFactory;
 
+    // Nothing in the proxy exports exemplars, so its metrics skip the sampling that 1.x metrics do by default.
     static final Gauge ACTIVE_CONNECTIONS = Gauge.builder()
             .name("pulsar_proxy_active_connections")
             .help("Number of connections currently active in the proxy")
+            .withoutExemplars()
             .register();
 
-    // Nothing in the proxy exports exemplars, so its counters skip the sampling that 1.x counters do by default.
     static final Counter NEW_CONNECTIONS = Counter.builder()
             .name("pulsar_proxy_new_connections")
             .help("Counter of connections being opened in the proxy")

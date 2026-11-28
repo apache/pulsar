@@ -35,6 +35,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 import org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl;
 import org.testng.annotations.AfterClass;
@@ -97,6 +98,30 @@ public class AbstractMetadataDriverTest {
         assertThat(metadataStoreConfig.isAllowReadOnlyOperations()).isTrue();
         assertThat(metadataStoreConfig.getConfigFilePath()).isEqualTo("/tmp/oxia-client.conf");
         assertThat(metadataStoreConfig.isFsyncEnable()).isFalse();
+    }
+
+    @Test
+    public void testStaticCreateMetadataStoreAppliesMetadataStoreConfigQueryParams() throws Exception {
+        CapturingMetadataStoreProvider.reset();
+        try (MetadataStoreExtended store = AbstractMetadataDriver.createMetadataStore("metadata-store:"
+                + CAPTURING_METADATA_STORE_URL + "?configFilePath=%2Ftmp%2Foxia-client.conf&sessionTimeoutMillis=40000",
+                12_345)) {
+            assertThat(store).isNotNull();
+        }
+
+        assertThat(CapturingMetadataStoreProvider.metadataURL).isEqualTo(CAPTURING_METADATA_STORE_URL);
+        MetadataStoreConfig metadataStoreConfig = CapturingMetadataStoreProvider.metadataStoreConfig;
+        assertThat(metadataStoreConfig.getMetadataStoreName()).isEqualTo(MetadataStoreConfig.METADATA_STORE);
+        assertThat(metadataStoreConfig.getConfigFilePath()).isEqualTo("/tmp/oxia-client.conf");
+        assertThat(metadataStoreConfig.getSessionTimeoutMillis()).isEqualTo(40_000);
+
+        // Without the query parameter, the session timeout passed in applies.
+        CapturingMetadataStoreProvider.reset();
+        try (MetadataStoreExtended store = AbstractMetadataDriver.createMetadataStore("metadata-store:"
+                + CAPTURING_METADATA_STORE_URL, 12_345)) {
+            assertThat(store).isNotNull();
+        }
+        assertThat(CapturingMetadataStoreProvider.metadataStoreConfig.getSessionTimeoutMillis()).isEqualTo(12_345);
     }
 
     @Test
