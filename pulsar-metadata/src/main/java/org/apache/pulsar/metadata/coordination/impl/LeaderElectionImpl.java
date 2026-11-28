@@ -302,7 +302,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                         }
                     }
                 }).exceptionally(ex -> {
-                    if (ex.getCause() instanceof BadVersionException) {
+                    if (FutureUtil.unwrapCompletionException(ex) instanceof BadVersionException) {
                         // There was a conflict between 2 participants trying to become leaders at same time. Retry
                         // to fetch info on new leader.
                         log.info().attr("path", path).attr("value", value)
@@ -316,7 +316,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                                 return null;
                             });
                     } else {
-                        result.completeExceptionally(ex.getCause());
+                        result.completeExceptionally(ex);
                     }
                     return null;
                 });

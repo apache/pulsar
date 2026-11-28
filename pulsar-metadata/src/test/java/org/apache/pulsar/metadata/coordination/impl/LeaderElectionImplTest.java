@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
@@ -33,10 +34,13 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.util.ArrayDeque;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -69,6 +73,24 @@ import org.mockito.ArgumentCaptor;
 import org.testng.annotations.Test;
 
 public class LeaderElectionImplTest extends BaseMetadataStoreTest {
+
+    @Test
+    public void electPreservesCreateFailure() throws Exception {
+        String path = newKey();
+        // Keep the store's wrapper so the test can detect rewrapping of the same cause.
+        var createFailure = new CompletionException(new MetadataStoreException("leader node creation failed"));
+        try (var store = spy(new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build()));
+                CoordinationService cs = new CoordinationServiceImpl(store)) {
+            doReturn(CompletableFuture.failedFuture(createFailure))
+                    .when(store).put(eq(path), any(), eq(Optional.of(-1L)), anySet());
+            Collection<LeaderElectionState> states = new LinkedBlockingQueue<>();
+            LeaderElection<String> election = cs.getLeaderElection(String.class, path, states::add);
+
+            Throwable failure = election.elect("candidate").handle((state, error) -> error).get(5, TimeUnit.SECONDS);
+            assertThat(failure).isSameAs(createFailure);
+            assertThat(states).doesNotContain(LeaderElectionState.Leading);
+        }
+    }
 
     @Test(dataProvider = "impl", timeOut = 20000)
     public void validateDeadLock(String provider, Supplier<String> urlSupplier)
@@ -236,10 +258,10 @@ public class LeaderElectionImplTest extends BaseMetadataStoreTest {
             public CompletableFuture<Stat> put(String p, byte[] value, Optional<Long> expectedVersion,
                                                Set<Option> opts) {
                 if (p.equals(path) && conflictOnNextPut.compareAndSet(true, false)) {
-                    // Another participant took the lock first: the conflict is reported once the test
-                    // releases it
+                    // Delay the wrapped conflict until after close(). Recognizing it lets the retry
+                    // report AlreadyClosedException to the caller.
                     return conflictReported.thenCompose(
-                            __ -> FutureUtil.failedFuture(new BadVersionException("injected")));
+                            __ -> FutureUtil.failedFuture(new ExecutionException(new BadVersionException("injected"))));
                 }
                 return super.put(p, value, expectedVersion, opts);
             }

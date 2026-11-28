@@ -30,9 +30,9 @@ import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataSerde;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.BadVersionException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.LockBusyException;
+import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -132,7 +132,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     expiredFuture.complete(null);
                     result.complete(null);
                 }).exceptionally(ex -> {
-                    if (ex.getCause() instanceof MetadataStoreException.NotFoundException) {
+                    if (FutureUtil.unwrapCompletionException(ex) instanceof NotFoundException) {
                         // The lock is not there on release. We can anyway proceed
                         synchronized (ResourceLockImpl.this) {
                             state = State.Released;
@@ -168,7 +168,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         acquireWithNoRevalidation(newValue)
                 .thenRun(() -> result.complete(null))
                 .exceptionally(ex -> {
-                    if (ex.getCause() instanceof LockBusyException) {
+                    if (FutureUtil.unwrapCompletionException(ex) instanceof LockBusyException) {
                         revalidate(newValue)
                                 .thenAccept(__ -> result.complete(null))
                                 .exceptionally(ex1 -> {
@@ -176,7 +176,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                                    return null;
                                 });
                     } else {
-                        result.completeExceptionally(ex.getCause());
+                        result.completeExceptionally(ex);
                     }
                     return null;
                 });
@@ -205,11 +205,11 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     log.info().attr("path", path).log("Acquired resource lock");
                     result.complete(null);
                 }).exceptionally(ex -> {
-            if (ex.getCause() instanceof BadVersionException) {
+            if (FutureUtil.unwrapCompletionException(ex) instanceof BadVersionException) {
                 result.completeExceptionally(
                         new LockBusyException("Resource at " + path + " is already locked"));
             } else {
-                result.completeExceptionally(ex.getCause());
+                result.completeExceptionally(ex);
             }
             return null;
         });
