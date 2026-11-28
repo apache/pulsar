@@ -20,6 +20,7 @@ package org.apache.pulsar.broker;
 
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertFalse;
+import static org.testng.AssertJUnit.assertNull;
 import static org.testng.AssertJUnit.assertTrue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
@@ -28,6 +29,7 @@ import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -100,5 +102,49 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
             fail("Should not throw exception");
         }
         log.info("waitUntilClosed() returned successfully while closeAsync() was in progress");
+    }
+
+    @Test(timeOut = 60_000)
+    public void testGetClientAfterCloseThrows() throws Exception {
+        pulsar.close();
+        try {
+            pulsar.getClient();
+            fail("getClient() should throw PulsarServerException after close");
+        } catch (PulsarServerException e) {
+            assertTrue(e.getMessage().contains("Broker is not running"));
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testClientCreationPreventedDuringCloseAsync() throws Exception {
+        restartBroker();
+        // No client has been created for the restarted broker yet, so the gate below
+        // is what refuses creation. Without this the test would pass even if getClient()
+        // returned a cached client instead of throwing.
+        assertNull(FieldUtils.readField(pulsar, "client", true));
+
+        // Keep the shutdown future instead of dropping it: get() on the composed future
+        // waits for shutdown itself, not just closeAsync()'s synchronous section.
+        CompletableFuture<Void> closeFuture =
+                CompletableFuture.supplyAsync(pulsar::closeAsync).thenCompose(f -> f);
+        Awaitility.await().until(() -> !pulsar.isRunning());
+
+        // closeAsync() has flipped the state to Closing, so getClient() must refuse
+        // to create a client rather than leaking one past shutdown.
+        try {
+            pulsar.getClient();
+            fail("getClient() should throw PulsarServerException while closing");
+        } catch (PulsarServerException e) {
+            assertTrue(e.getMessage().contains("Broker is not running"));
+        }
+
+        closeFuture.get(30, TimeUnit.SECONDS);
+        pulsar.waitUntilClosed();
+        try {
+            pulsar.getClient();
+            fail("getClient() should throw PulsarServerException after close");
+        } catch (PulsarServerException e) {
+            assertTrue(e.getMessage().contains("Broker is not running"));
+        }
     }
 }

@@ -677,9 +677,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 transactionBufferClient.close();
             }
 
+            PulsarClient client;
+            // Take the client under the getClient() lock, so a concurrent getClient()
+            // cannot publish one after we read it.
+            synchronized (this) {
+                client = this.client;
+                this.client = null;
+            }
             if (client != null) {
                 client.close();
-                client = null;
             }
 
             if (nsService != null) {
@@ -1720,7 +1726,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
      * check the current pulsar service is running, including Started and Init state.
      */
     public boolean isRunning() {
-        return this.state == State.Started || this.state == State.Init;
+        State s = this.state;
+        return s == State.Started || s == State.Init;
     }
 
     /**
@@ -2067,6 +2074,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public synchronized PulsarClient getClient() throws PulsarServerException {
         if (this.client == null) {
+            // The close closes the client once, so a client created once the service is closing could outlive it
+            if (!isRunning()) {
+                throw new PulsarServerException("Broker is not running");
+            }
             try {
                 this.client = createClientImpl(null, null);
             } catch (Exception e) {
