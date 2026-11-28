@@ -56,6 +56,16 @@ public class ReadOnlyManagedLedgerImplWrapper implements ReadOnlyManagedLedger {
         return readOnlyManagedLedger.createReadOnlyCursor(position);
     }
 
+    /**
+     * Create a read-only cursor that owns the read-only managed ledger and closes it when the cursor is closed.
+     *
+     * <p>This is used by the factory cursor API. A cursor created with
+     * {@link #createReadOnlyCursor(Position)} leaves the caller-owned ledger open.
+     */
+    public ReadOnlyCursor createOwnedReadOnlyCursor(Position position) {
+        return readOnlyManagedLedger.createOwnedReadOnlyCursor(position);
+    }
+
     @Override
     public Map<String, String> getProperties() {
         return readOnlyManagedLedger.getProperties();

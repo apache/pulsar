@@ -100,6 +100,9 @@ public interface ManagedLedgerFactory {
     /**
      * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
      *
+     * <p>The returned cursor owns the read-only managed ledger it reads from: closing the cursor closes that ledger
+     * and releases its cached read handles. Reads that are still in flight when the cursor is closed may fail.
+     *
      * @param managedLedgerName
      * @param startPosition
      *            set the cursor on that particular position. If setting to `PositionImpl.earliest` it will be
@@ -111,6 +114,9 @@ public interface ManagedLedgerFactory {
 
     /**
      * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
+     *
+     * <p>The returned cursor owns the read-only managed ledger it reads from: closing the cursor closes that ledger
+     * and releases its cached read handles. Reads that are still in flight when the cursor is closed may fail.
      *
      * @param managedLedgerName
      * @param startPosition

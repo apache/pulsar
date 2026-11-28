@@ -726,8 +726,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
             @Override
             public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger readOnlyManagedLedger, Object ctx) {
-                callback.openReadOnlyCursorComplete(readOnlyManagedLedger.
-                        createReadOnlyCursor(startPosition), ctx);
+                // The factory-created wrapper can hand out a cursor that owns the ledger. A factory subclass that
+                // returns another implementation keeps the previous cursor-only behavior.
+                ReadOnlyCursor cursor =
+                        readOnlyManagedLedger instanceof ReadOnlyManagedLedgerImplWrapper wrapper
+                                ? wrapper.createOwnedReadOnlyCursor(startPosition)
+                                : readOnlyManagedLedger.createReadOnlyCursor(startPosition);
+                callback.openReadOnlyCursorComplete(cursor, ctx);
             }
 
             @Override
