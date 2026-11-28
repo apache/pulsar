@@ -1357,21 +1357,48 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         VoidCallback initializationCallback = new VoidCallback() {
             @Override
             public void operationComplete() {
+                ManagedLedgerException openFailure = null;
                 synchronized (ManagedLedgerImpl.this) {
                     if (uninitializedCursors.get(cursorName) != cursorFuture || cursorFuture.isDone()) {
                         return;
                     }
                     initializationCallbackEntered.set(true);
-                    log.info().attr("cursor", cursor)
-                            .attr("cost ms", System.currentTimeMillis() - startTimeInit).log("Opened new cursor");
-                    cursor.setActive();
-                    // Update the ack position, ignoring entries written while the cursor was being created.
-                    cursor.initializeCursorPosition(InitialPosition.Earliest == initialPosition
-                            ? getFirstPositionAndCounter() : getLastPositionAndCounter());
-                    addCursor(cursor);
-                    if (!uninitializedCursors.remove(cursorName, cursorFuture)) {
-                        return;
+                    if (state == State.FencedForDeletion) {
+                        // The ledger is being deleted while the cursor was being persisted: register
+                        // the late cursor so the racing delete sees it and cleans up its persisted
+                        // record, but still fail the open — the ledger is gone either way.
+                        addCursor(cursor);
+                        if (!uninitializedCursors.remove(cursorName, cursorFuture)) {
+                            return;
+                        }
+                        openFailure = new ManagedLedgerFencedException();
+                    } else if (state == State.Closed || state.isFenced()) {
+                        // The ledger was closed or fenced while the cursor was being persisted: do not
+                        // activate or register the cursor on the dead instance. The persisted record is
+                        // left behind so a later open can recover the cursor.
+                        if (!uninitializedCursors.remove(cursorName, cursorFuture)) {
+                            return;
+                        }
+                        openFailure = state.isFenced() ? new ManagedLedgerFencedException()
+                                : new ManagedLedgerAlreadyClosedException(
+                                        "Managed ledger was closed while opening cursor");
+                    } else {
+                        log.info().attr("cursor", cursor)
+                                .attr("cost ms", System.currentTimeMillis() - startTimeInit).log("Opened new cursor");
+                        cursor.setActive();
+                        // Update the ack position, ignoring entries written while the cursor was being created.
+                        cursor.initializeCursorPosition(InitialPosition.Earliest == initialPosition
+                                ? getFirstPositionAndCounter() : getLastPositionAndCounter());
+                        addCursor(cursor);
+                        if (!uninitializedCursors.remove(cursorName, cursorFuture)) {
+                            return;
+                        }
                     }
+                }
+                if (openFailure != null) {
+                    cursorFuture.completeExceptionally(openFailure);
+                    callback.openCursorFailed(openFailure, ctx);
+                    return;
                 }
                 cursorFuture.complete(cursor);
                 callback.openCursorComplete(cursor, ctx);
