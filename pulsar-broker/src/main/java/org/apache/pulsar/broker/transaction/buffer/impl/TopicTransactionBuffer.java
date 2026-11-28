@@ -907,8 +907,11 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
 
     @Override
     public TransactionBufferStats getStats(boolean lowWaterMarks, boolean segmentStats) {
-        TransactionBufferStats transactionBufferStats = this.snapshotAbortedTxnProcessor
-                .generateSnapshotStats(segmentStats);
+        TransactionBufferStats transactionBufferStats;
+        // Aborts and trims update the processor's collections under this monitor; listing them without it can fail.
+        synchronized (this) {
+            transactionBufferStats = this.snapshotAbortedTxnProcessor.generateSnapshotStats(segmentStats);
+        }
         transactionBufferStats.snapshotType = snapshotType.toString();
         transactionBufferStats.state = this.getState().name();
         transactionBufferStats.maxReadPosition = this.maxReadPosition.toString();
