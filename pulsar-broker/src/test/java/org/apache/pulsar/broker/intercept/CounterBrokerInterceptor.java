@@ -28,6 +28,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.AllArgsConstructor;
@@ -76,6 +77,8 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     private final AtomicInteger txnCount = new AtomicInteger();
     private final AtomicInteger committedTxnCount = new AtomicInteger();
     private final AtomicInteger abortedTxnCount = new AtomicInteger();
+    private final ConcurrentHashMap<Long, Integer> producerClosedCountByProducerId = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Integer> consumerClosedCountByConsumerId = new ConcurrentHashMap<>();
     public static final String NAME = "COUNTER-BROKER-INTERCEPTOR";
 
     public void reset() {
@@ -98,6 +101,16 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         committedTxnCount.set(0);
         abortedTxnCount.set(0);
         handleNackCount.set(0);
+        producerClosedCountByProducerId.clear();
+        consumerClosedCountByConsumerId.clear();
+    }
+
+    public int getProducerClosedCount(long producerId) {
+        return producerClosedCountByProducerId.getOrDefault(producerId, 0);
+    }
+
+    public int getConsumerClosedCount(long consumerId) {
+        return consumerClosedCountByConsumerId.getOrDefault(consumerId, 0);
     }
 
     private final List<ResponseEvent> responseList = new CopyOnWriteArrayList<>();
@@ -130,6 +143,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         log.debug().attr("name", producer.getProducerName())
                 .attr("id", producer.getProducerId()).log("Producer closed");
         producerClosedInvocations.incrementAndGet();
+        producerClosedCountByProducerId.merge(producer.getProducerId(), 1, Integer::sum);
         producerCount.decrementAndGet();
     }
 
@@ -150,6 +164,7 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
         log.debug().attr("name", consumer.consumerName())
                 .attr("id", consumer.consumerId()).log("Consumer closed");
         consumerClosedInvocations.incrementAndGet();
+        consumerClosedCountByConsumerId.merge(consumer.consumerId(), 1, Integer::sum);
         consumerCount.decrementAndGet();
     }
 
