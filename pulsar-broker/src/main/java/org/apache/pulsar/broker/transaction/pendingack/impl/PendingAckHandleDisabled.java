@@ -40,6 +40,7 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     private final CompletableFuture<PendingAckHandle> pendingAckHandleCompletableFuture =
             CompletableFuture.completedFuture(PendingAckHandleDisabled.this);
+    private volatile long ordinaryAckGeneration;
 
     @Override
     public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
@@ -63,8 +64,17 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public void syncBatchPositionAckSetForTransaction(Position position) {
-        //no operation
+    public long getOrdinaryAckGeneration() {
+        return ordinaryAckGeneration;
+    }
+
+    @Override
+    public void recordOrdinaryBatchAcks(long generation, List<Position> positions) {
+    }
+
+    @Override
+    public void discardOrdinaryBatchAcks() {
+        ordinaryAckGeneration++;
     }
 
     @Override

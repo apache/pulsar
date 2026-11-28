@@ -868,6 +868,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
+                .enableBatchIndexAcknowledgment(true)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .isAckReceiptEnabled(true)
                 .topic(topic)
                 .subscribe();
@@ -896,7 +898,13 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         Message<String> message1 = consumer.receive();
         Message<String> message2 = consumer.receive();
 
+        BatchMessageIdImpl firstId = (BatchMessageIdImpl) message1.getMessageId();
         BatchMessageIdImpl messageId = (BatchMessageIdImpl) message2.getMessageId();
+        assertEquals(firstId.getLedgerId(), messageId.getLedgerId());
+        assertEquals(firstId.getEntryId(), messageId.getEntryId());
+        assertEquals(firstId.getBatchIndex(), 0);
+        assertEquals(messageId.getBatchIndex(), 1);
+        consumer.acknowledgeAsync(firstId).get(10, TimeUnit.SECONDS);
         consumer.acknowledgeAsync(messageId, transaction).get();
 
         PositionInPendingAckStats positionStatsInPendingAckStats =
@@ -913,6 +921,15 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                         messageId.getLedgerId(), messageId.getEntryId(), 10);
         assertEquals(positionStatsInPendingAckStats.state, PositionInPendingAckStats.State.InvalidPosition);
 
+        transaction.abort().get(10, TimeUnit.SECONDS);
+        assertEquals(admin.transactions().getPositionStatsInPendingAck(topic, subscriptionName,
+                messageId.getLedgerId(), messageId.getEntryId(), 0).state, PositionInPendingAckStats.State.PendingAck);
+        assertEquals(admin.transactions().getPositionStatsInPendingAck(topic, subscriptionName,
+                messageId.getLedgerId(), messageId.getEntryId(), 1).state,
+                PositionInPendingAckStats.State.NotInPendingAck);
+        assertEquals(admin.transactions().getPositionStatsInPendingAck(topic, subscriptionName,
+                messageId.getLedgerId(), messageId.getEntryId(), 3).state,
+                PositionInPendingAckStats.State.InvalidPosition);
     }
 
     @Test

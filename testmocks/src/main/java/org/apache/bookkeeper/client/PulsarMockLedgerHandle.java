@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
@@ -72,6 +73,8 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     final AtomicInteger asyncCloseCount = new AtomicInteger(0);
     // Like LedgerHandle, whose close is final even when it fails: a later close replays the failure instead of retrying
     private volatile Throwable closeFailure;
+    private final Queue<CompletableFuture<Void>> addEntryWriteGates = new ConcurrentLinkedQueue<>();
+    private final Queue<CompletableFuture<Void>> addEntryResponseGates = new ConcurrentLinkedQueue<>();
     // Count for total length of the entries
     final AtomicLong totalLengthCounter = new AtomicLong(0);
 
@@ -210,7 +213,12 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     @Override
     public void asyncAddEntry(final ByteBuf data, final AddCallback cb, final Object ctx) {
-        bk.getAddEntryFailure().thenComposeAsync((res) -> {
+        CompletableFuture<Void> writeGate = addEntryWriteGates.poll();
+        CompletableFuture<Void> writeReady = bk.getAddEntryFailure();
+        if (writeGate != null) {
+            writeReady = writeReady.thenCompose(ignored -> writeGate);
+        }
+        writeReady.thenComposeAsync((res) -> {
                 long delayMillis = bk.getNextAddEntryDelayMillis();
                 if (delayMillis > 0) {
                     try {
@@ -245,7 +253,13 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                             } catch (InterruptedException e) {
                             }
                         }
-                        CompletableFuture<Void> responseGate = bk.getNextAddEntryResponseGate();
+                        CompletableFuture<Void> responseGate = addEntryResponseGates.poll();
+                        CompletableFuture<Void> globalResponseGate = bk.getNextAddEntryResponseGate();
+                        if (responseGate == null) {
+                            responseGate = globalResponseGate;
+                        } else if (globalResponseGate != null) {
+                            responseGate = CompletableFuture.allOf(responseGate, globalResponseGate);
+                        }
                         if (responseGate != null) {
                             responseGate.thenRunAsync(() -> cb.addComplete(BKException.Code.OK,
                                     PulsarMockLedgerHandle.this, entryId, ctx), bk.executor);
@@ -254,6 +268,20 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                         cb.addComplete(BKException.Code.OK, PulsarMockLedgerHandle.this, entryId, ctx);
                     }
                 }, bk.executor);
+    }
+
+    CompletableFuture<Void> addEntryResponseGate() {
+        return enqueueAddEntryGate(addEntryResponseGates);
+    }
+
+    CompletableFuture<Void> addEntryWriteGate() {
+        return enqueueAddEntryGate(addEntryWriteGates);
+    }
+
+    private static CompletableFuture<Void> enqueueAddEntryGate(Queue<CompletableFuture<Void>> gates) {
+        CompletableFuture<Void> gate = new CompletableFuture<>();
+        gates.add(gate);
+        return gate;
     }
 
     @Override

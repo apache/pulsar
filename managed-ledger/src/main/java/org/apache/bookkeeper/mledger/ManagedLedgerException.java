@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.concurrent.CompletionStage;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 
@@ -130,6 +131,24 @@ public class ManagedLedgerException extends Exception {
     public static class ConcurrentFindCursorPositionException extends ManagedLedgerException {
         public ConcurrentFindCursorPositionException(String msg) {
             super(msg);
+        }
+    }
+
+    /** An individual ACK was rejected before it could change the cursor. */
+    public static class CursorResetInProgressException extends ManagedLedgerException {
+        private final transient CompletionStage<Void> resetCompletion;
+
+        public CursorResetInProgressException(CompletionStage<Void> resetCompletion) {
+            super("Cursor reset in progress");
+            this.resetCompletion = resetCompletion;
+        }
+
+        /**
+         * Completes when the conflicting reset ends, regardless of its outcome. Completes exceptionally
+         * if the cursor closes or is deleted first.
+         */
+        public CompletionStage<Void> getResetCompletion() {
+            return resetCompletion;
         }
     }
 

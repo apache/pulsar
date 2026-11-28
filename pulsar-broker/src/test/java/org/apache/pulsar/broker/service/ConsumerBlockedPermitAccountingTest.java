@@ -27,7 +27,9 @@ import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Shared
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -45,6 +47,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
@@ -108,8 +111,13 @@ public class ConsumerBlockedPermitAccountingTest {
         when(configuration.isTransactionCoordinatorEnabled()).thenReturn(true);
         when(subscription.getTopic()).thenReturn(topic);
         when(subscription.getName()).thenReturn("sub");
+        when(((PersistentSubscription) subscription).getPendingAckHandle()).thenReturn(mock(PendingAckHandle.class));
         doReturn(CompletableFuture.completedFuture(null))
                 .when(subscription).acknowledgeMessageAsync(any(), any(), any());
+        doAnswer(invocation -> subscription.acknowledgeMessageAsync(
+                invocation.getArgument(0), CommandAck.AckType.Individual, invocation.getArgument(1)))
+                .when((PersistentSubscription) subscription)
+                .acknowledgeIndividualMessagesFromConsumer(any(), any(), anyLong(), anyBoolean());
         when(((PersistentSubscription) subscription).transactionIndividualAcknowledge(any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         dispatcherFlowPermits = new AtomicInteger();

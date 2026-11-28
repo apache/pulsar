@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -166,12 +167,13 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
                 return delegate.next();
             }
         };
-        CountDownLatch cumulativeEntered = new CountDownLatch(1);
+        CountDownLatch cumulativeAttempted = new CountDownLatch(1);
+        CountDownLatch cumulativeReadAckSet = new CountDownLatch(1);
         Position cumulativePosition = new AckSetPositionImpl(batch.getLedgerId(), batch.getEntryId(),
                 new long[] {12L}) {
             @Override
             public long[] getAckSet() {
-                cumulativeEntered.countDown();
+                cumulativeReadAckSet.countDown();
                 return super.getAckSet();
             }
         };
@@ -183,6 +185,7 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
         });
         CompletableFuture<Void> cumulative = new CompletableFuture<>();
         Thread cumulativeThread = new DefaultThreadFactory("cumulative-batch-ack").newThread(() -> {
+            cumulativeAttempted.countDown();
             try {
                 cursor.markDelete(cumulativePosition);
                 cumulative.complete(null);
@@ -193,11 +196,22 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
         try {
             assertThat(individualMerged.await(5, TimeUnit.SECONDS)).isTrue();
             cumulativeThread.start();
-            assertThat(cumulativeEntered.await(5, TimeUnit.SECONDS)).isTrue();
-            // Both versions eventually wait for the cursor write lock. Before the fix, the cumulative
-            // path has already replaced the bitmap by this point, restoring individually ACKed bits.
-            Awaitility.await().atMost(Duration.ofSeconds(5))
-                    .until(() -> cumulativeThread.getState() == Thread.State.WAITING);
+            assertThat(cumulativeAttempted.await(5, TimeUnit.SECONDS)).isTrue();
+            var threadBean = ManagementFactory.getThreadMXBean();
+            int admissionMonitor = System.identityHashCode(cursor.pendingMarkDeleteOps);
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> {
+                var threadInfo = threadBean.getThreadInfo(cumulativeThread.threadId());
+                if (threadInfo == null) {
+                    return false;
+                }
+                // Admission can serialize the ACKs before the cumulative path reads its bitmap.
+                // Without that monitor, wait for the cursor write lock. The old broken merge had already
+                // overwritten the individual bitmap when it reached that lock.
+                return (threadInfo.getThreadState() == Thread.State.BLOCKED && threadInfo.getLockInfo() != null
+                        && threadInfo.getLockInfo().getIdentityHashCode() == admissionMonitor)
+                        || (cumulativeReadAckSet.getCount() == 0
+                                && threadInfo.getThreadState() == Thread.State.WAITING);
+            });
         } finally {
             releaseIndividual.countDown();
             cumulativeThread.join(5000);

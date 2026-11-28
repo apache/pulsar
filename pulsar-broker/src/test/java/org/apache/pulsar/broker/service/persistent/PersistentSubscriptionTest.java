@@ -22,10 +22,12 @@ import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPER
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyIterable;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -396,6 +398,38 @@ public class PersistentSubscriptionTest {
     }
 
     @Test
+    public void testIndividualAckDuringFailedTimestampLookup() throws Exception {
+        doThrow(new IllegalStateException("ledger lookup failed")).when(ledgerMock).getLedgersInfo();
+        assertThat(persistentSubscription.resetCursor(123L)).isCompletedExceptionally();
+        doReturn(Collections.emptyNavigableMap()).when(ledgerMock).getLedgersInfo();
+        CompletableFuture<Runnable> failLookup = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            AsyncCallbacks.FindEntryCallback callback = invocation.getArgument(4);
+            Object context = invocation.getArgument(5);
+            failLookup.complete(() -> callback.findEntryFailed(new ManagedLedgerException("lookup failed"),
+                    Optional.empty(), context));
+            return null;
+        }).when(cursorMock).asyncFindNewestMatching(any(), any(), any(), any(), any(), any(), anyBoolean());
+        doAnswer(invocation -> {
+            AsyncCallbacks.DeleteCallback callback = invocation.getArgument(1);
+            callback.deleteComplete(invocation.getArgument(2));
+            return null;
+        }).when(cursorMock).asyncDelete(anyIterable(), any(AsyncCallbacks.DeleteCallback.class), any());
+
+        long generation = persistentSubscription.getPendingAckHandle().getOrdinaryAckGeneration();
+        CompletableFuture<Void> reset = persistentSubscription.resetCursor(123L);
+        Runnable fail = failLookup.get(5, TimeUnit.SECONDS);
+        assertThat(reset).isNotDone();
+        persistentSubscription.acknowledgeIndividualMessagesFromConsumer(
+                List.of(PositionFactory.create(1, 51)), Map.of(), generation, false).get(5, TimeUnit.SECONDS);
+
+        fail.run();
+        assertThat(reset).isCompletedExceptionally();
+        verify(cursorMock, never()).asyncResetCursor(any(), anyBoolean(), any());
+        assertThat(persistentSubscription.getPendingAckHandle().getOrdinaryAckGeneration()).isEqualTo(generation);
+    }
+
+    @Test
     public void testNonDurableSubscriptionResetFencesQueuedAndNewConsumers() throws Exception {
         Dispatcher testDispatcher = mock(Dispatcher.class);
         List<Consumer> consumers = new ArrayList<>();
@@ -428,6 +462,9 @@ public class PersistentSubscriptionTest {
         doReturn(CommandSubscribe.SubType.Exclusive).when(firstConsumer).subType();
         doReturn(new ConsumerStatsImpl()).when(firstConsumer).getStats();
         persistentSubscription.addConsumer(firstConsumer).get(5, TimeUnit.SECONDS);
+        // A failure during disconnect must release the reset fence so that the next seek can proceed.
+        doThrow(new IllegalStateException("disconnect failed")).when(testDispatcher).disconnectActiveConsumers(true);
+        assertThat(persistentSubscription.resetCursor(PositionFactory.create(1, 20))).isCompletedExceptionally();
         doAnswer(invocation -> {
             persistentSubscription.removeConsumer(firstConsumer, true);
             return CompletableFuture.completedFuture(null);

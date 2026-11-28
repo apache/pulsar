@@ -46,6 +46,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
@@ -2048,6 +2049,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub.acknowledgeMessageAsync(Collections.singletonList(position), AckType.Cumulative,
                 Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId)).join();
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
+        assertThrows(IllegalArgumentException.class,
+                () -> sub.acknowledgeIndividualMessagesFromConsumer(List.of(position), Map.of(), 0L, true));
     }
 
     @Test

@@ -505,6 +505,22 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return gate;
     }
 
+    /** Holds the next successful add response on the specified ledger after its entry has been stored. */
+    public CompletableFuture<Void> addEntryResponseGate(long ledgerId) {
+        return getExistingLedger(ledgerId).addEntryResponseGate();
+    }
+
+    /** Holds the next async add on the specified ledger before writing. Exceptional completion fails the add. */
+    public CompletableFuture<Void> addEntryWriteGate(long ledgerId) {
+        return getExistingLedger(ledgerId).addEntryWriteGate();
+    }
+
+    private PulsarMockLedgerHandle getExistingLedger(long ledgerId) {
+        PulsarMockLedgerHandle ledger = ledgers.get(ledgerId);
+        checkArgument(ledger != null, "Unknown ledger %s", ledgerId);
+        return ledger;
+    }
+
     static int getExceptionCode(Throwable t) {
         if (t instanceof BKException) {
             return ((BKException) t).getCode();
