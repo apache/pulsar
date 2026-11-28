@@ -1150,6 +1150,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 transactionMetadataStoreService = new TransactionMetadataStoreService(TransactionMetadataStoreProvider
                         .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,
                         transactionBufferClient, transactionTimer);
+                transactionMetadataStoreService.start();
 
                 if (config.isScalableTopicsEnabled() && config.isTransactionCoordinatorScalableTopicsEnabled()) {
                     transactionCoordinatorV5 = new TransactionCoordinatorV5(this);
