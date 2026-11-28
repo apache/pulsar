@@ -99,6 +99,15 @@ public class ManagedLedgerFactoryConfig {
     private long managedLedgerMaxReadsInFlightSize = 0;
 
     /**
+     * Maximum number of bytes per second to read from bookies for offloading on this broker.
+     * A non-positive value disables offload read throttling.
+     * When enabled, the read handles passed to the offloader throttle the range reads (confirmed,
+     * unconfirmed and batch) and charge the bytes actually read against this limit; all other
+     * operations, such as last-add-confirmed queries, are passed through unchanged.
+     */
+    private long managedLedgerOffloadFlowPermitsPerSecond = -1;
+
+    /**
      * Maximum time to wait for acquiring permits for max reads in flight when managedLedgerMaxReadsInFlightSizeInMB is
      * set (>0) and the limit is reached.
      */
