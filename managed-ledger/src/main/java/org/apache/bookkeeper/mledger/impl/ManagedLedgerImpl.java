@@ -4952,7 +4952,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             final long retentionSizeInMB = config.getRetentionSizeInMB();
             final long retentionTimeMs = config.getRetentionTimeMillis();
             final long totalSizeOfML = TOTAL_SIZE_UPDATER.get(this);
-            if (!cursors.hasDurableCursors()) {
+            if (currentState == State.FencedForDeletion) {
+                // The ledger is being deleted (setFencedForDeletion is only called from asyncDelete),
+                // so no cursor will ever read again. Ignore cursor positions: a cursor whose lazy
+                // recovery finished after fencing may carry a stale mark-delete position, and letting
+                // it pin ledgers would leave offloaded data behind — the final delete only removes
+                // BookKeeper ledgers and metadata, while offloaded copies are cleaned up here.
+                slowestReaderLedgerId = currentLedgerId + 1;
+            } else if (!cursors.hasDurableCursors()) {
                 // At this point the lastLedger will be pointing to the
                 // ledger that has just been closed, therefore the +1 to
                 // include lastLedger in the trimming.
