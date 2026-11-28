@@ -885,7 +885,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             if (producers.size() > 0) {
                 // send migration url metadata to producers before disconnecting them
                 CompletableFuture<Void> sendMigrationUrlFuture;
-                if (isMigrated() && shouldProducerMigrate()) {
+                if (shouldProducerMigrate()) {
+                    // The ledger is terminated before the migration marker is stored, so isMigrated() is still
+                    // false while the migration is in progress
                     sendMigrationUrlFuture = getMigratedClusterUrlAsync().thenAccept(clusterUrl ->
                             producers.forEach((__, producer) -> producer.topicMigrated(clusterUrl)));
                 } else {
@@ -922,7 +924,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         .log("Failed to persist msg in store");
             }
 
-            if (exception instanceof ManagedLedgerTerminatedException && !isMigrated()) {
+            if (exception instanceof ManagedLedgerTerminatedException && !isMigrated() && !isMigrationInProgress()) {
                 // Signal the producer that this topic is no longer available
                 callback.completed(new TopicTerminatedException(exception), -1, -1);
             } else {
@@ -4030,6 +4032,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     public boolean shouldProducerMigrate() {
         return !isReplicationBacklogExist() && migrationSubsCreated;
+    }
+
+    /** Whether the migration has started but the migration marker is not stored yet. */
+    private boolean isMigrationInProgress() {
+        return !isMigrated() && migrationSubsCreated;
     }
 
     @Override

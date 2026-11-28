@@ -3118,7 +3118,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             producers.remove(producerId, producerFuture);
         }, ctx.executor()).exceptionallyAsync(ex -> {
             Throwable cause = ex.getCause();
-            if (cause instanceof BrokerServiceException.TopicMigratedException) {
+            if (cause instanceof BrokerServiceException.TopicMigratedException
+                    || cause instanceof BrokerServiceException.TopicTerminatedException) {
+                // The ledger is terminated before the migration marker is stored, so a topic that is mid-migration
+                // fails with TopicTerminatedException; redirect it like a migrated one.
                 getMigratedClusterUrlAsync(service.getPulsar(), topic.getName())
                         .handleAsync((clusterUrl, lookupError) -> {
                             if (lookupError != null) {
