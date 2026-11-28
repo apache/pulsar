@@ -29,6 +29,17 @@ import org.apache.pulsar.broker.service.Consumer;
 
 public interface CompactedTopic {
     CompletableFuture<CompactedTopicContext> newCompactedLedger(Position p, long compactedLedgerId);
+
+    /**
+     * Promote the most recently opened compacted ledger (from {@link #newCompactedLedger}) to be
+     * the active one and install the compaction horizon. This must only be called after the
+     * corresponding mark-delete has been durably persisted, so in-memory state stays consistent
+     * with cursor metadata.
+     *
+     * @param p the new compaction horizon (the mark-delete position)
+     */
+    void promoteNewCompactedLedger(Position p);
+
     CompletableFuture<Void> deleteCompactedLedger(long compactedLedgerId);
 
     /**
