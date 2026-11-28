@@ -64,6 +64,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -232,8 +233,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private volatile CompletableFuture<Producer<byte[]>> deadLetterProducer;
     private volatile int deadLetterProducerFailureCount;
+    private final AtomicReference<ScheduledFuture<?>> deadLetterProducerRetryTask = new AtomicReference<>();
     private volatile CompletableFuture<Producer<byte[]>> retryLetterProducer;
     private volatile int retryLetterProducerFailureCount;
+    private final AtomicReference<ScheduledFuture<?>> retryLetterProducerRetryTask = new AtomicReference<>();
     private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
 
     protected volatile boolean paused;
@@ -1355,21 +1358,24 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     // A parent retaining another child with this schema owns its eventual close.
     synchronized CompletableFuture<Void> closeAsync(boolean closeSchema) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+        cancelPendingProducerRetries();
 
         ArrayList<CompletableFuture<Void>> closeFutures = new ArrayList<>(4);
         closeFutures.add(closeFuture);
         if (retryLetterProducer != null) {
-            closeFutures.add(retryLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
+            closeFutures.add(retryLetterProducer.thenCompose(p -> p.closeAsync()).handle((ignore, ex) -> {
                 if (ex != null) {
                     log.warn().exception(ex).log("Exception ignored in closing retryLetterProducer");
                 }
+                return null;
             }));
         }
         if (deadLetterProducer != null) {
-            closeFutures.add(deadLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
+            closeFutures.add(deadLetterProducer.thenCompose(p -> p.closeAsync()).handle((ignore, ex) -> {
                 if (ex != null) {
                     log.warn().exception(ex).log("Exception ignored in closing deadLetterProducer of consumer");
                 }
+                return null;
             }));
         }
         if (closeSchema && schema != null) {
@@ -1393,6 +1399,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (!isConnected()) {
             log.info("Closed Consumer (not connected)");
             setState(State.Closed);
+            cancelPendingProducerRetries();
             closeConsumerTasks();
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
@@ -1406,6 +1413,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.getStatTimeout().ifPresent(Timeout::cancel);
 
         setState(State.Closing);
+        cancelPendingProducerRetries();
 
         closeConsumerTasks();
 
@@ -2860,12 +2868,30 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    private void cancelPendingProducerRetries() {
+        cancelScheduledRetry(retryLetterProducerRetryTask, retryLetterProducer);
+        cancelScheduledRetry(deadLetterProducerRetryTask, deadLetterProducer);
+    }
+
+    private static void cancelScheduledRetry(AtomicReference<ScheduledFuture<?>> retryTaskRef,
+                                             CompletableFuture<Producer<byte[]>> producerFuture) {
+        ScheduledFuture<?> task = retryTaskRef.getAndSet(null);
+        if (task != null && task.cancel(false) && producerFuture != null) {
+            producerFuture.completeExceptionally(
+                    new PulsarClientException.AlreadyClosedException("Consumer already closed"));
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private CompletableFuture<Producer<byte[]>> initDeadLetterProducerIfNeeded() {
         CompletableFuture<Producer<byte[]>> p = deadLetterProducer;
         if (p == null || p.isCompletedExceptionally()) {
             createProducerLock.writeLock().lock();
             try {
+                if (getState() == State.Closing || getState() == State.Closed) {
+                    return FutureUtil.failedFuture(
+                            new PulsarClientException.AlreadyClosedException("Consumer already closed"));
+                }
                 p = deadLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
@@ -2886,7 +2912,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         customizeDeadLetterProducerBuilder(deadLetterPolicy.getDeadLetterProducerBuilderCustomizer(),
                                 deadLetterPolicy.getDeadLetterTopic(), builder);
                         return builder.createAsync();
-                    }, deadLetterProducerFailureCount, (producer, ex) -> {
+                    }, deadLetterProducerFailureCount, deadLetterProducerRetryTask, (producer, ex) -> {
                         if (ex != null) {
                             log.error().attr("deadLetterTopic", deadLetterPolicy.getDeadLetterTopic())
                                     .exception(ex)
@@ -2908,9 +2934,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private CompletableFuture<Producer<byte[]>> createProducerWithBackOff(
             Supplier<CompletableFuture<Producer<byte[]>>> producerSupplier, int failureCount,
+            AtomicReference<ScheduledFuture<?>> retryTaskRef,
             BiConsumer<Producer<byte[]>, Throwable> completionAction, Supplier<String> logDescription) {
         CompletableFuture<Producer<byte[]>> newProducer;
+        ScheduledFuture<?> retryTask = null;
         if (failureCount == 0) {
+            retryTaskRef.set(null);
             newProducer = FutureUtil.supplySafely(producerSupplier);
         } else {
             // calculate backoff time for given failure count
@@ -2927,15 +2956,29 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             log.info().attr("creating", logDescription.get())
                     .attr("backoffTimeMillis", backoffTimeMillis)
                     .log("Creating with backoff time of ms");
-            executor.schedule(() -> FutureUtil.completeAfter(newProducer, FutureUtil.supplySafely(producerSupplier)),
-                    backoffTimeMillis, TimeUnit.MILLISECONDS);
+            retryTask = executor.schedule(() -> {
+                if (getState() == State.Closing || getState() == State.Closed) {
+                    newProducer.completeExceptionally(
+                            new PulsarClientException.AlreadyClosedException("Consumer already closed"));
+                    return;
+                }
+                FutureUtil.completeAfter(newProducer, FutureUtil.supplySafely(producerSupplier));
+            }, backoffTimeMillis, TimeUnit.MILLISECONDS);
+            retryTaskRef.set(retryTask);
         }
         // The completion action must observe the future this method returns: a builder customizer that
         // throws synchronously fails before createAsync, so an action registered inside the supplier
         // would never run, the failure count would stay at zero and every retry would run without
         // backoff. Returning the derived future also guarantees the action has run (the failure count
         // has been updated) before the failure becomes observable to the next retry.
-        return newProducer.whenComplete(completionAction);
+        CompletableFuture<Producer<byte[]>> result = newProducer.whenComplete(completionAction);
+        if (retryTask != null && (getState() == State.Closing || getState() == State.Closed)
+                && (retryTask.cancel(false) || retryTask.isCancelled())) {
+            retryTaskRef.compareAndSet(retryTask, null);
+            result.completeExceptionally(
+                    new PulsarClientException.AlreadyClosedException("Consumer already closed"));
+        }
+        return result;
     }
 
     private CompletableFuture<Producer<byte[]>> initRetryLetterProducerIfNeeded() {
@@ -2943,6 +2986,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (p == null || p.isCompletedExceptionally()) {
             createProducerLock.writeLock().lock();
             try {
+                if (getState() == State.Closing || getState() == State.Closed) {
+                    return FutureUtil.failedFuture(
+                            new PulsarClientException.AlreadyClosedException("Consumer already closed"));
+                }
                 p = retryLetterProducer;
                 if (p == null || p.isCompletedExceptionally()) {
                     p = createProducerWithBackOff(() -> {
@@ -2955,7 +3002,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         customizeDeadLetterProducerBuilder(deadLetterPolicy.getRetryLetterProducerBuilderCustomizer(),
                                 deadLetterPolicy.getRetryLetterTopic(), builder);
                         return builder.createAsync();
-                    }, retryLetterProducerFailureCount, (producer, ex) -> {
+                    }, retryLetterProducerFailureCount, retryLetterProducerRetryTask, (producer, ex) -> {
                         if (ex != null) {
                             log.error().attr("retryLetterTopic", deadLetterPolicy.getRetryLetterTopic())
                                     .exception(ex)

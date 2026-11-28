@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -51,10 +52,13 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
@@ -397,10 +401,10 @@ public class ConsumerDeadLetterProcessingTest {
             assertThat(customizations.get()).isEqualTo(2);
             assertThat(fixture.sends).isEmpty();
             assertThat(fixture.acknowledgments).isEmpty();
-            Throwable closeFailure = fixture.consumer.closeAsync().handle((ignored, exception) -> exception)
-                    .get(1, TimeUnit.SECONDS);
-            assertThat(closeFailure).as("the failed producer may fail close, but must never leave it pending")
-                    .isNotNull();
+            assertThatThrownBy(() -> fixture.consumer.getDeadLetterProducer())
+                    .as("the failed backoff retry must settle the producer future")
+                    .isInstanceOf(ExecutionException.class);
+            fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
         }
     }
 
@@ -654,6 +658,139 @@ public class ConsumerDeadLetterProcessingTest {
         }
     }
 
+    @Test(timeOut = 30000)
+    public void testCloseCancelsQueuedDeadLetterProducerRetry() throws Exception {
+        AtomicInteger customizations = new AtomicInteger();
+        try (Fixture fixture = new Fixture(false, (context, builder) -> {
+            customizations.incrementAndGet();
+            throw new IllegalStateException("Controlled DLQ producer customization failure");
+        })) {
+            ByteBuf frame = fixture.deliver();
+            assertThat(frame.refCnt()).isZero();
+            assertThat(customizations.get()).isEqualTo(1);
+            assertThat(fixture.scheduledTasks).isEmpty();
+
+            // Second attempt hits backoff (failureCount == 1) and is queued on the scheduled executor.
+            fixture.consumer.redeliverUnacknowledgedMessages(Set.of(ORIGINAL_ID));
+            assertThat(fixture.scheduledTasks).hasSize(1);
+            assertThat(customizations.get()).isEqualTo(1);
+
+            CompletableFuture<Void> closeFuture = fixture.consumer.closeAsync();
+            assertThat(closeFuture)
+                    .as("closing while a DLQ producer retry is queued must complete cleanly without waiting")
+                    .isCompletedWithValue(null);
+            assertThat(fixture.scheduledFutures.get(0).isCancelled())
+                    .as("queued DLQ producer retry timer must be cancelled on close")
+                    .isTrue();
+            assertThatThrownBy(() -> fixture.consumer.getDeadLetterProducer())
+                    .as("cancelling a queued DLQ retry must settle the pending producer future")
+                    .isInstanceOf(ExecutionException.class);
+
+            // Even if the queued task raced with cancel and runs after close, it must not invoke the customizer.
+            fixture.scheduledTasks.get(0).run();
+            assertThat(customizations.get())
+                    .as("customizer must not be called again after consumer close")
+                    .isEqualTo(1);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testCloseCancelsQueuedRetryLetterProducerRetry() throws Exception {
+        AtomicInteger customizations = new AtomicInteger();
+        try (Fixture fixture = new Fixture(false, null, (context, builder) -> {
+            customizations.incrementAndGet();
+            throw new IllegalStateException("Controlled RLT producer customization failure");
+        }, false, false, true)) {
+            ByteBuf frame = fixture.deliver(0);
+            Message<byte[]> message = fixture.consumer.receive(1, TimeUnit.SECONDS);
+            assertThat(message).isNotNull();
+            CompletableFuture<Void> reconsumeFuture;
+            try {
+                // doReconsumeLater initializes RLT producer twice: attempt 1 fails synchronously (failureCount -> 1),
+                // attempt 2 schedules a backed-off retry on the scheduled executor.
+                reconsumeFuture = fixture.consumer.reconsumeLaterAsync(message, 1, TimeUnit.SECONDS);
+            } finally {
+                message.release();
+            }
+            assertThat(frame.refCnt()).isZero();
+            assertThat(customizations.get()).isEqualTo(1);
+            assertThat(fixture.scheduledTasks).hasSize(1);
+            assertThat(reconsumeFuture).isNotDone();
+
+            CompletableFuture<Void> closeFuture = fixture.consumer.closeAsync();
+            assertThat(closeFuture)
+                    .as("closing while an RLT producer retry is queued must complete cleanly without waiting")
+                    .isCompletedWithValue(null);
+            assertThat(fixture.scheduledFutures.get(0).isCancelled())
+                    .as("queued RLT producer retry timer must be cancelled on close")
+                    .isTrue();
+            assertThat(reconsumeFuture)
+                    .as("cancelling a queued RLT retry must settle callers awaiting it")
+                    .isCompletedExceptionally();
+
+            // Even if the queued task raced with cancel and runs after close, it must not invoke the customizer.
+            fixture.scheduledTasks.get(0).run();
+            assertThat(customizations.get())
+                    .as("customizer must not be called again after consumer close")
+                    .isEqualTo(1);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testCloseAwaitsInFlightDeadLetterProducerCreationAndClosesProducer() throws Exception {
+        try (Fixture fixture = new Fixture(false)) {
+            CompletableFuture<Producer<byte[]>> pendingCreation = new CompletableFuture<>();
+            fixture.pendingProducerCreation = pendingCreation;
+
+            ByteBuf frame = fixture.deliver();
+            assertThat(frame.refCnt()).isZero();
+            assertThat(fixture.sends).isEmpty();
+
+            CompletableFuture<Void> closeFuture = fixture.consumer.closeAsync();
+            assertThat(closeFuture)
+                    .as("close must keep awaiting an already in-flight producer creation")
+                    .isNotDone();
+
+            pendingCreation.complete(fixture.producer);
+            closeFuture.get(1, TimeUnit.SECONDS);
+            verify(fixture.producer).closeAsync();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testCloseAwaitsInFlightBackedOffDeadLetterProducerCreationAndClosesProducer() throws Exception {
+        AtomicInteger customizations = new AtomicInteger();
+        try (Fixture fixture = new Fixture(false, (context, builder) -> {
+            if (customizations.incrementAndGet() == 1) {
+                throw new IllegalStateException("Controlled initial DLQ producer customization failure");
+            }
+        })) {
+            ByteBuf frame = fixture.deliver();
+            assertThat(frame.refCnt()).isZero();
+            assertThat(customizations.get()).isEqualTo(1);
+
+            // Second attempt is scheduled with backoff.
+            fixture.consumer.redeliverUnacknowledgedMessages(Set.of(ORIGINAL_ID));
+            assertThat(fixture.scheduledTasks).hasSize(1);
+
+            // Start the backed-off attempt so createAsync() is in flight before close() begins.
+            CompletableFuture<Producer<byte[]>> pendingCreation = new CompletableFuture<>();
+            fixture.pendingProducerCreation = pendingCreation;
+            fixture.runScheduledTask(0);
+            assertThat(customizations.get()).isEqualTo(2);
+
+            CompletableFuture<Void> closeFuture = fixture.consumer.closeAsync();
+            assertThat(closeFuture)
+                    .as("close must keep awaiting a backed-off attempt whose creation is already in flight")
+                    .isNotDone();
+            assertThat(fixture.scheduledFutures.get(0).isCancelled()).isFalse();
+
+            pendingCreation.complete(fixture.producer);
+            closeFuture.get(1, TimeUnit.SECONDS);
+            verify(fixture.producer).closeAsync();
+        }
+    }
+
     private static final class TransactionControl {
         private final TransactionImpl transaction;
         private CompletableFuture<Void> commitResult = new CompletableFuture<>();
@@ -672,17 +809,21 @@ public class ConsumerDeadLetterProcessingTest {
         private final List<TypedMessageBuilder<byte[]>> sentMessages = new ArrayList<>();
         private final List<ByteBuf> frames = new ArrayList<>();
         private final List<Runnable> scheduledTasks = new ArrayList<>();
+        private final List<ScheduledFuture<?>> scheduledFutures = new ArrayList<>();
+        private final List<AtomicBoolean> scheduledTaskStarted = new ArrayList<>();
         private final List<Runnable> notifications = new ArrayList<>();
         private final List<BaseCommand> acknowledgments = new ArrayList<>();
         private final List<CompletableFuture<Void>> transactionAcknowledgments = new ArrayList<>();
         private final PulsarClientImpl client = mock(PulsarClientImpl.class);
         private final TransactionCoordinatorClientImpl coordinator = mock(TransactionCoordinatorClientImpl.class);
+        private final Producer<byte[]> producer;
         private final ConsumerImpl<byte[]> consumer;
         private final boolean batch;
         private boolean queueNotifications;
         private RejectedExecutionException notificationRejection;
         private int notificationsBeforeRejection;
         private Throwable messageCreationFailure;
+        private CompletableFuture<Producer<byte[]>> pendingProducerCreation;
         private int redeliveries;
         private long nextTransactionId;
 
@@ -703,9 +844,15 @@ public class ConsumerDeadLetterProcessingTest {
             this(batch, customizer, failProducerCreation, false);
         }
 
-        @SuppressWarnings("unchecked")
         private Fixture(boolean batch, DeadLetterProducerBuilderCustomizer customizer, boolean failProducerCreation,
                         boolean groupAcknowledgments) throws Exception {
+            this(batch, customizer, null, failProducerCreation, groupAcknowledgments, false);
+        }
+
+        @SuppressWarnings("unchecked")
+        private Fixture(boolean batch, DeadLetterProducerBuilderCustomizer customizer,
+                        DeadLetterProducerBuilderCustomizer retryCustomizer, boolean failProducerCreation,
+                        boolean groupAcknowledgments, boolean retryEnable) throws Exception {
             this.batch = batch;
             ClientConfigurationData clientConf = new ClientConfigurationData();
             clientConf.setStatsIntervalSeconds(0);
@@ -739,29 +886,40 @@ public class ConsumerDeadLetterProcessingTest {
             }).when(internalExecutor).execute(any(Runnable.class));
             when(client.getInternalExecutorService()).thenReturn(internalExecutor);
             when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
-            if (failProducerCreation) {
-                ScheduledExecutorProvider scheduled = mock(ScheduledExecutorProvider.class);
-                ScheduledExecutorService scheduledExecutor = mock(ScheduledExecutorService.class);
-                when(client.getScheduledExecutorProvider()).thenReturn(scheduled);
-                when(scheduled.getExecutor(any(Object.class))).thenReturn(scheduledExecutor);
-                when(scheduledExecutor.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
-                        .thenAnswer(invocation -> {
-                            scheduledTasks.add(invocation.getArgument(0));
-                            return null;
-                        });
-            }
+            ScheduledExecutorProvider scheduled = mock(ScheduledExecutorProvider.class);
+            ScheduledExecutorService scheduledExecutor = mock(ScheduledExecutorService.class);
+            when(client.getScheduledExecutorProvider()).thenReturn(scheduled);
+            when(scheduled.getExecutor(any(Object.class))).thenReturn(scheduledExecutor);
+            when(scheduledExecutor.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
+                    .thenAnswer(invocation -> {
+                        scheduledTasks.add(invocation.getArgument(0));
+                        AtomicBoolean started = new AtomicBoolean();
+                        scheduledTaskStarted.add(started);
+                        ScheduledFuture<?> future = mock(ScheduledFuture.class);
+                        AtomicBoolean cancelled = new AtomicBoolean();
+                        when(future.cancel(anyBoolean())).thenAnswer(cancelInvocation ->
+                                !started.get() && cancelled.compareAndSet(false, true));
+                        when(future.isCancelled()).thenAnswer(isCancelledInvocation -> cancelled.get());
+                        scheduledFutures.add(future);
+                        return future;
+                    });
             AtomicLong requests = new AtomicLong();
             when(client.newRequestId()).thenAnswer(invocation -> requests.incrementAndGet());
             ExecutorProvider external = mock(ExecutorProvider.class);
             when(external.getExecutor()).thenReturn(executor);
 
-            Producer<byte[]> producer = mock(Producer.class);
+            producer = mock(Producer.class);
             ProducerBuilderImpl<byte[]> producerBuilder = mock(ProducerBuilderImpl.class, RETURNS_SELF);
             doReturn(producerBuilder).when(client).newProducer(any(Schema.class));
-            when(producerBuilder.createAsync()).thenReturn(failProducerCreation
-                    ? CompletableFuture.failedFuture(
-                            new IllegalStateException("Controlled DLQ producer creation failure"))
-                    : CompletableFuture.completedFuture(producer));
+            when(producerBuilder.createAsync()).thenAnswer(invocation -> {
+                if (pendingProducerCreation != null) {
+                    return pendingProducerCreation;
+                }
+                return failProducerCreation
+                        ? CompletableFuture.failedFuture(
+                                new IllegalStateException("Controlled DLQ producer creation failure"))
+                        : CompletableFuture.completedFuture(producer);
+            });
             when(producer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
             when(producer.newMessage(any(Schema.class))).thenAnswer(invocation -> {
                 if (sends.size() == 1 && messageCreationFailure != null) {
@@ -783,11 +941,24 @@ public class ConsumerDeadLetterProcessingTest {
             conf.setBatchIndexAckEnabled(true);
             conf.setPoolMessages(true);
             conf.setAcknowledgementsGroupTimeMicros(groupAcknowledgments ? TimeUnit.HOURS.toMicros(1) : 0);
-            conf.setDeadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(MAX_REDELIVERIES)
-                    .deadLetterTopic(TOPIC + "-DLQ").deadLetterProducerBuilderCustomizer(customizer).build());
+            conf.setRetryEnable(retryEnable);
+            DeadLetterPolicy.DeadLetterPolicyBuilder policyBuilder = DeadLetterPolicy.builder()
+                    .maxRedeliverCount(MAX_REDELIVERIES)
+                    .deadLetterTopic(TOPIC + "-DLQ")
+                    .deadLetterProducerBuilderCustomizer(customizer);
+            if (retryEnable) {
+                policyBuilder.retryLetterTopic(TOPIC + "-RETRY")
+                        .retryLetterProducerBuilderCustomizer(retryCustomizer);
+            }
+            conf.setDeadLetterPolicy(policyBuilder.build());
             consumer = ConsumerImpl.newConsumerImpl(client, TOPIC, conf, external, -1, false,
                     new CompletableFuture<>(), null, Schema.BYTES, null, true);
             consumer.connectionOpened(newConnection()).get(1, TimeUnit.SECONDS);
+        }
+
+        private void runScheduledTask(int index) {
+            scheduledTaskStarted.get(index).set(true);
+            scheduledTasks.get(index).run();
         }
 
         private void runNotifications() {
