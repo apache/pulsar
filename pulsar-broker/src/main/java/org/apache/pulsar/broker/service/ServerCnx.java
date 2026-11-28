@@ -5030,14 +5030,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void notifyConsumerClosed(Consumer consumer) {
-        if (brokerInterceptor != null && consumer.isBrokerInterceptorConsumerCreatedNotified()
-                && consumer.markBrokerInterceptorClosedNotified()) {
+        if (brokerInterceptor == null || !consumer.isBrokerInterceptorConsumerCreatedNotified()
+                || !consumer.markBrokerInterceptorClosedNotified()) {
+            return;
+        }
+        Map<String, String> metadata = consumer.getMetadata();
+        execute(() -> {
             try {
-                brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
+                brokerInterceptor.consumerClosed(this, consumer, metadata);
             } catch (Throwable t) {
                 log.error().exception(t).log("Exception occur when intercept consumer closed.");
             }
-        }
+        });
     }
 
     @Override
@@ -5047,14 +5051,18 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     @Override
     public void notifyProducerClosed(Producer producer) {
-        if (brokerInterceptor != null && producer.isBrokerInterceptorProducerCreatedNotified()
-                && producer.markBrokerInterceptorClosedNotified()) {
+        if (brokerInterceptor == null || !producer.isBrokerInterceptorProducerCreatedNotified()
+                || !producer.markBrokerInterceptorClosedNotified()) {
+            return;
+        }
+        Map<String, String> metadata = producer.getMetadata();
+        execute(() -> {
             try {
-                brokerInterceptor.producerClosed(this, producer, producer.getMetadata());
+                brokerInterceptor.producerClosed(this, producer, metadata);
             } catch (Throwable t) {
                 log.error().exception(t).log("Exception occur when intercept producer closed.");
             }
-        }
+        });
     }
 
     private void safelyRemoveProducer(Producer producer) {
