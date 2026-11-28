@@ -22,15 +22,10 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.testng.Assert.assertEquals;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -64,12 +59,16 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
         Position penultimate = writer.addEntry("penultimate".getBytes(StandardCharsets.UTF_8));
         Position last = writer.addEntry("last".getBytes(StandardCharsets.UTF_8));
 
-        ReadOnlyManagedLedger reader = openReadOnly("direct-live-ledger", config).get(10, TimeUnit.SECONDS);
-        assertThat(reader.getNumberOfEntries()).isEqualTo(3);
-        assertDirectEntry(reader, first, "first");
-        assertDirectEntry(reader, penultimate, "penultimate");
-        assertDirectEntry(reader, last, "last");
-        assertThat(reader.getNumberOfEntries()).isEqualTo(3);
+        ReadOnlyManagedLedger reader = openReadOnly("direct-live-ledger", config);
+        try {
+            assertThat(reader.getNumberOfEntries()).isEqualTo(3);
+            assertDirectEntry(reader, first, "first");
+            assertDirectEntry(reader, penultimate, "penultimate");
+            assertDirectEntry(reader, last, "last");
+            assertThat(reader.getNumberOfEntries()).isEqualTo(3);
+        } finally {
+            reader.asyncClose().get(10, TimeUnit.SECONDS);
+        }
     }
 
     @Test
@@ -83,11 +82,15 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
         Position current = writer.addEntry("current".getBytes(StandardCharsets.UTF_8));
         assertThat(current.getLedgerId()).isNotEqualTo(first.getLedgerId());
 
-        ReadOnlyManagedLedger reader = openReadOnly("direct-closed-ledger", config).get(10, TimeUnit.SECONDS);
-        assertDirectEntry(reader, first, "first");
-        assertDirectEntry(reader, lastClosed, "last-closed");
-        assertDirectEntry(reader, current, "current");
-        assertThat(reader.getNumberOfEntries()).isEqualTo(3);
+        ReadOnlyManagedLedger reader = openReadOnly("direct-closed-ledger", config);
+        try {
+            assertDirectEntry(reader, first, "first");
+            assertDirectEntry(reader, lastClosed, "last-closed");
+            assertDirectEntry(reader, current, "current");
+            assertThat(reader.getNumberOfEntries()).isEqualTo(3);
+        } finally {
+            reader.asyncClose().get(10, TimeUnit.SECONDS);
+        }
     }
 
     @Test
@@ -103,30 +106,35 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
         assertThat(emptyLedger.entries).isNull();
         assertThat(reopened.getLastConfirmedEntry()).isEqualTo(published);
 
-        ReadOnlyManagedLedger reader = openReadOnly("direct-empty-last-ledger", config).get(10, TimeUnit.SECONDS);
-        assertDirectEntry(reader, published, "published");
-        assertThat(reader.getNumberOfEntries()).isEqualTo(1);
-        Position absent = PositionFactory.create(emptyLedger.ledgerId, 0);
-        assertThatThrownBy(() -> {
-            Entry unexpected = directRead(reader, absent).get(10, TimeUnit.SECONDS);
-            unexpected.release();
-        })
-                .hasCauseInstanceOf(ManagedLedgerException.class)
-                .satisfies(error -> assertThat(error.getCause().getMessage())
-                        .doesNotContain("LastConfirmedEntry is null"));
+        ReadOnlyManagedLedger reader = openReadOnly("direct-empty-last-ledger", config);
+        try {
+            assertDirectEntry(reader, published, "published");
+            assertThat(reader.getNumberOfEntries()).isEqualTo(1);
+            Position absent = PositionFactory.create(emptyLedger.ledgerId, 0);
+            assertThatThrownBy(() -> directRead(reader, absent).release())
+                    .hasCauseInstanceOf(ManagedLedgerException.class)
+                    .satisfies(error -> assertThat(error.getCause().getMessage())
+                            .doesNotContain("LastConfirmedEntry is null"));
+        } finally {
+            reader.asyncClose().get(10, TimeUnit.SECONDS);
+        }
     }
 
     @Test
     public void testEmptyReadOnlyLedgerWithoutCursor() throws Exception {
         ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.HOURS);
         factory.open("direct-empty-ledger", config);
-        ReadOnlyManagedLedger reader = openReadOnly("direct-empty-ledger", config).get(10, TimeUnit.SECONDS);
-        assertThat(reader.getNumberOfEntries()).isZero();
+        ReadOnlyManagedLedger reader = openReadOnly("direct-empty-ledger", config);
+        try {
+            assertThat(reader.getNumberOfEntries()).isZero();
+        } finally {
+            reader.asyncClose().get(10, TimeUnit.SECONDS);
+        }
     }
 
     @Test
     public void testDirectReadOnlyOpenMissingLedger() {
-        assertThatThrownBy(() -> openReadOnly("direct-missing-ledger", defaultConfig()).get(10, TimeUnit.SECONDS))
+        assertThatThrownBy(() -> openReadOnly("direct-missing-ledger", defaultConfig()))
                 .hasCauseInstanceOf(ManagedLedgerException.ManagedLedgerNotFoundException.class);
     }
 
@@ -136,11 +144,11 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
         ManagedLedger writer = factory.open("direct-open-failure", config);
         writer.addEntry("published".getBytes(StandardCharsets.UTF_8));
         bkc.failNow(BKException.Code.ReadException);
-        assertThatThrownBy(() -> openReadOnly("direct-open-failure", config).get(10, TimeUnit.SECONDS))
+        assertThatThrownBy(() -> openReadOnly("direct-open-failure", config))
                 .hasCauseInstanceOf(ManagedLedgerException.class);
     }
 
-    private CompletableFuture<ReadOnlyManagedLedger> openReadOnly(String name, ManagedLedgerConfig config) {
+    private ReadOnlyManagedLedger openReadOnly(String name, ManagedLedgerConfig config) throws Exception {
         CompletableFuture<ReadOnlyManagedLedger> result = new CompletableFuture<>();
         factory.asyncOpenReadOnlyManagedLedger(name, new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
             @Override
@@ -153,10 +161,15 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
                 result.completeExceptionally(error);
             }
         }, config, null);
-        return result;
+        try {
+            return result.get(10, TimeUnit.SECONDS);
+        } catch (Exception error) {
+            result.thenAccept(ReadOnlyManagedLedger::asyncClose);
+            throw error;
+        }
     }
 
-    private CompletableFuture<Entry> directRead(ReadOnlyManagedLedger ledger, Position position) {
+    private Entry directRead(ReadOnlyManagedLedger ledger, Position position) throws Exception {
         CompletableFuture<Entry> result = new CompletableFuture<>();
         ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
             @Override
@@ -169,11 +182,16 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
                 result.completeExceptionally(error);
             }
         }, null);
-        return result;
+        try {
+            return result.get(10, TimeUnit.SECONDS);
+        } catch (Exception error) {
+            result.thenAccept(Entry::release);
+            throw error;
+        }
     }
 
     private void assertDirectEntry(ReadOnlyManagedLedger ledger, Position position, String expected) throws Exception {
-        Entry entry = directRead(ledger, position).get(10, TimeUnit.SECONDS);
+        Entry entry = directRead(ledger, position);
         try {
             assertThat(entry.getPosition()).isEqualTo(position);
             assertThat(entry.getData()).isEqualTo(expected.getBytes(StandardCharsets.UTF_8));
@@ -183,8 +201,7 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testReadOnlyManagedLedgerImplAttachProperties()
-            throws ManagedLedgerException, InterruptedException, ExecutionException, TimeoutException {
+    public void testReadOnlyManagedLedgerImplAttachProperties() throws Exception {
         final ManagedLedger ledger = factory.open(MANAGED_LEDGER_NAME_ATTACHED_PROPERTIES,
                 defaultConfig().setRetentionTime(1, TimeUnit.HOURS));
         final String propertiesKey = "test-key";
@@ -192,55 +209,28 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
 
         ledger.setConfig(defaultConfig());
         ledger.addEntry("entry-0".getBytes());
-        Map<String, String> properties = new HashMap<>();
-        properties.put(propertiesKey, propertiesValue);
-        ledger.setProperties(Collections.unmodifiableMap(properties));
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        factory.asyncOpenReadOnlyManagedLedger(MANAGED_LEDGER_NAME_ATTACHED_PROPERTIES,
-                new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
-                    @Override
-                    public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger managedLedger,
-                                                                  Object ctx) {
-                        managedLedger.getProperties().forEach((key, value) -> {
-                            assertEquals(key, propertiesKey);
-                            assertEquals(value, propertiesValue);
-                        });
-                        future.complete(null);
-                    }
-
-                    @Override
-                    public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                        future.completeExceptionally(exception);
-                    }
-                }, defaultConfig(), null);
-
-        future.get(60, TimeUnit.SECONDS);
+        Map<String, String> properties = Map.of(propertiesKey, propertiesValue);
+        ledger.setProperties(properties);
+        ReadOnlyManagedLedger reader = openReadOnly(MANAGED_LEDGER_NAME_ATTACHED_PROPERTIES, defaultConfig());
+        try {
+            assertThat(reader.getProperties()).containsExactlyEntriesOf(properties);
+        } finally {
+            reader.asyncClose().get(10, TimeUnit.SECONDS);
+        }
     }
 
     @Test
-    public void testReadOnlyManagedLedgerImplNoProperties()
-            throws ManagedLedgerException, InterruptedException, ExecutionException, TimeoutException {
+    public void testReadOnlyManagedLedgerImplNoProperties() throws Exception {
         final ManagedLedger ledger = factory.open(MANAGED_LEDGER_NAME_NON_PROPERTIES,
                 defaultConfig().setRetentionTime(1, TimeUnit.HOURS));
         ledger.setConfig(defaultConfig());
         ledger.addEntry("entry-0".getBytes());
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        factory.asyncOpenReadOnlyManagedLedger(MANAGED_LEDGER_NAME_NON_PROPERTIES,
-                new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
-                    @Override
-                    public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger managedLedger,
-                                                                  Object ctx) {
-                        assertEquals(managedLedger.getProperties().size(), 0);
-                        future.complete(null);
-                    }
-
-                    @Override
-                    public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                        future.completeExceptionally(exception);
-                    }
-                }, defaultConfig(), null);
-
-        future.get(60, TimeUnit.SECONDS);
+        ReadOnlyManagedLedger reader = openReadOnly(MANAGED_LEDGER_NAME_NON_PROPERTIES, defaultConfig());
+        try {
+            assertThat(reader.getProperties()).isEmpty();
+        } finally {
+            reader.asyncClose().get(10, TimeUnit.SECONDS);
+        }
     }
 
 }

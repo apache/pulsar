@@ -3163,6 +3163,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return ledgerHandle;
         }
 
+        return openLedgerHandleOnCacheMiss(ledgerId);
+    }
+
+    @VisibleForTesting
+    CompletableFuture<ReadHandle> openLedgerHandleOnCacheMiss(long ledgerId) {
         // If not present try again and create if necessary
         return ledgerCache.computeIfAbsent(ledgerId, lid -> {
             // Open the ledger for reading if it was not already opened

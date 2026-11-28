@@ -123,7 +123,9 @@ public interface ManagedLedgerFactory {
             OpenReadOnlyCursorCallback callback, Object ctx);
 
     /**
-     * Asynchronous open a Read-only managedLedger.
+     * Open a read-only managed ledger asynchronously. The caller owns the returned ledger and must close it when done
+     * using {@link ReadOnlyManagedLedger#asyncClose()}.
+     *
      * @param managedLedgerName the unique name that identifies the managed ledger
      * @param callback
      * @param config the managed ledger configuration.
