@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker.ensureNoBacklogByInflightTask;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -32,7 +33,11 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -44,8 +49,10 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
@@ -237,6 +244,73 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         PersistentReplicator replicator = getAnyShadowReplicator(sourceTopicName, pulsar);
         waitReplicateFinish(sourceTopicName, admin);
         ensureNoBacklogByInflightTask(replicator);
+    }
+
+    /**
+     * Verify the message TTL check of a topic expires the messages of a shadow replicator that is behind every
+     * subscription. The cursor of a shadow replicator is non-durable.
+     */
+    @Test
+    public void testTopicExpiryCheckExpiresShadowReplicatorBehindSubscriptions() throws Exception {
+        String sourceTopicName = BrokerTestUtil.newUniqueName("persistent://prop1/ns-source/source-topic");
+        String shadowTopicName = BrokerTestUtil.newUniqueName("persistent://prop1/ns-shadow/shadow-topic");
+        String subscriptionName = "source-sub";
+
+        admin.topics().createNonPartitionedTopic(sourceTopicName);
+        admin.topics().createSubscription(sourceTopicName, subscriptionName, MessageId.earliest);
+        admin.topics().createShadowTopic(shadowTopicName, sourceTopicName);
+        admin.topics().setShadowTopics(sourceTopicName, Lists.newArrayList(shadowTopicName));
+        PersistentTopic sourceTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopicName).get().get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) sourceTopic.getManagedLedger();
+        PersistentReplicator replicator = getAnyShadowReplicator(TopicName.get(sourceTopicName), pulsar);
+        Awaitility.await().untilAsserted(() -> assertThat(String.valueOf(replicator.getState()))
+                .as("state of the shadow replicator").isEqualTo("Started"));
+        ManagedCursor shadowCursor = replicator.getCursor();
+        assertThat(shadowCursor.isDurable()).as("the cursor of the shadow replicator is durable").isFalse();
+
+        // The shadow replicator replicates 1 message and then waits for its dispatch rate, so it stays behind
+        admin.topicPolicies().setReplicatorDispatchRate(sourceTopicName, DispatchRate.builder()
+                .dispatchThrottlingRateInMsg(1).ratePeriodInSecond(3600).build());
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(replicator.getRateLimiter()).as("rate limiter of the shadow replicator").isPresent();
+            assertThat(replicator.getRateLimiter().orElseThrow().getDispatchRateOnMsg())
+                    .as("dispatch rate of the shadow replicator").isEqualTo(1);
+        });
+        admin.topicPolicies().setMessageTTL(sourceTopicName, 1);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(sourceTopic.getHierarchyTopicPolicies().getMessageTTLInSeconds().get())
+                        .as("message TTL").isEqualTo(1));
+        // The TTL update also scheduled an expiry check, which must not run after the messages are published
+        pulsar.getBrokerService().getMessageExpiryMonitor().submit(() -> { }).get();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopicName)
+                .enableBatching(false).create();
+        MessageIdImpl firstMessageId = (MessageIdImpl) producer.send("0");
+        Position firstPosition = PositionFactory.create(firstMessageId.getLedgerId(), firstMessageId.getEntryId());
+        Awaitility.await().untilAsserted(() -> assertThat(shadowCursor.getMarkDeletedPosition())
+                .as("mark-delete position of the shadow replicator after the first message")
+                .isEqualTo(firstPosition));
+        for (int i = 1; i < 5; i++) {
+            producer.send("" + i);
+        }
+        long lastPublishedAt = System.currentTimeMillis();
+        Position lastPosition = ml.getLastConfirmedEntry();
+        Awaitility.await().until(() -> System.currentTimeMillis() - lastPublishedAt > TimeUnit.SECONDS.toMillis(1));
+
+        admin.topics().skipAllMessages(sourceTopicName, subscriptionName);
+        Awaitility.await().untilAsserted(() ->
+                assertThat(ml.getCursors().getCursorWithOldestPosition().getPosition())
+                        .as("oldest mark-delete position that a durable cursor has persisted")
+                        .isEqualTo(lastPosition));
+        assertThat(shadowCursor.getMarkDeletedPosition())
+                .as("mark-delete position of the shadow replicator before the check").isLessThan(lastPosition);
+
+        sourceTopic.checkMessageExpiry();
+
+        Awaitility.await().untilAsserted(() -> assertThat(shadowCursor.getMarkDeletedPosition())
+                .as("mark-delete position of the shadow replicator after the check").isEqualTo(lastPosition));
     }
 
     private Entry createEntry(long ledgerId, long entryId, String message, long sequenceId) {
