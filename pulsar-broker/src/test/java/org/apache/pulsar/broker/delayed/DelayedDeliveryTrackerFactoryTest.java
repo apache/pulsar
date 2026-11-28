@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.delayed;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.lang.reflect.Field;
 import java.time.Duration;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -651,5 +652,51 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
         assertThat(cleanup).succeedsWithin(5, TimeUnit.SECONDS);
 
         assertThat(cursor.getCursorProperties()).containsEntry(bucketKey, "11");
+    }
+
+    @Test
+    public void testCleanResidualSnapshotsAccountsMalformedBucketIdInFuture() {
+        BucketDelayedDeliveryTrackerFactory factory = new BucketDelayedDeliveryTrackerFactory();
+        BucketSnapshotStorage storage = Mockito.mock(BucketSnapshotStorage.class);
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(storage).deleteBucketSnapshot(Mockito.anyLong());
+        factory.bucketSnapshotStorage = storage;
+
+        String validKey = BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_6_10";
+        String malformedKey = BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_5";
+        // Deterministic order: the valid entry is cleaned before the malformed entry fails the
+        // aggregate future.
+        Map<String, String> properties = new LinkedHashMap<>();
+        properties.put(validKey, "123");
+        properties.put(malformedKey, "not-a-number");
+
+        // MockManagedCursor inherits the interface default of updateCursorProperties, so the
+        // removal goes through the closure and lands in the observable put/remove below.
+        ManagedCursor cursor = new MockManagedCursor("malformed-cleanup-cursor") {
+            @Override
+            public Map<String, String> getCursorProperties() {
+                return new LinkedHashMap<>(properties);
+            }
+
+            @Override
+            public CompletableFuture<Void> putCursorProperty(String key, String value) {
+                properties.put(key, value);
+                return CompletableFuture.completedFuture(null);
+            }
+
+            @Override
+            public CompletableFuture<Void> removeCursorProperty(String key) {
+                properties.remove(key);
+                return CompletableFuture.completedFuture(null);
+            }
+        };
+
+        // The parse must stay inside the sequenced supplier: a malformed id fails the cleanup
+        // future instead of throwing synchronously.
+        CompletableFuture<Void> cleanup = factory.cleanResidualSnapshots(cursor);
+        assertThat(cleanup)
+                .failsWithin(5, TimeUnit.SECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(NumberFormatException.class);
+        assertThat(properties).containsKey(malformedKey).doesNotContainKey(validKey);
     }
 }
