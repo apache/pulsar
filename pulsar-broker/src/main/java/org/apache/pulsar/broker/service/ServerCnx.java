@@ -239,6 +239,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     private final String listenerName;
     private final Map<Long, Long> recentlyClosedProducers;
     private final ConcurrentLongHashMap<CompletableFuture<Producer>> producers;
+    /** Producers under creation (including WaitForExclusive while not yet completed on this connection). */
+    private final ConcurrentLongHashMap<Producer> producersUnderCreation;
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     // Confined to the channel event loop. A consumer notification can itself trigger a write.
     private boolean notifyingConsumersWritable;
@@ -390,6 +392,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 .expectedItems(8)
                 .concurrencyLevel(1)
                 .build();
+        this.producersUnderCreation = ConcurrentLongHashMap.<Producer>newBuilder()
+                .expectedItems(8)
+                .concurrencyLevel(1)
+                .build();
         this.consumers = ConcurrentLongHashMap.<CompletableFuture<Consumer>>newBuilder()
                 .expectedItems(8)
                 .concurrencyLevel(1)
@@ -476,10 +482,14 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         // Connection is gone, close the producers immediately
-        producers.forEach((__, producerFuture) -> {
+        producers.forEach((producerId, producerFuture) -> {
             // prevent race conditions in completing producers
             if (!producerFuture.isDone()
                     && producerFuture.completeExceptionally(new IllegalStateException("Connection closed."))) {
+                Producer pending = producersUnderCreation.remove(producerId);
+                if (pending != null) {
+                    pending.closeNow(true);
+                }
                 return;
             }
             if (producerFuture.isDone() && !producerFuture.isCompletedExceptionally()) {
@@ -2695,6 +2705,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .attr("producerId", producerId)
                         .log("client doesn't support topic migration handling");
             }
+            producer.closeNow(true);
+            if (!producerFuture.isDone()) {
+                producerFuture.completeExceptionally(ex);
+            }
+            producers.remove(producerId, producerFuture);
             closeProducer(producer);
         } else {
             if (clusterURL.isPresent()) {
@@ -3061,6 +3076,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
                 userProvidedProducerName, producerAccessMode, topicEpoch, supportsPartialProducer,
                 isAutoProduceBytes, requiresSchemaVersion);
+        producersUnderCreation.put(producerId, producer);
+        producerFuture.whenComplete((__, ___) -> producersUnderCreation.remove(producerId, producer));
 
         topic.addProducer(producer, producerQueuedFuture).thenAcceptAsync(newTopicEpoch -> {
             if (isActive()) {
@@ -5029,6 +5046,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
+    /**
+     * Fires {@code producerCreated} when the broker producer is ready to publish (including WaitForExclusive
+     * after promotion). At most once per {@link Producer} ({@code markBrokerInterceptorCreateLifecycleInvoked}).
+     */
     private void scheduleProducerCreatedInterceptor(Producer producer, Map<String, String> metadata) {
         if (brokerInterceptor == null || !producer.markBrokerInterceptorCreateLifecycleInvoked()) {
             return;
