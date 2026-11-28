@@ -120,6 +120,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     protected volatile boolean havePendingRead = false;
     protected volatile boolean havePendingReplayRead = false;
+    // The bound on how long replay priority may postpone the normal read, 0 when disabled.
+    private volatile long maxReplayPriorityDurationNanos;
+    // Whether the normal read is currently being postponed by replays, and since when (System.nanoTime
+    // scale). Written on the dispatch thread.
+    private volatile boolean normalReadStarved = false;
+    private volatile long normalReadStarvedSinceNanos;
     protected volatile Position minReplayedPosition = null;
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
@@ -193,6 +199,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 ? new InMemoryRedeliveryTracker()
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         this.readBatchSize = serviceConfig.getDispatcherMaxReadBatchSize();
+        this.maxReplayPriorityDurationNanos =
+                TimeUnit.MILLISECONDS.toNanos(serviceConfig.getDispatcherMaxReplayPriorityDurationInMillis());
         this.initializeDispatchRateLimiterIfNeeded();
         this.assignor = new SharedConsumerAssignor(this::getNextConsumer, this::addEntryToReplay, subscription);
         ServiceConfiguration serviceConfiguration = topic.getBrokerService().pulsar().getConfiguration();
@@ -426,6 +434,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         // Count executed passes, not conflated requests, for pending-read rescheduling.
         readMoreEntriesCallCount++;
 
+        if (normalReadStarved && redeliveryMessages.isEmpty()
+                && !delayedDeliveryTracker.map(DelayedDeliveryTracker::hasMessageAvailable).orElse(false)) {
+            // Nothing left to replay, before the permit check below can skip the round: the
+            // postponement by replays has ended, and the next storm gets the full bound.
+            normalReadStarved = false;
+        }
+
         // totalAvailablePermits may be updated by other threads
         int firstAvailableConsumerPermits = getFirstAvailableConsumerPermits();
         int currentTotalAvailablePermits = Math.max(totalAvailablePermits, firstAvailableConsumerPermits);
@@ -441,46 +456,42 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
             Set<Position> messagesToReplayNow =
                     canReplayMessages() ? getMessagesToReplayNow(messagesToRead, bytesToRead) : Collections.emptySet();
-            if (!messagesToReplayNow.isEmpty()) {
+            // The replays a yield gives up, to run instead when a normal-read guard then refuses.
+            Set<Position> yieldedReplays = Collections.emptySet();
+            if (!messagesToReplayNow.isEmpty() && shouldYieldToNormalRead()) {
+                // Replays have postponed the normal read for longer than the configured bound while
+                // entries are waiting: this round reads from the cursor instead (the branch below), and
+                // the replays that are due now stay queued for the next rounds.
                 log.debug()
                         .attr("messagesToReplay", messagesToReplayNow.size())
-                        .attr("consumerCount", consumerList.size())
-                        .log("Schedule replay of messages for consumers");
-                havePendingReplayRead = true;
-                Set<? extends Position> deletedMessages;
-                boolean readStarted = false;
-                try {
-                    updateMinReplayedPosition();
-                    onReadStarted(ReadType.Replay);
-                    readStarted = true;
-                    deletedMessages = topic.isDelayedDeliveryEnabled()
-                            ? asyncReplayEntriesInOrder(messagesToReplayNow)
-                            : asyncReplayEntries(messagesToReplayNow);
-                } catch (Throwable failure) {
-                    // Nothing else would ever clear the flag after this failure (issue #26454).
-                    handleReadSchedulingFailure(failure, ReadType.Replay, readStarted);
-                    return;
-                }
-                // clear already acked positions from replay bucket
-                deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
-                        position.getEntryId()));
-                if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
-                    // The completion of an empty replay goes through the backoff path, because no entry
-                    // was processed; the next read is scheduled here instead, without a delay
-                    readMoreEntriesAsync();
-                }
+                        .log("Yield to the normal read postponed by replays");
+                yieldedReplays = messagesToReplayNow;
+                messagesToReplayNow = Collections.emptySet();
+            } else if (messagesToReplayNow.isEmpty()) {
+                // A round without replays ends the postponement by replays, whether or not the
+                // normal read can be scheduled now: the next storm gets the full bound again.
+                normalReadStarved = false;
+            }
+            if (!messagesToReplayNow.isEmpty()) {
+                scheduleReplayRead(messagesToReplayNow);
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
-                log.debug()
-                        .attr("totalUnackedMessages", totalUnackedMessages)
-                        .attr("maxUnackedMessagesOnSubscription", topic.getMaxUnackedMessagesOnSubscription())
-                        .log("Dispatcher read is blocked due to unackMessages reached to max");
+                if (!scheduleYieldedReplays(yieldedReplays)) {
+                    log.debug()
+                            .attr("totalUnackedMessages", totalUnackedMessages)
+                            .attr("maxUnackedMessagesOnSubscription", topic.getMaxUnackedMessagesOnSubscription())
+                            .log("Dispatcher read is blocked due to unackMessages reached to max");
+                }
             } else if (doesntHavePendingRead()) {
                 if (!isNormalReadAllowed()) {
-                    handleNormalReadNotAllowed();
+                    if (!scheduleYieldedReplays(yieldedReplays)) {
+                        handleNormalReadNotAllowed();
+                    }
                     return;
                 }
                 if (shouldPauseOnAckStatePersist(ReadType.Normal)) {
-                    log.debug("Skipping read due to blocked on ack state persistent");
+                    if (!scheduleYieldedReplays(yieldedReplays)) {
+                        log.debug("Skipping read due to blocked on ack state persistent");
+                    }
                     return;
                 }
                 log.debug()
@@ -488,6 +499,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .attr("consumersCount", consumerList.size())
                         .log("Schedule read of messages");
                 havePendingRead = true;
+                normalReadStarved = false;
                 boolean readStarted = false;
                 try {
                     updateMinReplayedPosition();
@@ -501,12 +513,55 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     // Nothing else would ever clear the flag after this failure (issue #26454).
                     handleReadSchedulingFailure(failure, ReadType.Normal, readStarted);
                 }
-            } else {
+            } else if (!scheduleYieldedReplays(yieldedReplays)) {
                 log.debug("Cannot schedule next read until previous one is done");
             }
         } else {
             log.debug("Consumer buffer is full, pause reading");
         }
+    }
+
+    private void scheduleReplayRead(Set<Position> messagesToReplayNow) {
+        log.debug()
+                .attr("messagesToReplay", messagesToReplayNow.size())
+                .attr("consumerCount", consumerList.size())
+                .log("Schedule replay of messages for consumers");
+        markNormalReadStarved();
+        havePendingReplayRead = true;
+        Set<? extends Position> deletedMessages;
+        boolean readStarted = false;
+        try {
+            updateMinReplayedPosition();
+            onReadStarted(ReadType.Replay);
+            readStarted = true;
+            deletedMessages = topic.isDelayedDeliveryEnabled()
+                    ? asyncReplayEntriesInOrder(messagesToReplayNow)
+                    : asyncReplayEntries(messagesToReplayNow);
+        } catch (Throwable failure) {
+            // Nothing else would ever clear the flag after this failure (issue #26454).
+            handleReadSchedulingFailure(failure, ReadType.Replay, readStarted);
+            return;
+        }
+        // clear already acked positions from replay bucket
+        deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
+                position.getEntryId()));
+        if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
+            // The completion of an empty replay goes through the backoff path, because no entry
+            // was processed; the next read is scheduled here instead, without a delay
+            readMoreEntriesAsync();
+        }
+    }
+
+    /**
+     * Runs the replays a yield gave up when a normal-read guard refused after the yield decision,
+     * so the round still reads; false when there were none.
+     */
+    private boolean scheduleYieldedReplays(Set<Position> yieldedReplays) {
+        if (yieldedReplays.isEmpty()) {
+            return false;
+        }
+        scheduleReplayRead(yieldedReplays);
+        return true;
     }
 
     /**
@@ -589,6 +644,63 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
      */
     protected boolean canReplayMessages() {
         return true;
+    }
+
+    /** The current time of the postponement bound; overridable so tests control it. */
+    protected long currentTimeNanos() {
+        return System.nanoTime();
+    }
+
+    /** Overrides the bound for tests that enable it on a dispatcher created from the default config. */
+    @VisibleForTesting
+    void setMaxReplayPriorityDurationInMillisForTesting(int maxReplayPriorityDurationInMillis) {
+        this.maxReplayPriorityDurationNanos = TimeUnit.MILLISECONDS.toNanos(maxReplayPriorityDurationInMillis);
+    }
+
+    /**
+     * Whether replays have postponed the normal read for longer than
+     * {@code dispatcherMaxReplayPriorityDurationInMillis} while readable entries are waiting. The
+     * postponement is only counted while a normal read would deliver entries: a read issued
+     * without any would only park a waiting read.
+     */
+    private boolean shouldYieldToNormalRead() {
+        if (maxReplayPriorityDurationNanos == 0 || !normalReadStarved) {
+            return false;
+        }
+        if (!hasReadableEntries()) {
+            // The postponement ended at the tail: the next entry starts a fresh clock.
+            normalReadStarved = false;
+            return false;
+        }
+        // Yield only to a normal read that will really be scheduled. Otherwise the replays must
+        // keep running: for Key_Shared they are what brings the look-ahead queue back under its
+        // limit, and a pending normal read lets replays run alongside it.
+        if (!canScheduleNormalReadNow()) {
+            return false;
+        }
+        return currentTimeNanos() - normalReadStarvedSinceNanos >= maxReplayPriorityDurationNanos;
+    }
+
+    private boolean canScheduleNormalReadNow() {
+        return BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) != TRUE
+                && doesntHavePendingRead()
+                && isNormalReadAllowed()
+                && !shouldPauseOnAckStatePersist(ReadType.Normal);
+    }
+
+    private boolean hasReadableEntries() {
+        // hasMoreEntries() ignores the transaction max read position, which can hold the entries
+        // behind the cursor back from a normal read.
+        return cursor.hasMoreEntries() && cursor.getReadPosition().compareTo(topic.getMaxReadPosition()) <= 0;
+    }
+
+    /** Starts the clock of the normal read's postponement, on the first replay round that postpones it. */
+    private void markNormalReadStarved() {
+        if (maxReplayPriorityDurationNanos == 0 || normalReadStarved || !hasReadableEntries()) {
+            return;
+        }
+        normalReadStarved = true;
+        normalReadStarvedSinceNanos = currentTimeNanos();
     }
 
     private void updateMinReplayedPosition() {

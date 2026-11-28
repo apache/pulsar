@@ -1674,6 +1674,18 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean dispatcherDispatchMessagesInSubscriptionThread = false;
 
     @FieldContext(
+            category = CATEGORY_SERVER,
+            minValue = 0,
+            doc = "The maximum duration, in milliseconds, for which replay reads (redeliveries and due delayed"
+                    + " messages) retain priority over normal reads. When this duration elapses while entries are"
+                    + " waiting to be read, the dispatcher yields one scheduling round to a normal read and restarts"
+                    + " the timer. Replays stay queued and get priority again afterwards, so a redelivery storm"
+                    + " cannot starve fresh entries. 0 (default) disables the bound and preserves strict replay"
+                    + " priority. Set a positive value, for example 100, where a redelivery storm can starve fresh"
+                    + " entries.")
+    private int dispatcherMaxReplayPriorityDurationInMillis = 0;
+
+    @FieldContext(
         dynamic = false,
         category = CATEGORY_SERVER,
         doc = "Whether the broker should count filtered entries in dispatch rate limit calculations. When disabled, "
