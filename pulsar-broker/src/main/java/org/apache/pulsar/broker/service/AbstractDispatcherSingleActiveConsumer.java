@@ -68,6 +68,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     protected final ManagedCursor cursor;
     // This dispatcher supports both the Exclusive and Failover subscription types
     protected final SubType subscriptionType;
+    private final boolean useSubscriptionOrder;
 
     protected static final int FALSE = 0;
     protected static final int TRUE = 1;
@@ -96,6 +97,8 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         this.consumers = new CopyOnWriteArrayList<>();
         this.partitionIndex = partitionIndex;
         this.subscriptionType = subscriptionType;
+        this.useSubscriptionOrder = subscriptionType == SubType.Failover && partitionIndex < 0
+                && serviceConfig.isNonPartitionedTopicFailoverUseSubscriptionOrder();
         this.cursor = cursor;
     }
 
@@ -117,16 +120,31 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     /**
-     * Pick active consumer for a topic for {@link SubType#Failover} subscription.
-     * If it's a non-partitioned topic then it'll pick consumer based on order they subscribe to the topic.
-     * If is's a partitioned topic, first sort consumers based on their priority level and consumer name then
-     * distributed partitions evenly across consumers with highest priority level.
+     * Select the active consumer and schedule a read when it changes.
+     * For {@link SubType#Failover} on a non-partitioned topic, consistent hashing selects among the
+     * highest-priority consumers by default. When subscription order is enabled, the connected consumer
+     * that joined the subscription first is active, regardless of priority.
+     * On partitioned topics, each partition selects among the highest-priority consumers using its index
+     * or the configured consistent-hashing assignment.
      *
-     * @return the true consumer if the consumer is changed, otherwise false.
-     * @apiNote this method is not thread safe
+     * @return true if the active consumer changed
+     * @apiNote callers must hold the dispatcher monitor
      */
     protected boolean pickAndScheduleActiveConsumer() {
         checkArgument(!consumers.isEmpty());
+        Consumer selectedConsumer = selectActiveConsumer();
+        if (selectedConsumer == activeConsumer) {
+            return false;
+        }
+        updateActiveConsumer(selectedConsumer);
+        scheduleReadOnActiveConsumer();
+        return true;
+    }
+
+    private Consumer selectActiveConsumer() {
+        if (useSubscriptionOrder) {
+            return consumers.getFirst();
+        }
         AtomicBoolean hasPriorityConsumer = new AtomicBoolean(false);
         consumers.sort((c1, c2) -> {
             int priority = c1.getPriorityLevel() - c2.getPriorityLevel();
@@ -158,17 +176,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             index = pickConsumerIndexWithBalancedHashing(consumersSize);
         }
 
-        Consumer selectedConsumer = consumers.get(index);
-
-        if (selectedConsumer == activeConsumer) {
-            // Active consumer did not change. Do nothing at this point
-            return false;
-        } else {
-            // If the active consumer is changed, send notification.
-            updateActiveConsumer(selectedConsumer);
-            scheduleReadOnActiveConsumer();
-            return true;
-        }
+        return consumers.get(index);
     }
 
     private void updateActiveConsumer(Consumer consumer) {

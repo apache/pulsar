@@ -20,6 +20,12 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -56,6 +62,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
@@ -70,14 +77,17 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -88,6 +98,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
     private final long ackTimeOutMillis = TimeUnit.SECONDS.toMillis(2);
     private int ttlDurationDefaultInSeconds;
     private boolean activeConsumerFailoverConsistentHashing;
+    private boolean subscriptionOrderEnabledBeforeTest;
 
     @Override
     protected boolean checkClientHandlesClosed() {
@@ -98,13 +109,14 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
     public void saveConfiguration() {
         ttlDurationDefaultInSeconds = getConfig().getTtlDurationDefaultInSeconds();
         activeConsumerFailoverConsistentHashing = getConfig().isActiveConsumerFailoverConsistentHashing();
+        subscriptionOrderEnabledBeforeTest = getConfig().isNonPartitionedTopicFailoverUseSubscriptionOrder();
     }
 
     @AfterMethod(alwaysRun = true)
     public void restoreConfiguration() {
-        // two tests change these: the shared broker reads the TTL when a topic loads, the hashing on each dispatch
         getConfig().setTtlDurationDefaultInSeconds(ttlDurationDefaultInSeconds);
         getConfig().setActiveConsumerFailoverConsistentHashing(activeConsumerFailoverConsistentHashing);
+        getConfig().setNonPartitionedTopicFailoverUseSubscriptionOrder(subscriptionOrderEnabledBeforeTest);
     }
 
     // Verify subscribe topics from different namespace should return error.
@@ -1279,6 +1291,117 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
         });
     }
 
+    @DataProvider
+    public Object[][] nonPartitionedTopicDomains() {
+        return new Object[][] {{TopicDomain.persistent}, {TopicDomain.non_persistent}};
+    }
+
+    @Test(dataProvider = "nonPartitionedTopicDomains", timeOut = testTimeout)
+    public void testNonPartitionedFailoverUsesSubscriptionOrder(TopicDomain topicDomain) throws Exception {
+        getConfig().setNonPartitionedTopicFailoverUseSubscriptionOrder(true);
+        String topicName = topicDomain + "://" + getNamespace() + "/subscription-order";
+        String subscriptionName = "sub";
+        admin.topics().createNonPartitionedTopic(topicName);
+        ConsumerEventListener consumerEventListener = mock(ConsumerEventListener.class);
+        ConsumerBuilder<byte[]> failoverConsumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).subscriptionType(SubscriptionType.Failover)
+                .consumerEventListener(consumerEventListener);
+
+        @Cleanup Consumer<byte[]> initialActiveConsumer = failoverConsumerBuilder.clone()
+                .consumerName("A").priorityLevel(0).subscribe();
+        verify(consumerEventListener, timeout(10000).atLeastOnce()).becameActive(initialActiveConsumer, -1);
+        @Cleanup Consumer<byte[]> firstStandbyConsumer = failoverConsumerBuilder.clone()
+                .consumerName("Z").priorityLevel(1).subscribe();
+        verify(consumerEventListener, timeout(10000).atLeastOnce()).becameInactive(firstStandbyConsumer, -1);
+        @Cleanup Consumer<byte[]> secondStandbyConsumer = failoverConsumerBuilder.clone()
+                .consumerName("B").priorityLevel(1).subscribe();
+        verify(consumerEventListener, timeout(10000).atLeastOnce()).becameInactive(secondStandbyConsumer, -1);
+
+        initialActiveConsumer.close();
+        verify(consumerEventListener, timeout(10000).atLeastOnce()).becameActive(firstStandbyConsumer, -1);
+        @Cleanup Consumer<byte[]> reconnectedConsumer = failoverConsumerBuilder.clone()
+                .consumerName("A").priorityLevel(0).subscribe();
+        verify(consumerEventListener, timeout(10000).atLeastOnce()).becameInactive(reconnectedConsumer, -1);
+
+        @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.send(new byte[1]);
+        assertThat(firstStandbyConsumer.receive(10, TimeUnit.SECONDS))
+                .as("Z should receive the message sent after A reconnects").isNotNull();
+        verify(consumerEventListener, never()).becameActive(reconnectedConsumer, -1);
+
+        firstStandbyConsumer.close();
+        verify(consumerEventListener, timeout(10000).atLeastOnce()).becameActive(secondStandbyConsumer, -1);
+    }
+
+    @Test(dataProvider = "nonPartitionedTopicDomains", timeOut = testTimeout)
+    public void testStandbyTakesOverWhenOriginalConnectionCloses(TopicDomain topicDomain) throws Exception {
+        getConfig().setNonPartitionedTopicFailoverUseSubscriptionOrder(true);
+        String topicName = topicDomain + "://" + getNamespace() + "/overlapping-connections";
+        admin.topics().createNonPartitionedTopic(topicName);
+        ConsumerEventListener listener = mock(ConsumerEventListener.class);
+
+        // Each client's first consumer gets the same ID, as when A reconnects before its old connection is removed.
+        @Cleanup PulsarClient originalClient = newPulsarClient();
+        @Cleanup PulsarClient reconnectedClient = newPulsarClient();
+        @Cleanup Consumer<byte[]> originalConsumer = originalClient.newConsumer().topic(topicName)
+                .subscriptionName("sub").subscriptionType(SubscriptionType.Failover)
+                .consumerName("A").consumerEventListener(listener).subscribe();
+        verify(listener, timeout(10000).atLeastOnce()).becameActive(same(originalConsumer), eq(-1));
+        // Non-persistent topics drop messages until the broker receives the first FLOW.
+        Awaitility.await().until(() -> admin.topics().getStats(topicName).getSubscriptions().get("sub")
+                .getConsumers().stream().anyMatch(consumer -> consumer.getAvailablePermits() > 0));
+
+        @Cleanup Consumer<byte[]> standbyConsumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("sub").subscriptionType(SubscriptionType.Failover)
+                .consumerName("Z").consumerEventListener(listener).subscribe();
+        @Cleanup Consumer<byte[]> reconnectedConsumer = reconnectedClient.newConsumer().topic(topicName)
+                .subscriptionName("sub").subscriptionType(SubscriptionType.Failover)
+                .consumerName("A").consumerEventListener(listener).subscribe();
+        assertThat(((ConsumerImpl<?>) reconnectedConsumer).consumerId)
+                .as("A reuses its consumer ID on a different connection")
+                .isEqualTo(((ConsumerImpl<?>) originalConsumer).consumerId);
+        verify(listener, timeout(10000).atLeastOnce()).becameInactive(same(reconnectedConsumer), eq(-1));
+
+        @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.send(new byte[1]);
+        assertThat(originalConsumer.receive(10, TimeUnit.SECONDS)).as("The original A still receives messages")
+                .isNotNull();
+
+        originalClient.close();
+        verify(listener, timeout(10000).atLeastOnce()).becameActive(same(standbyConsumer), eq(-1));
+        // The first inactive notification is from subscribing, the second from the handoff to Z.
+        verify(listener, timeout(10000).atLeast(2)).becameInactive(same(reconnectedConsumer), eq(-1));
+        verify(listener, never()).becameActive(same(reconnectedConsumer), eq(-1));
+        standbyConsumer.close();
+        verify(listener, timeout(10000).atLeastOnce()).becameActive(same(reconnectedConsumer), eq(-1));
+    }
+
+    @Test(timeOut = testTimeout)
+    public void testSeekReplaysToStandbyWithSubscriptionOrder() throws Exception {
+        getConfig().setNonPartitionedTopicFailoverUseSubscriptionOrder(true);
+        admin.namespaces().setRetention(getNamespace(), new RetentionPolicies(10, 10));
+        String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        ConsumerBuilder<byte[]> failoverConsumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("sub").subscriptionType(SubscriptionType.Failover)
+                .isAckReceiptEnabled(true).acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS);
+        @Cleanup Consumer<byte[]> activeConsumer = failoverConsumerBuilder.clone()
+                .consumerName("A").priorityLevel(0).subscribe();
+        @Cleanup Consumer<byte[]> standbyConsumer = failoverConsumerBuilder.clone()
+                .consumerName("Z").priorityLevel(1).subscribe();
+        @Cleanup Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
+
+        MessageId messageId = producer.send(new byte[1]);
+        assertThat(activeConsumer.receive(10, TimeUnit.SECONDS)).as("A receives the original message")
+                .isNotNull().extracting(Message::getMessageId).isEqualTo(messageId);
+        activeConsumer.acknowledge(messageId);
+
+        activeConsumer.seek(MessageId.earliest);
+
+        assertThat(standbyConsumer.receive(10, TimeUnit.SECONDS)).as("Z receives the replay after A seeks")
+                .isNotNull().extracting(Message::getMessageId).isEqualTo(messageId);
+    }
+
     @Test
     public void testTopicsDistribution() throws Exception {
         final String topic = getNamespace() + "/topics-distribution";
@@ -1314,6 +1437,8 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
     @Test
     public void testPartitionedTopicDistribution() throws Exception {
         getConfig().setActiveConsumerFailoverConsistentHashing(true);
+        // Subscription order applies only to non-partitioned topics. Partition 0 of each topic still uses hashing.
+        getConfig().setNonPartitionedTopicFailoverUseSubscriptionOrder(true);
         final String topic = getNamespace() + "/partitioned-topics-distribution";
         final int topicCount = 100;
         final int consumers = 10;

@@ -934,11 +934,27 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int activeConsumerFailoverDelayTimeMillis = 1000;
     @FieldContext(
             category = CATEGORY_POLICIES,
-            doc = "Enable consistent hashing for selecting the active consumer in partitioned "
-                    + "topics with Failover subscription type."
-                    + "For non-partitioned topics, consistent hashing is used by default."
+            doc = "On partitioned topics, Failover selects among the highest-priority consumers."
+                    + " By default (false), sort them by name and use the partition index modulo their count."
+                    + " When true, use consistent hashing to balance partitions and limit reassignment as consumers"
+                    + " join or leave. For non-partitioned topics, see nonPartitionedTopicFailoverUseSubscriptionOrder."
     )
     private boolean activeConsumerFailoverConsistentHashing = false;
+    @FieldContext(
+            category = CATEGORY_POLICIES,
+            doc = "Select the active consumer for each non-partitioned Failover subscription on this broker."
+                    + " By default (false), consistent hashing of the topic name spreads topics across the"
+                    + " highest-priority consumers."
+                    + " When true, consumers take over in subscription order regardless of priority."
+                    + " Reconnecting consumers join last."
+                    + " A multi-topic or regex consumer that joins each topic first can receive traffic"
+                    + " for all of them."
+                    + " On persistent topics, a seek or cursor reset can move replay to the next standby."
+                    + " If the active connection is lost silently, takeover waits until the broker detects"
+                    + " the disconnect."
+                    + " For partitioned topics, see activeConsumerFailoverConsistentHashing."
+    )
+    private boolean nonPartitionedTopicFailoverUseSubscriptionOrder = false;
     @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "Maximum time to spend while scanning a subscription to calculate the accurate backlog"
