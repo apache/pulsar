@@ -21,9 +21,13 @@ package org.apache.pulsar.client.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.same;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -45,6 +49,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
@@ -872,6 +878,51 @@ public class ClientCnxTest {
     }
 
     @Test
+    public void testDisconnectBeforeFastLookupRegistration() throws Exception {
+        ClientCnx cnx = spy(newLookupClientCnx(mock(EventLoopGroup.class)));
+        EmbeddedChannel channel = newLookupChannel(cnx);
+        ChannelHandlerContext writes = useLookupExecutor(cnx, channel.eventLoop());
+        CountDownLatch beforeRegistration = new CountDownLatch(1);
+        CountDownLatch allowRegistration = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            beforeRegistration.countDown();
+            assertThat(allowRegistration.await(10, TimeUnit.SECONDS)).as("Disconnect finished before registration")
+                    .isTrue();
+            return invocation.callRealMethod();
+        }).when(cnx).registerPendingLookup(eq(1L), any());
+
+        ExecutorService submitter = Executors.newSingleThreadExecutor(new DefaultThreadFactory("lookup-submitter"));
+        ByteBuf request = Unpooled.copyInt(1);
+        try {
+            Future<CompletableFuture<LookupDataResult>> submission = submitter.submit(() -> cnx.newLookup(request, 1));
+            assertThat(beforeRegistration.await(10, TimeUnit.SECONDS)).as("Reached lookup registration").isTrue();
+            assertThat(cnx.getPendingLookupRequestSemaphore().availablePermits()).isZero();
+            assertThat(cnx.getPendingRequests().isEmpty()).isTrue();
+            assertThat(cnx.idleCheck()).as("Lookup reserved a permit before publishing its future").isFalse();
+            channel.close().get(10, TimeUnit.SECONDS);
+            assertThat(request.refCnt()).as("Submitter still owns the unsent buffer").isOne();
+            allowRegistration.countDown();
+
+            assertLookupFailure(submission.get(10, TimeUnit.SECONDS), PulsarClientException.ConnectException.class);
+            verify(writes, never()).writeAndFlush(any());
+            assertThat(request.refCnt()).as("Unsent lookup buffer").isZero();
+            assertThat(cnx.getPendingLookupRequestSemaphore().availablePermits()).isOne();
+            assertThat(cnx.idleCheck()).isTrue();
+        } finally {
+            allowRegistration.countDown();
+            submitter.shutdown();
+            try {
+                assertThat(submitter.awaitTermination(10, TimeUnit.SECONDS)).as("Lookup submitter terminated").isTrue();
+            } finally {
+                channel.finishAndReleaseAll();
+                if (request.refCnt() > 0) {
+                    request.release();
+                }
+            }
+        }
+    }
+
+    @Test
     public void testClosingResponseFailsPromotedAndWaitingLookups() {
         EmbeddedChannel channel = newLookupChannel();
         ClientCnx cnx = channel.pipeline().get(ClientCnx.class);
@@ -994,7 +1045,10 @@ public class ClientCnxTest {
     }
 
     private static EmbeddedChannel newLookupChannel() {
-        ClientCnx cnx = newLookupClientCnx(mock(EventLoopGroup.class));
+        return newLookupChannel(newLookupClientCnx(mock(EventLoopGroup.class)));
+    }
+
+    private static EmbeddedChannel newLookupChannel(ClientCnx cnx) {
         EmbeddedChannel channel = new EmbeddedChannel(cnx);
         ByteBuf connect = channel.readOutbound();
         connect.release();

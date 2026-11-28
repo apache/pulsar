@@ -160,10 +160,10 @@ public class ClientCnx extends PulsarHandler {
     // getTopics, getLastMessageId). This set tracks which requestIds belong to lookup requests,
     // so that removePendingRequest can release the lookup semaphore correctly.
     private final Set<Long> pendingLookupRequestIds = ConcurrentHashMap.newKeySet();
-    // Under lookupLock a submission either gets an active permit or joins the FIFO, and a completion
-    // either passes its permit to the FIFO head or returns it. Disconnect detaches the FIFO and closes admission.
+    // Serializes waiting-queue admission, permit handoff, and queue detachment on disconnect.
     private final Object lookupLock = new Object();
-    private Queue<WaitingLookup> waitingLookupRequests = new ArrayDeque<>(1);
+    // A null reference closes admission for all callers. The live queue's contents are guarded by lookupLock.
+    private volatile Queue<WaitingLookup> waitingLookupRequests = new ArrayDeque<>(1);
 
     @VisibleForTesting
     final ConcurrentLongHashMap<ProducerImpl<?>> producers =
@@ -230,6 +230,7 @@ public class ClientCnx extends PulsarHandler {
     @VisibleForTesting
     @Getter(AccessLevel.PACKAGE)
     private final Semaphore pendingLookupRequestSemaphore;
+    private final int maxConcurrentLookupRequests;
     private final int maxWaitingLookupRequests;
 
     private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER =
@@ -361,8 +362,9 @@ public class ClientCnx extends PulsarHandler {
                      int protocolVersion) {
         super(conf.getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         checkArgument(conf.getMaxLookupRequest() > conf.getConcurrentLookupRequest());
-        this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), false);
-        this.maxWaitingLookupRequests = conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest();
+        this.maxConcurrentLookupRequests = conf.getConcurrentLookupRequest();
+        this.pendingLookupRequestSemaphore = new Semaphore(maxConcurrentLookupRequests, false);
+        this.maxWaitingLookupRequests = conf.getMaxLookupRequest() - maxConcurrentLookupRequests;
         this.authDriver = resolveAuthDriver(conf);
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
@@ -1177,8 +1179,8 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
-    // Called under lookupLock so disconnect can find every admitted or promoted request.
-    private void registerPendingLookup(long requestId, TimedCompletableFuture<LookupDataResult> future) {
+    @VisibleForTesting
+    void registerPendingLookup(long requestId, TimedCompletableFuture<LookupDataResult> future) {
         pendingLookupRequestIds.add(requestId);
         pendingRequests.put(requestId, future);
     }
@@ -1410,16 +1412,29 @@ public class ClientCnx extends PulsarHandler {
     public CompletableFuture<LookupDataResult> newLookup(ByteBuf request, long requestId) {
         TimedCompletableFuture<LookupDataResult> future = new TimedCompletableFuture<>();
 
-        boolean closed;
-        boolean send;
-        synchronized (lookupLock) {
-            closed = waitingLookupRequests == null;
-            send = !closed && pendingLookupRequestSemaphore.tryAcquire();
-            if (send) {
-                registerPendingLookup(requestId, future);
-            } else if (!closed && waitingLookupRequests.size() < maxWaitingLookupRequests) {
-                waitingLookupRequests.add(new WaitingLookup(requestId, request, future));
+        boolean closed = waitingLookupRequests == null;
+        boolean send = !closed && pendingLookupRequestSemaphore.tryAcquire();
+        if (send) {
+            registerPendingLookup(requestId, future);
+            // Disconnect may have scanned pendingRequests between acquiring the permit and registering the lookup.
+            if (waitingLookupRequests == null) {
+                ReferenceCountUtil.release(request);
+                if (removePendingRequest(requestId, future)) {
+                    future.completeExceptionally(new ConnectException("Disconnected from server at " + remoteAddress));
+                }
                 return future;
+            }
+        } else if (!closed) {
+            synchronized (lookupLock) {
+                closed = waitingLookupRequests == null;
+                // The last active lookup may have returned its permit before we acquired lookupLock.
+                send = !closed && pendingLookupRequestSemaphore.tryAcquire();
+                if (send) {
+                    registerPendingLookup(requestId, future);
+                } else if (!closed && waitingLookupRequests.size() < maxWaitingLookupRequests) {
+                    waitingLookupRequests.add(new WaitingLookup(requestId, request, future));
+                    return future;
+                }
             }
         }
 
@@ -2225,7 +2240,10 @@ public class ClientCnx extends PulsarHandler {
      */
     public boolean idleCheck() {
         synchronized (lookupLock) {
-            if (!pendingRequests.isEmpty() || (waitingLookupRequests != null && !waitingLookupRequests.isEmpty())) {
+            // A caller can hold an active permit before its pending entry is visible.
+            if (pendingLookupRequestSemaphore.availablePermits() < maxConcurrentLookupRequests
+                    || !pendingRequests.isEmpty()
+                    || (waitingLookupRequests != null && !waitingLookupRequests.isEmpty())) {
                 return false;
             }
         }
