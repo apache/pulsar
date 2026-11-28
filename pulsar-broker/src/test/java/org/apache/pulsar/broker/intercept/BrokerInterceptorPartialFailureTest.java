@@ -25,9 +25,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -35,10 +37,14 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeGroups;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
+
+    private static final String CREATE_FAILURE = "create-failure";
+    private static final String CLOSE_FAILURE = "close-failure";
 
     private CounterBrokerInterceptor counterBrokerInterceptor;
 
@@ -62,8 +68,8 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
                 CounterBrokerInterceptor.NAME,
                 new BrokerInterceptorWithClassLoader(counterBrokerInterceptor, narClassLoader));
         interceptors.put(
-                "failing-on-create",
-                new BrokerInterceptorWithClassLoader(new FailingConsumerCreateInterceptor(), narClassLoader));
+                "selective-failure",
+                new BrokerInterceptorWithClassLoader(new SelectiveFailingInterceptor(), narClassLoader));
         pulsarTestContextBuilder.brokerInterceptor(new BrokerInterceptors(interceptors));
     }
 
@@ -73,10 +79,34 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    @Test
+    @BeforeGroups(CREATE_FAILURE)
+    public void configureCreateFailure() {
+        SelectiveFailingInterceptor.failCreate.set(true);
+        SelectiveFailingInterceptor.failClose.set(false);
+        counterBrokerInterceptor.reset();
+    }
+
+    @BeforeGroups(CLOSE_FAILURE)
+    public void configureCloseFailure() {
+        SelectiveFailingInterceptor.failCreate.set(false);
+        SelectiveFailingInterceptor.failClose.set(true);
+        counterBrokerInterceptor.reset();
+    }
+
+    @Test(groups = CREATE_FAILURE)
+    public void testProducerClosedWhenPeerFailsOnCreate() throws PulsarClientException {
+        String topic = "persistent://public/default/partial-failure-producer-" + UUID.randomUUID();
+        @Cleanup
+        Producer<Boolean> producer = pulsarClient.newProducer(Schema.BOOL).topic(topic).create();
+        Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+        producer.close();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .until(() -> counterBrokerInterceptor.getProducerCount() == 0);
+    }
+
+    @Test(groups = CREATE_FAILURE)
     public void testConsumerClosedWhenPeerFailsOnCreate() throws PulsarClientException {
         String topic = "persistent://public/default/partial-failure-" + UUID.randomUUID();
-        counterBrokerInterceptor.reset();
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -88,13 +118,73 @@ public class BrokerInterceptorPartialFailureTest extends ProducerConsumerBase {
                 .until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
     }
 
-    private static final class FailingConsumerCreateInterceptor implements BrokerInterceptor {
+    @Test(groups = CLOSE_FAILURE)
+    public void testProducerClosedWhenPeerFailsOnClose() throws PulsarClientException {
+        String topic = "persistent://public/default/partial-close-failure-producer-" + UUID.randomUUID();
+        @Cleanup
+        Producer<Boolean> producer = pulsarClient.newProducer(Schema.BOOL).topic(topic).create();
+        Awaitility.await().until(() -> counterBrokerInterceptor.getProducerCount() == 1);
+        producer.close();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .until(() -> counterBrokerInterceptor.getProducerCount() == 0);
+    }
+
+    @Test(groups = CLOSE_FAILURE)
+    public void testConsumerClosedWhenPeerFailsOnClose() throws PulsarClientException {
+        String topic = "persistent://public/default/partial-close-failure-" + UUID.randomUUID();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+        Awaitility.await().until(() -> counterBrokerInterceptor.getConsumerCount() == 1);
+        consumer.close();
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .until(() -> counterBrokerInterceptor.getConsumerCount() == 0);
+    }
+
+    /**
+     * Second interceptor in the chain; behavior toggled per {@link BeforeGroups} for create vs close failure cases.
+     */
+    static final class SelectiveFailingInterceptor implements BrokerInterceptor {
+
+        static final AtomicBoolean failCreate = new AtomicBoolean(true);
+        static final AtomicBoolean failClose = new AtomicBoolean(false);
+
+        @Override
+        public void producerCreated(org.apache.pulsar.broker.service.ServerCnx cnx,
+                                    org.apache.pulsar.broker.service.Producer producer,
+                                    Map<String, String> metadata) {
+            if (failCreate.get()) {
+                throw new RuntimeException("fail producer create");
+            }
+        }
+
+        @Override
+        public void producerClosed(org.apache.pulsar.broker.service.ServerCnx cnx,
+                                   org.apache.pulsar.broker.service.Producer producer,
+                                   Map<String, String> metadata) {
+            if (failClose.get()) {
+                throw new RuntimeException("fail producer close");
+            }
+        }
 
         @Override
         public void consumerCreated(org.apache.pulsar.broker.service.ServerCnx cnx,
                                     org.apache.pulsar.broker.service.Consumer consumer,
                                     Map<String, String> metadata) {
-            throw new RuntimeException("fail create");
+            if (failCreate.get()) {
+                throw new RuntimeException("fail consumer create");
+            }
+        }
+
+        @Override
+        public void consumerClosed(org.apache.pulsar.broker.service.ServerCnx cnx,
+                                   org.apache.pulsar.broker.service.Consumer consumer,
+                                   Map<String, String> metadata) {
+            if (failClose.get()) {
+                throw new RuntimeException("fail consumer close");
+            }
         }
 
         @Override
