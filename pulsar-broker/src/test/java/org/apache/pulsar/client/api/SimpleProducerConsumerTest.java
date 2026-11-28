@@ -3891,40 +3891,57 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info().attr("method", methodName).log("Exiting test");
     }
 
-    // Issue 1452: https://github.com/apache/pulsar/issues/1452
-    // reachedEndOfTopic should be called only once if a topic has been terminated before subscription
-    @SuppressWarnings("rawtypes")
-    @Test(timeOut = 100000)
-    public void testReachedEndOfTopic() throws Exception {
-        String topicName = "persistent://my-property/my-ns/testReachedEndOfTopic";
-        Producer producer = pulsarClient.newProducer()
-            .topic(topicName)
-            .enableBatching(false).create();
-        producer.close();
+    @DataProvider
+    public Object[][] terminalSubscriptionTypes() {
+        return new Object[][] {
+                {SubscriptionType.Exclusive},
+                {SubscriptionType.Failover},
+                {SubscriptionType.Shared},
+                {SubscriptionType.Key_Shared}
+        };
+    }
 
+    // Issue 1452: https://github.com/apache/pulsar/issues/1452
+    // Each subscription to an already terminated topic should receive only one end-of-topic notification.
+    @Test(timeOut = 30000, dataProvider = "terminalSubscriptionTypes")
+    public void testReachedEndOfTopic(SubscriptionType subscriptionType) throws Exception {
+        String topicName = "persistent://my-property/my-ns/testReachedEndOfTopic-" + subscriptionType;
+        admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().terminateTopicAsync(topicName).get();
 
-        CountDownLatch latch = new CountDownLatch(2);
-        @SuppressWarnings("unchecked") Consumer consumer = pulsarClient.newConsumer()
-            .topic(topicName)
-            .subscriptionName("my-subscriber-name")
-            .messageListener(new MessageListener() {
-                @Override
-                public void reachedEndOfTopic(Consumer consumer) {
-                    log.info().attr("reachedEndOfTopic", methodName).log("called reachedEndOfTopic");
-                    latch.countDown();
-                }
+        int originalBackoff = conf.getDispatcherReadFailureBackoffInitialTimeInMs();
+        conf.setDispatcherReadFailureBackoffInitialTimeInMs(100);
+        try {
+            AtomicInteger notifications = new AtomicInteger();
+            ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer().topic(topicName)
+                    .subscriptionName("my-subscriber-name")
+                    .subscriptionType(subscriptionType)
+                    .messageListener(new MessageListener<>() {
+                        @Override
+                        public void reachedEndOfTopic(Consumer<byte[]> consumer) {
+                            notifications.incrementAndGet();
+                        }
 
-                @Override
-                public void received(Consumer consumer, Message message) {
-                    // do nothing
+                        @Override
+                        public void received(Consumer<byte[]> consumer, Message<byte[]> message) {
+                            // The topic is empty.
+                        }
+                    });
+            // Closing and subscribing again must still notify the new consumer.
+            for (int expected = 1; expected <= 2; expected++) {
+                int expectedNotifications = expected;
+                try (Consumer<byte[]> consumer = builder.subscribe()) {
+                    Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                            .untilAsserted(() -> assertThat(notifications).hasValue(expectedNotifications));
+                    assertThat(consumer.hasReachedEndOfTopic()).isTrue();
+                    // Observe well past the configured retry delay, including its jitter.
+                    Awaitility.await().during(1, TimeUnit.SECONDS).atMost(2, TimeUnit.SECONDS)
+                            .untilAsserted(() -> assertThat(notifications).hasValue(expectedNotifications));
                 }
-            })
-            .subscribe();
-
-        assertFalse(latch.await(1, TimeUnit.SECONDS));
-        assertEquals(latch.getCount(), 1);
-        consumer.close();
+            }
+        } finally {
+            conf.setDispatcherReadFailureBackoffInitialTimeInMs(originalBackoff);
+        }
     }
 
     /**
